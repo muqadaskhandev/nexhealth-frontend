@@ -59,11 +59,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Bootstrap: which SSO buttons to show + any existing session.
   useEffect(() => {
     let alive = true;
-    authApi.providers().then((p) => alive && setProviders(p)).catch(() => {});
-    authApi
-      .me()
-      .then((s) => alive && applySession(s))
-      .catch(() => alive && clearSession());
+
+    const params = new URLSearchParams(window.location.search);
+    const forceLogout = params.get("logout") === "1";
+
+    async function bootstrap() {
+      if (forceLogout) {
+        window.history.replaceState({}, "", window.location.pathname);
+        try {
+          await authApi.logout();
+        } catch {
+          /* cookies may already be invalid */
+        }
+        if (alive) clearSession();
+        authApi.providers().then((p) => alive && setProviders(p)).catch(() => {});
+        return;
+      }
+
+      authApi.providers().then((p) => alive && setProviders(p)).catch(() => {});
+      try {
+        const session = await authApi.me();
+        if (alive) applySession(session);
+      } catch {
+        // Clear stale httpOnly cookies so the login screen is shown cleanly.
+        try {
+          await authApi.logout();
+        } catch {
+          /* ignore */
+        }
+        if (alive) clearSession();
+      }
+    }
+
+    bootstrap();
     return () => {
       alive = false;
     };

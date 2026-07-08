@@ -9,6 +9,8 @@ import {
   Smartphone, WifiOff, Wifi, LogOut,
 } from "lucide-react";
 import { useAuth } from "./auth/AuthContext";
+import { ResetPasswordPage } from "./auth/ResetPasswordPage";
+import { SettingsSection } from "./settings/SettingsSection";
 import { authApi, ssoLoginUrl, type ApiLocation } from "./lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1464,7 +1466,7 @@ function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () => void; 
 
   return (
     <>
-    <div className="p-6 max-w-5xl">
+    <div className="w-full min-w-0 px-6 py-5">
       {/* Back + heading */}
       <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors mb-2">
         <ArrowLeft size={14} /> Forms
@@ -1946,7 +1948,7 @@ function FormsListView({ onManage }: { onManage: () => void }) {
 
   return (
     <>
-    <div className="p-6 max-w-6xl">
+    <div className="w-full min-w-0 px-6 py-5 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-bold text-gray-900">Forms</h1>
@@ -2110,7 +2112,7 @@ function GlobalSearch() {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative flex-1 max-w-md">
+    <div ref={containerRef} className="relative flex-1 max-w-xl">
       <div className={`flex items-center gap-2 px-3 py-2 bg-white rounded-full border transition-all ${open ? "border-gray-300 shadow-md" : "border-gray-200 hover:border-gray-300"}`}>
         <Search size={14} className="text-gray-400 flex-shrink-0" />
         <input ref={inputRef} value={query} onChange={e => { setQuery(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder="Search patients" className="flex-1 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent" />
@@ -2220,14 +2222,14 @@ function Sidebar({ activeNav, setActiveNav }: { activeNav: string; setActiveNav:
   const toggle = (id: string) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
   return (
-    <aside className="w-52 flex-shrink-0 bg-white border-r border-border flex flex-col h-full">
+    <aside className="w-56 flex-shrink-0 bg-white border-r border-border flex flex-col h-full">
       <div className="h-14 flex items-center px-4 border-b border-border">
         <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center mr-2.5 flex-shrink-0">
           <span className="text-white text-sm font-bold" style={{ fontFamily: "serif" }}>n</span>
         </div>
         <span className="font-semibold text-sm text-foreground tracking-tight">nexhealth</span>
       </div>
-      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {NAV_ITEMS.map(item => {
           const hasChildren = !!item.children;
           const isExpanded = expanded[item.id];
@@ -2236,7 +2238,7 @@ function Sidebar({ activeNav, setActiveNav }: { activeNav: string; setActiveNav:
             <div key={item.id}>
               <button
                 onClick={() => { if (hasChildren) toggle(item.id); else setActiveNav(item.id); }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${isActive ? "bg-teal-500 text-white font-medium" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${isActive ? "bg-gray-900 text-white font-medium shadow-sm" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
               >
                 <span className="flex items-center gap-2.5">
                   <span className={isActive ? "text-white" : "text-gray-400"}>{item.icon}</span>
@@ -2298,18 +2300,25 @@ function UserMenu() {
   );
 }
 
-function TopBar() {
+function TopBar({ onOpenSettings }: { onOpenSettings: () => void }) {
   return (
-    <header className="h-14 bg-white border-b border-border flex items-center px-4 gap-3 flex-shrink-0">
-      <button className="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0"><Menu size={18} /></button>
-      <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0">
+    <header className="h-14 bg-white border-b border-border flex items-center px-4 gap-4 flex-shrink-0">
+      <button className="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0 lg:hidden"><Menu size={18} /></button>
+      <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0 hidden sm:flex">
         <span className="text-white text-xs font-bold" style={{ fontFamily: "serif" }}>n</span>
       </div>
       <GlobalSearch />
-      <div className="flex-1" />
+      <div className="flex-1 hidden lg:block" />
       <LocationPicker />
       <div className="h-5 w-px bg-gray-200 flex-shrink-0" />
-      <button className="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors"><Settings size={18} /></button>
+      <button
+        type="button"
+        onClick={onOpenSettings}
+        className="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+        aria-label="Settings"
+      >
+        <Settings size={18} />
+      </button>
       <UserMenu />
     </header>
   );
@@ -2319,21 +2328,19 @@ function TopBar() {
 
 function StatCards() {
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {STAT_CARDS.map(card => (
-        <div key={card.id} className="bg-card rounded-lg border border-border overflow-hidden" style={{ borderTop: `3px solid ${card.color}` }}>
-          <div className="p-4">
-            <div className="flex items-start justify-between mb-1">
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-foreground">{card.value}</span>
-                  <span className="text-sm font-medium text-gray-700">{card.label}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{card.period}</p>
+        <div key={card.id} className="bg-card rounded-lg border border-border overflow-hidden shadow-sm" style={{ borderTop: `3px solid ${card.color}` }}>
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-3xl font-bold text-foreground leading-none">{card.value}</p>
+                <p className="text-sm font-semibold text-gray-800 mt-2 leading-snug">{card.label}</p>
+                <p className="text-xs text-muted-foreground mt-1">{card.period}</p>
               </div>
-              <div className="p-2 rounded-lg flex-shrink-0" style={{ backgroundColor: card.bg, color: card.color }}>{card.icon}</div>
+              <div className="p-2.5 rounded-lg flex-shrink-0" style={{ backgroundColor: card.bg, color: card.color }}>{card.icon}</div>
             </div>
-            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">{card.description}</p>
+            <p className="text-xs text-muted-foreground mt-4 pt-3 border-t border-border leading-relaxed">{card.description}</p>
           </div>
         </div>
       ))}
@@ -2364,32 +2371,41 @@ function AppointmentsTable({ appointments, patients, onStatusChange, onOpenPanel
   };
 
   return (
-    <div className="bg-card rounded-lg border border-border overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-1">
+    <div className="bg-card rounded-lg border border-border overflow-hidden shadow-sm w-full">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-4 py-3 border-b border-border bg-white">
+        <div className="flex items-center gap-1 flex-wrap">
           {(["all", "confirmed", "unconfirmed"] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === tab ? "bg-primary text-primary-foreground" : "text-gray-500 hover:bg-gray-100"}`}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === tab ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)} <span className={`ml-0.5 ${activeTab === tab ? "opacity-80" : "opacity-60"}`}>({counts[tab]})</span>
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-md text-sm text-gray-400 bg-white">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-md text-sm text-gray-400 bg-white min-w-[180px]">
             <Search size={13} />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter patients" className="outline-none bg-transparent text-gray-700 placeholder:text-gray-400 w-36" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter patients" className="outline-none bg-transparent text-gray-700 placeholder:text-gray-400 w-full min-w-0" />
           </div>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors font-medium">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors font-medium bg-white">
             <Filter size={13} />Filter by<ChevronDown size={13} />
           </button>
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[960px] text-sm">
           <thead>
-            <tr className="border-b border-border bg-gray-50/50">
-              {["Time", "Status", "Patient", "Contact", "Details", "Insurance", "Forms", ""].map((col, i) => (
-                <th key={i} className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  {col && <span className="flex items-center gap-1">{col}{col !== "" && <ChevronDown size={11} className="opacity-50" />}</span>}
+            <tr className="border-b border-border bg-gray-50/80">
+              {[
+                { label: "Time", className: "text-left px-4 py-2.5" },
+                { label: "Status", className: "text-left px-4 py-2.5" },
+                { label: "Patient", className: "text-left px-4 py-2.5 min-w-[200px]" },
+                { label: "Contact", className: "text-left px-4 py-2.5 min-w-[180px]" },
+                { label: "Details", className: "text-left px-4 py-2.5" },
+                { label: "Insurance", className: "text-center px-2 py-2.5 w-24" },
+                { label: "Forms", className: "text-center px-2 py-2.5 w-24" },
+                { label: "", className: "text-right px-3 py-2.5 w-16" },
+              ].map((col, i) => (
+                <th key={i} className={`text-xs font-semibold text-muted-foreground whitespace-nowrap ${col.className}`}>
+                  {col.label && <span className="inline-flex items-center gap-1">{col.label}{col.label !== "" && <ChevronDown size={11} className="opacity-50" />}</span>}
                 </th>
               ))}
             </tr>
@@ -2427,13 +2443,13 @@ function AppointmentsTable({ appointments, patients, onStatusChange, onOpenPanel
                     <div className="font-medium text-foreground">{appt.details.provider}</div>
                     <div className="text-xs text-muted-foreground">{appt.details.type}</div>
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-2 py-3 text-center">
                     {appt.insurance === "pending" ? <Clock size={16} className="text-gray-400 mx-auto" /> : <CheckCircle2 size={16} className="text-emerald-500 mx-auto" />}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-2 py-3 text-center">
                     {appt.forms === "complete" ? <CheckCircle2 size={16} className="text-emerald-500 mx-auto" /> : <AlertCircle size={16} className="text-amber-400 mx-auto" />}
                   </td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                  <td className="px-3 py-3 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button className="p-1 rounded hover:bg-gray-200 text-gray-400 transition-colors"><Info size={14} /></button>
                       <button className="p-1 rounded hover:bg-gray-200 text-gray-400 transition-colors"><MoreHorizontal size={14} /></button>
@@ -2460,21 +2476,21 @@ function HomeDashboard({ appointments, patients, onStatusChange, onOpenPanel }: 
   const displayDate = dateOffset === 0 ? "Today" : dateOffset === 1 ? "Tomorrow" : dateOffset === -1 ? "Yesterday" : dateOffset > 0 ? `+${dateOffset} days` : `${dateOffset} days`;
 
   return (
-    <div className="p-6 space-y-5 max-w-6xl">
+    <div className="w-full min-w-0 px-6 py-5 space-y-5">
       <StatCards />
-      <div className="flex items-center gap-3">
-        <button onClick={() => setDateOffset(d => d - 1)} className="p-1.5 rounded-md border border-border hover:bg-gray-100 text-gray-500 transition-colors"><ChevronLeft size={16} /></button>
-        <button onClick={() => setDateOffset(d => d + 1)} className="p-1.5 rounded-md border border-border hover:bg-gray-100 text-gray-500 transition-colors"><ChevronRight size={16} /></button>
-        <h2 className="text-lg font-semibold text-foreground">{displayDate}</h2>
+      <div className="flex items-center gap-2">
+        <button onClick={() => setDateOffset(d => d - 1)} className="p-1.5 rounded-md border border-border bg-white hover:bg-gray-50 text-gray-500 transition-colors"><ChevronLeft size={16} /></button>
+        <button onClick={() => setDateOffset(d => d + 1)} className="p-1.5 rounded-md border border-border bg-white hover:bg-gray-50 text-gray-500 transition-colors"><ChevronRight size={16} /></button>
+        <h2 className="text-xl font-semibold text-foreground">{displayDate}</h2>
       </div>
-      <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-blue-200 bg-blue-50 text-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3.5 rounded-lg border border-blue-200 border-l-4 border-l-sky-500 bg-blue-50 text-sm shadow-sm">
         <div className="w-8 h-8 rounded-full bg-orange-400 flex items-center justify-center flex-shrink-0">
           <span className="text-white text-xs font-bold">!</span>
         </div>
-        <p className="text-gray-700 flex-1">
+        <p className="text-gray-700 flex-1 leading-relaxed">
           You have <span className="font-semibold text-blue-700">6 open slots</span> in the next 5 days. Fill open slots in minutes by sending a waitlist request.
         </p>
-        <button className="flex items-center gap-1 text-sm font-semibold text-teal-600 hover:text-teal-700 transition-colors whitespace-nowrap">
+        <button className="flex items-center gap-1 text-sm font-semibold text-teal-600 hover:text-teal-700 transition-colors whitespace-nowrap self-start sm:self-auto">
           Fill open slots <ArrowRight size={14} />
         </button>
       </div>
@@ -2573,7 +2589,7 @@ function PatientsListView({ patients, onOpenPanel, onCreateOpen, onViewArchived 
   const filtered = active.filter(p => !search || `${p.firstName} ${p.lastName}`.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="p-6 space-y-5 max-w-4xl">
+    <div className="w-full min-w-0 px-6 py-5 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
         <div className="flex items-center gap-3">
@@ -2627,7 +2643,7 @@ function ArchivedPatientsView({ patients, onOpenPanel, onBack, onUnarchive }: {
 }) {
   const archived = patients.filter(p => p.archived);
   return (
-    <div className="p-6 space-y-5 max-w-4xl">
+    <div className="w-full min-w-0 px-6 py-5 space-y-5">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">
           <ArrowLeft size={15} />Back to patients
@@ -2997,6 +3013,10 @@ export default function App() {
   const [patients, setPatients] = useState<Patient[]>(INITIAL_PATIENTS);
   const [panelPatient, setPanelPatient] = useState<Patient | null>(null);
 
+  const isResetPassword =
+    window.location.pathname === "/reset-password" ||
+    window.location.pathname.endsWith("/reset-password");
+
   function handleStatusChange(id: string, status: AppointmentStatus) {
     setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
   }
@@ -3010,6 +3030,10 @@ export default function App() {
   const currentPanelPatient = panelPatient
     ? patients.find(p => p.id === panelPatient.id) ?? panelPatient
     : null;
+
+  if (isResetPassword) {
+    return <ResetPasswordPage />;
+  }
 
   if (status === "loading") {
     return (
@@ -3026,11 +3050,14 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
-      <TopBar />
+      <TopBar onOpenSettings={() => setActiveNav("settings")} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} />
-        <main className="flex-1 overflow-y-auto">
-          {activeNav === "patients"     ? <PatientsSection patients={patients} setPatients={setPatients} onOpenPanel={setPanelPatient} />
+        {activeNav !== "settings" && (
+          <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} />
+        )}
+        <main className="flex-1 min-w-0 overflow-y-auto bg-background">
+          {activeNav === "settings"    ? <SettingsSection onBack={() => setActiveNav("home")} />
+          : activeNav === "patients"     ? <PatientsSection patients={patients} setPatients={setPatients} onOpenPanel={setPanelPatient} />
           : activeNav === "forms"       ? <FormsSection />
           : activeNav === "payments"    ? <PlaceholderView title="Payments" />
           : activeNav === "verification"? <PlaceholderView title="Verification" />

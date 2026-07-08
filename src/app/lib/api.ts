@@ -101,8 +101,48 @@ export const authApi = {
   logout: () => api.post<{ message: string }>("/api/auth/logout"),
   forgotPassword: (email: string) =>
     api.post<{ message: string }>("/api/auth/forgot-password", { email }),
+  changePassword: (current_password: string, new_password: string) =>
+    api.post<{ message: string }>("/api/auth/change-password", {
+      current_password,
+      new_password,
+    }),
+  resetPassword: (token: string, new_password: string) =>
+    request<{ message: string }>(
+      "POST",
+      "/api/auth/reset-password",
+      { token, new_password },
+      { retry: false }
+    ),
   switchLocation: (locationId: string) =>
     api.post<ApiLocation>("/api/locations/switch", { location_id: locationId }),
+};
+
+export type UserDetail = ApiUser & { locations: ApiLocation[] };
+
+export type UserCreatePayload = {
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: "admin" | "member";
+  password?: string;
+  location_ids: string[];
+};
+
+export type UserUpdatePayload = {
+  first_name?: string;
+  last_name?: string;
+  role?: "admin" | "member";
+  is_active?: boolean;
+  location_ids?: string[];
+};
+
+export const usersApi = {
+  list: () => api.get<UserDetail[]>("/api/users"),
+  create: (body: UserCreatePayload) => api.post<UserDetail>("/api/users", body),
+  update: (id: string, body: UserUpdatePayload) =>
+    api.patch<UserDetail>(`/api/users/${id}`, body),
+  sendReset: (id: string) =>
+    api.post<{ message: string }>(`/api/users/${id}/send-reset`),
 };
 
 // The SSO login endpoints are full-page navigations (not fetch), so the browser
