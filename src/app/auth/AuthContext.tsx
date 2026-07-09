@@ -9,6 +9,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 import {
   ApiLocation,
@@ -35,7 +36,7 @@ const AuthContext = createContext<AuthState | null>(null);
 
 const NO_PROVIDERS: Providers = { google: false, azure: false, okta: false };
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>("loading");
   const [user, setUser] = useState<ApiUser | null>(null);
   const [locations, setLocations] = useState<ApiLocation[]>([]);

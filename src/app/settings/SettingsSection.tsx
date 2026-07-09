@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode, type FormEvent } from "react";
 import {
   ArrowLeft,
   Eye,
@@ -31,7 +31,7 @@ function SettingsNav({
   setTab: (t: SettingsTab) => void;
   isAdmin: boolean;
 }) {
-  const items: { id: SettingsTab; label: string; icon: React.ReactNode; admin?: boolean }[] = [
+  const items: { id: SettingsTab; label: string; icon: ReactNode; admin?: boolean }[] = [
     { id: "account", label: "Account", icon: <User size={16} /> },
     { id: "users", label: "Users", icon: <Users size={16} />, admin: true },
     { id: "locations", label: "Locations", icon: <MapPin size={16} /> },
@@ -69,7 +69,7 @@ function AccountSettings({ onPasswordChanged }: { onPasswordChanged: () => void 
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setNotice(null);
@@ -244,7 +244,7 @@ function UserFormModal({
     });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { authApi } from "../lib/api";
 
@@ -13,7 +13,7 @@ export function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     if (!token) {
