@@ -110,11 +110,13 @@ export type Session = {
 
 export type Providers = { google: boolean; azure: boolean; okta: boolean };
 
+export type LoginResponse = ApiUser | { totp_required: boolean; tx: string };
+
 export const authApi = {
   me: () => api.get<Session>("/api/auth/me"),
   providers: () => api.get<Providers>("/api/auth/providers"),
-  login: (email: string, password: string, totp_code?: string) =>
-    api.post<ApiUser>("/api/auth/login", { email, password, totp_code }),
+  login: (email: string, password: string) =>
+    api.post<LoginResponse>("/api/auth/login", { email, password }),
   logout: () => api.post<{ message: string }>("/api/auth/logout"),
   forgotPassword: (email: string) =>
     api.post<{ message: string }>("/api/auth/forgot-password", { email }),
@@ -134,6 +136,14 @@ export const authApi = {
     api.post<{ secret: string; provisioning_uri: string }>("/api/auth/totp/setup"),
   totpEnable: (code: string) =>
     api.post<{ message: string }>("/api/auth/totp/enable", { code }),
+  totpDisable: (code: string) =>
+    api.post<{ message: string }>("/api/auth/totp/disable", { code }),
+  totpVerify: (code: string, tx: string) =>
+    request<{ message: string }>(
+      "POST",
+      `/api/auth/totp/verify?tx=${encodeURIComponent(tx)}`,
+      { code }
+    ),
   switchLocation: (locationId: string) =>
     api.post<ApiLocation>("/api/locations/switch", { location_id: locationId }),
 };
@@ -171,6 +181,15 @@ export const usersApi = {
 export function ssoLoginUrl(provider: "google" | "azure" | "okta"): string {
   return `/api/auth/sso/${provider}/login`;
 }
+
+export const ssoApi = {
+  totpVerify: (code: string, tx: string) =>
+    request<{ message: string }>(
+      "POST",
+      `/api/auth/sso/totp/verify?tx=${encodeURIComponent(tx)}`,
+      { code }
+    ),
+};
 
 // ── Platform (Super Admin) ───────────────────────────────────────────────────
 export type SubscriptionPlan = "starter" | "professional" | "enterprise";

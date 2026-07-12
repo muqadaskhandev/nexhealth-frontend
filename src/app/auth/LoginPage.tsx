@@ -33,8 +33,6 @@ export function LoginPage() {
   const [slide, setSlide] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [totpCode, setTotpCode] = useState("");
-  const [needsTotp, setNeedsTotp] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -59,14 +57,9 @@ export function LoginPage() {
     setNotice(null);
     setSubmitting(true);
     try {
-      await login(email.trim(), password, needsTotp ? totpCode : undefined);
+      await login(email.trim(), password);
     } catch (err: any) {
-      if (err?.status === 403 && err?.detail?.includes("Two-factor")) {
-        setNeedsTotp(true);
-        setError(null);
-      } else {
-        setError(err?.detail || "Unable to log in. Please try again.");
-      }
+      setError(err?.detail || "Unable to log in. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -169,24 +162,6 @@ export function LoginPage() {
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all"
               />
             </div>
-
-            {!forgotMode && needsTotp && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                  Authentication code
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  required
-                  value={totpCode}
-                  onChange={e => setTotpCode(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all"
-                  placeholder="6-digit code from authenticator"
-                />
-              </div>
-            )}
 
             {/* Password (hidden in forgot mode) */}
             {!forgotMode && (

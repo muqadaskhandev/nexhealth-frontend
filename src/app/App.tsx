@@ -3,6 +3,8 @@ import { useAuth } from "./auth/AuthContext";
 import { LoginPage } from "./auth/LoginPage";
 import { AcceptInvitePage } from "./auth/AcceptInvitePage";
 import { ResetPasswordPage } from "./auth/ResetPasswordPage";
+import { Totp2faPage } from "./auth/Totp2faPage";
+import { Sso2faPage } from "./auth/Sso2faPage";
 import { PlatformAdminPage } from "./platform/PlatformAdminPage";
 import { SettingsSection } from "./settings/SettingsSection";
 import { TopBar } from "./components/layout/TopBar";
@@ -34,6 +36,16 @@ export default function App() {
     window.location.pathname === "/accept-invite" ||
     window.location.pathname.endsWith("/accept-invite");
 
+  const isTotp2fa =
+    window.location.pathname === "/totp-2fa" ||
+    window.location.pathname.endsWith("/totp-2fa");
+
+  const isSso2fa =
+    window.location.pathname === "/sso-2fa" ||
+    window.location.pathname.endsWith("/sso-2fa");
+
+  if (isTotp2fa) return <Totp2faPage />;
+  if (isSso2fa) return <Sso2faPage />;
   if (isAcceptInvite) return <AcceptInvitePage />;
   if (isResetPassword) return <ResetPasswordPage />;
 
@@ -100,14 +112,14 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background">
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
       {staff.error && (
-        <div className="px-4 py-2 bg-red-50 text-sm text-red-700 border-b border-red-100">
-          {staff.error}
+        <div className="flex-shrink-0 w-full px-4 py-2 bg-red-100 border-b-2 border-red-300">
+          <p className="text-sm font-medium text-red-800">{staff.error}</p>
         </div>
       )}
       <TopBar onOpenSettings={() => setActiveNav("settings")} />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0 w-full">
         {activeNav !== "settings" && (
           <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} />
         )}

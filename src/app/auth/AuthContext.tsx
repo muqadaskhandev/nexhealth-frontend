@@ -27,7 +27,7 @@ type AuthState = {
   locations: ApiLocation[];
   activeLocation: ApiLocation | null;
   providers: Providers;
-  login: (email: string, password: string, totpCode?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   switchLocation: (locationId: string) => Promise<void>;
 };
@@ -99,10 +99,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession, clearSession]);
 
   const login = useCallback(
-    async (email: string, password: string, totpCode?: string) => {
-      await authApi.login(email, password, totpCode);
+    async (email: string, password: string) => {
+      const response = await authApi.login(email, password);
+
+      // Check if 2FA is required
+      if ("totp_required" in response && response.totp_required) {
+        window.location.href = `/totp-2fa?tx=${encodeURIComponent(response.tx)}`;
+        return;
+      }
+
       const session = await authApi.me();
       applySession(session);
+      window.location.href = "/";
     },
     [applySession]
   );
