@@ -27,7 +27,7 @@ type AuthState = {
   locations: ApiLocation[];
   activeLocation: ApiLocation | null;
   providers: Providers;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   switchLocation: (locationId: string) => Promise<void>;
 };
@@ -99,8 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession, clearSession]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
-      await authApi.login(email, password);
+    async (email: string, password: string, totpCode?: string) => {
+      await authApi.login(email, password, totpCode);
       const session = await authApi.me();
       applySession(session);
     },

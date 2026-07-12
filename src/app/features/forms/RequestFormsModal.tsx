@@ -2,7 +2,7 @@ import { useState } from "react";
 import { X, Search, Info, Calendar, ChevronLeft, ChevronRight, ChevronDown, Edit, FileText } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
 import { MANAGE_FORMS } from "./forms-data";
-import { INITIAL_PATIENTS } from "../../data/mock-data";
+import type { Patient } from "../../types";
 
 const QUICK_ADD_PACKETS = ["New Patient", "Quick Session", "Returning Patient"];
 
@@ -53,7 +53,13 @@ function MiniCalendar({ value, onChange }: { value: Date; onChange: (d: Date) =>
   );
 }
 
-export function RequestFormsModal({ onClose }: { onClose: () => void }) {
+export function RequestFormsModal({
+  onClose,
+  patients,
+}: {
+  onClose: () => void;
+  patients: Patient[];
+}) {
   const [patientSearch, setPatientSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<string>("");
   const [showPatientDrop, setShowPatientDrop] = useState(false);
@@ -71,7 +77,7 @@ export function RequestFormsModal({ onClose }: { onClose: () => void }) {
   const [smsMsg, setSmsMsg] = useState("");
   const [emailMsg, setEmailMsg] = useState("");
 
-  const patientMatches = INITIAL_PATIENTS.filter(p =>
+  const patientMatches = patients.filter(p =>
     !p.archived && patientSearch.length > 0 &&
     `${p.firstName} ${p.lastName}`.toLowerCase().includes(patientSearch.toLowerCase())
   );

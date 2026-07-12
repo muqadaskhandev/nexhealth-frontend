@@ -8,12 +8,6 @@ export function Sidebar({ activeNav, setActiveNav }: { activeNav: string; setAct
 
   return (
     <aside className="w-56 flex-shrink-0 bg-white border-r border-border flex flex-col h-full">
-      <div className="h-14 flex items-center px-4 border-b border-border">
-        <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center mr-2.5 flex-shrink-0">
-          <span className="text-white text-sm font-bold" style={{ fontFamily: "serif" }}>n</span>
-        </div>
-        <span className="font-semibold text-sm text-foreground tracking-tight">nexhealth</span>
-      </div>
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {NAV_ITEMS.map(item => {
           const hasChildren = !!item.children;

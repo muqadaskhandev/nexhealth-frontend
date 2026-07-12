@@ -1,15 +1,23 @@
 import { Menu, Settings } from "lucide-react";
+import { useAuth } from "../../auth/AuthContext";
+import { BrandLogo } from "../branding/BrandLogo";
+import { usePractice } from "../../hooks/usePractice";
 import { GlobalSearch } from "./GlobalSearch";
 import { LocationPicker } from "./LocationPicker";
 import { UserMenu } from "./UserMenu";
 
 export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const { user } = useAuth();
+  const practice = usePractice(user?.account_type === "practice");
+
   return (
-    <header className="h-14 bg-white border-b border-border flex items-center px-4 gap-4 flex-shrink-0">
+    <header className="h-16 bg-white border-b border-border flex items-center px-4 gap-4 flex-shrink-0">
       <button className="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0 lg:hidden"><Menu size={18} /></button>
-      <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0 hidden sm:flex">
-        <span className="text-white text-xs font-bold" style={{ fontFamily: "serif" }}>n</span>
-      </div>
+      <BrandLogo
+        logoUrl={practice?.logo_url}
+        alt={practice?.name || "NexHealth"}
+        className="w-[180px] h-auto object-contain flex-shrink-0"
+      />
       <GlobalSearch />
       <div className="flex-1 hidden lg:block" />
       <LocationPicker />

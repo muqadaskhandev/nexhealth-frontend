@@ -12,12 +12,14 @@ import { useAuth } from "../auth/AuthContext";
 import {
   ApiLocation,
   authApi,
+  practiceApi,
   UserCreatePayload,
   UserDetail,
   usersApi,
 } from "../lib/api";
+import { PracticeSettingsPanel } from "./PracticeSettingsPanel";
 
-type SettingsTab = "account" | "users" | "locations";
+type SettingsTab = "account" | "practice" | "users" | "locations";
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all bg-white";
@@ -33,6 +35,7 @@ function SettingsNav({
 }) {
   const items: { id: SettingsTab; label: string; icon: ReactNode; admin?: boolean }[] = [
     { id: "account", label: "Account", icon: <User size={16} /> },
+    { id: "practice", label: "Practice", icon: <MapPin size={16} />, admin: true },
     { id: "users", label: "Users", icon: <Users size={16} />, admin: true },
     { id: "locations", label: "Locations", icon: <MapPin size={16} /> },
   ];
@@ -180,6 +183,103 @@ function AccountSettings({ onPasswordChanged }: { onPasswordChanged: () => void 
           {submitting ? "Saving…" : "Update password"}
         </button>
       </form>
+
+      <TotpSettings />
+    </div>
+  );
+}
+
+function TotpSettings() {
+  const { user } = useAuth();
+  const [uri, setUri] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  if (!user || user.account_type !== "practice") return null;
+
+  async function startSetup() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await authApi.totpSetup();
+      setUri(res.provisioning_uri);
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr?.detail || "Could not start 2FA setup.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function enableTotp(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await authApi.totpEnable(code);
+      setNotice("Two-factor authentication is now enabled.");
+      setUri(null);
+      setCode("");
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr?.detail || "Invalid code.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-border p-5 space-y-4">
+      <h3 className="text-sm font-semibold text-gray-900">Two-factor authentication (2FA)</h3>
+      {user.totp_enabled ? (
+        <p className="text-sm text-green-700">2FA is enabled on your account.</p>
+      ) : (
+        <>
+          <p className="text-sm text-gray-500">
+            Required for Practice Admins. Use Google Authenticator or Authy.
+          </p>
+          {error && (
+            <div className="px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>
+          )}
+          {notice && (
+            <div className="px-3 py-2 rounded-lg bg-green-50 text-sm text-green-700">{notice}</div>
+          )}
+          {!uri ? (
+            <button
+              type="button"
+              onClick={startSetup}
+              disabled={loading}
+              className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg disabled:opacity-60"
+            >
+              Set up 2FA
+            </button>
+          ) : (
+            <form onSubmit={enableTotp} className="space-y-3">
+              <p className="text-xs text-gray-500 break-all">
+                Add this to your authenticator app: <code className="text-gray-700">{uri}</code>
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="6-digit code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className={inputCls}
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg"
+              >
+                Enable 2FA
+              </button>
+            </form>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -386,12 +486,97 @@ function UserFormModal({
   );
 }
 
+function InviteStaffModal({
+  onClose,
+  onSent,
+}: {
+  onClose: () => void;
+  onSent: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await practiceApi.inviteStaff({
+        email,
+        first_name: firstName,
+        last_name: lastName,
+      });
+      onSent();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr?.detail || "Could not send invite.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-md space-y-4"
+      >
+        <h3 className="font-semibold text-gray-900">Invite staff member</h3>
+        <p className="text-sm text-gray-500">An email invite will be sent via AWS SES.</p>
+        {error && (
+          <div className="px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>
+        )}
+        <input
+          type="email"
+          required
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className={inputCls}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <input
+            required
+            placeholder="First name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            className={inputCls}
+          />
+          <input
+            required
+            placeholder="Last name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-4 py-2 text-sm font-semibold bg-teal-500 text-white rounded-lg disabled:opacity-60"
+          >
+            Send invite
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
   const [users, setUsers] = useState<UserDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [editing, setEditing] = useState<UserDetail | null>(null);
 
   const load = useCallback(async () => {
@@ -442,12 +627,20 @@ function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
           <h2 className="text-lg font-bold text-gray-900">Users</h2>
           <p className="text-sm text-gray-500 mt-1">Manage practice staff and access.</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-4 py-2 text-sm font-semibold border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-800"
-        >
-          Add user
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowInvite(true)}
+            className="px-4 py-2 text-sm font-semibold bg-teal-500 text-white rounded-lg hover:bg-teal-600"
+          >
+            Invite by email
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="px-4 py-2 text-sm font-semibold border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-800"
+          >
+            Add user
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -513,6 +706,15 @@ function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
         )}
       </div>
 
+      {showInvite && (
+        <InviteStaffModal
+          onClose={() => setShowInvite(false)}
+          onSent={() => {
+            setShowInvite(false);
+            setNotice("Invitation email sent via SES.");
+          }}
+        />
+      )}
       {showCreate && (
         <UserFormModal
           title="Add user"
@@ -597,6 +799,7 @@ export function SettingsSection({ onBack }: { onBack: () => void }) {
         <SettingsNav tab={tab} setTab={setTab} isAdmin={!!isAdmin} />
         <div className="flex-1 overflow-y-auto p-6 bg-background">
           {tab === "account" && <AccountSettings onPasswordChanged={() => logout()} />}
+          {tab === "practice" && isAdmin && <PracticeSettingsPanel />}
           {tab === "users" && isAdmin && <UsersSettings allLocations={locations} />}
           {tab === "locations" && <LocationsSettings />}
         </div>

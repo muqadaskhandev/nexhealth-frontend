@@ -1,16 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, ChevronDown, Info, FileText, MoreHorizontal, RotateCcw, WifiOff } from "lucide-react";
 import { RequestFormsModal } from "./RequestFormsModal";
 import type { FormSyncStatus, FormSubmission } from "../../types";
-
-const FORM_SUBMISSIONS: FormSubmission[] = [
-  { id: "f1", patient: "Tony Stark",        initials: "TS", submitted: "Nov 15, 2024 • 5:01 AM",  device: "Submitted via iPad", expiration: "",            formName: "Patient_Information.pdf",           completedStatus: "Complete", syncStatus: "syncing" },
-  { id: "f2", patient: "Steve Rogers",      initials: "SR", submitted: "Nov 15, 2024 • 3:50 AM",  device: "Submitted via iPad", expiration: "",            formName: "Patient_Information.pdf",           completedStatus: "Complete", syncStatus: "sync-now" },
-  { id: "f3", patient: "Bruce Banner",      initials: "BB", submitted: "Nov 14, 2024 • 4:07 AM",  device: "Submitted via iPad", expiration: "",            formName: "bonding_and_veneers_info_form.pdf", completedStatus: "Complete", syncStatus: "assign-sync" },
-  { id: "f4", patient: "Natasha Romanoff",  initials: "NR", submitted: "Nov 15, 2023 • 9:48 AM",  device: "Submitted via iPad", expiration: "",            formName: "Patient_Information.pdf",           completedStatus: "Complete", syncStatus: "sync-failed" },
-  { id: "f5", patient: "T'Challa Panther",  initials: "TP", submitted: "Oct 25, 2023 • 5:05 PM",  device: "Submitted via iPad", expiration: "",            formName: "Patient_Information.pdf",           completedStatus: "Complete", syncStatus: "date", syncLabel: "Aug 20" },
-  { id: "f6", patient: "Peter Parker",      initials: "PP", submitted: "Oct 24, 2023 • 2:52 AM",  device: "Submitted via iPad", expiration: "",            formName: "Patient_Information.pdf",           completedStatus: "Complete", syncStatus: "assign-sync" },
-];
 
 function SyncBadge({ status, label }: { status: FormSyncStatus; label?: string }) {
   if (status === "syncing")      return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200"><RotateCcw size={11} className="animate-spin" />Syncing</span>;
@@ -21,12 +12,20 @@ function SyncBadge({ status, label }: { status: FormSyncStatus; label?: string }
   return null;
 }
 
-export function FormsListView({ onManage }: { onManage: () => void }) {
+export function FormsListView({
+  onManage,
+  submissions = [],
+  patients = [],
+}: {
+  onManage: () => void;
+  submissions?: FormSubmission[];
+  patients?: import("../../types").Patient[];
+}) {
   const [activeTab, setActiveTab] = useState<"active" | "synced" | "expired" | "all">("active");
   const [search, setSearch] = useState("");
   const [showRequestModal, setShowRequestModal] = useState(false);
 
-  const filtered = FORM_SUBMISSIONS.filter(s =>
+  const filtered = submissions.filter(s =>
     !search || s.patient.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -133,7 +132,9 @@ export function FormsListView({ onManage }: { onManage: () => void }) {
         </table>
       </div>
     </div>
-    {showRequestModal && <RequestFormsModal onClose={() => setShowRequestModal(false)} />}
+    {showRequestModal && (
+      <RequestFormsModal patients={patients} onClose={() => setShowRequestModal(false)} />
+    )}
     </>
   );
 }

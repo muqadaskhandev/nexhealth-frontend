@@ -2,19 +2,43 @@ import { useState } from "react";
 import { X, AlertTriangle, ChevronDown, Lock } from "lucide-react";
 import type { Patient } from "../../types";
 
-export function CreatePatientModal({ onClose, onSave }: { onClose: () => void; onSave: (p: Patient) => void }) {
-  const [form, setForm] = useState({ firstName: "", lastName: "", gender: "", email: "", phone: "", provider: "", dob: "", language: "" });
+export function CreatePatientModal({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void;
+  onSave: (p: Partial<Patient>) => void | Promise<void>;
+}) {
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    gender: "",
+    email: "",
+    phone: "",
+    provider: "",
+    dob: "",
+    language: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSave() {
-    if (!form.firstName.trim() || !form.lastName.trim()) return;
-    onSave({
-      id: `p-${Date.now()}`, firstName: form.firstName, lastName: form.lastName,
-      dob: form.dob || "—", gender: form.gender || "—", email: form.email, phone: form.phone,
-      provider: form.provider || "Nick Riviera", language: form.language || "English",
-      initials: (form.firstName[0] + form.lastName[0]).toUpperCase(), synced: false, archived: false,
-      insuranceData: { status: "unknown", name: "Unknown" },
-    });
-    onClose();
+  async function handleSave() {
+    if (!form.firstName.trim() || !form.lastName.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSave({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        dob: form.dob || "—",
+        gender: form.gender || "—",
+        email: form.email,
+        phone: form.phone,
+        provider: form.provider || "Nick Riviera",
+        language: form.language || "English",
+      });
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const inputCls = "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all bg-white";

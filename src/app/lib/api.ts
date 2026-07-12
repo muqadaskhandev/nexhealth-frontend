@@ -52,7 +52,14 @@ async function request<T>(
     let detail = res.statusText;
     try {
       const data = await res.json();
-      detail = typeof data.detail === "string" ? data.detail : detail;
+      if (typeof data.detail === "string") {
+        detail = data.detail;
+      } else if (Array.isArray(data.detail) && data.detail.length > 0) {
+        detail = data.detail
+          .map((item: { msg?: string }) => item.msg)
+          .filter(Boolean)
+          .join("; ");
+      }
     } catch {
       /* non-JSON error body */
     }
@@ -67,10 +74,17 @@ export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
+  put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
 };
 
 // ── Typed domain calls ───────────────────────────────────────────────────────
-export type ApiLocation = { id: string; name: string; address: string };
+export type ApiLocation = {
+  id: string;
+  name: string;
+  address: string;
+  ehr_site_id?: string | null;
+  ehr_site_name?: string | null;
+};
 
 export type ApiUser = {
   id: string;
@@ -80,9 +94,12 @@ export type ApiUser = {
   full_name: string;
   initials: string;
   role: "admin" | "member";
+  account_type: "super_admin" | "practice";
   auth_provider: "password" | "google" | "azure" | "okta";
   is_active: boolean;
   email_verified: boolean;
+  totp_enabled: boolean;
+  practice_id: string | null;
 };
 
 export type Session = {
@@ -96,8 +113,8 @@ export type Providers = { google: boolean; azure: boolean; okta: boolean };
 export const authApi = {
   me: () => api.get<Session>("/api/auth/me"),
   providers: () => api.get<Providers>("/api/auth/providers"),
-  login: (email: string, password: string) =>
-    api.post<ApiUser>("/api/auth/login", { email, password }),
+  login: (email: string, password: string, totp_code?: string) =>
+    api.post<ApiUser>("/api/auth/login", { email, password, totp_code }),
   logout: () => api.post<{ message: string }>("/api/auth/logout"),
   forgotPassword: (email: string) =>
     api.post<{ message: string }>("/api/auth/forgot-password", { email }),
@@ -113,6 +130,10 @@ export const authApi = {
       { token, new_password },
       { retry: false }
     ),
+  totpSetup: () =>
+    api.post<{ secret: string; provisioning_uri: string }>("/api/auth/totp/setup"),
+  totpEnable: (code: string) =>
+    api.post<{ message: string }>("/api/auth/totp/enable", { code }),
   switchLocation: (locationId: string) =>
     api.post<ApiLocation>("/api/locations/switch", { location_id: locationId }),
 };
@@ -150,3 +171,142 @@ export const usersApi = {
 export function ssoLoginUrl(provider: "google" | "azure" | "okta"): string {
   return `/api/auth/sso/${provider}/login`;
 }
+
+// ── Platform (Super Admin) ───────────────────────────────────────────────────
+export type SubscriptionPlan = "starter" | "professional" | "enterprise";
+export type EhrSystem =
+  | "none"
+  | "open_dental"
+  | "dentrix"
+  | "athena"
+  | "eclinicalworks"
+  | "epic"
+  | "other";
+export type SyncStatus = "not_connected" | "pending" | "connected" | "error";
+export type ConnectionMode = "api" | "on_prem";
+
+export type EnabledProducts = {
+  scheduling: boolean;
+  forms: boolean;
+  communications: boolean;
+  payments: boolean;
+  verification: boolean;
+};
+
+export type Practice = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  phone: string;
+  subscription_plan: SubscriptionPlan;
+  enabled_products: EnabledProducts;
+  ehr_system: EhrSystem;
+  sync_status: SyncStatus;
+  sync_error: string | null;
+  is_active: boolean;
+  locations: ApiLocation[];
+};
+
+export type CredentialField = {
+  key: string;
+  label: string;
+  type: string;
+};
+
+export type EhrConnection = {
+  ehr_system: EhrSystem;
+  connection_mode: ConnectionMode;
+  credentials_configured: boolean;
+  credentials_hint: Record<string, string>;
+  connector_installed: boolean;
+  last_tested_at: string | null;
+  last_sync_at: string | null;
+  sync_status: SyncStatus;
+  sync_error: string | null;
+  required_fields: CredentialField[];
+  locations_mapped: number;
+  locations_total: number;
+};
+
+export type PracticeCreatePayload = {
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  phone?: string;
+  subscription_plan?: SubscriptionPlan;
+  enabled_products?: EnabledProducts;
+  admin_email: string;
+  admin_first_name: string;
+  admin_last_name: string;
+  default_location_name?: string;
+};
+
+export const platformApi = {
+  listPractices: () => api.get<Practice[]>("/api/platform/practices"),
+  createPractice: (body: PracticeCreatePayload) =>
+    api.post<Practice>("/api/platform/practices", body),
+};
+
+export const practiceApi = {
+  me: () => api.get<Practice>("/api/practice/me"),
+  update: (body: Partial<Practice> & { enabled_products?: EnabledProducts }) =>
+    api.patch<Practice>("/api/practice/me", body),
+  connectEhr: (ehr_system: EhrSystem) =>
+    api.post<Practice>("/api/practice/me/ehr", { ehr_system }),
+  ehrConnection: () => api.get<EhrConnection>("/api/practice/me/ehr/connection"),
+  saveEhrCredentials: (body: {
+    connection_mode: ConnectionMode;
+    credentials: Record<string, string>;
+  }) => api.post<EhrConnection>("/api/practice/me/ehr/credentials", body),
+  mapEhrLocations: (body: {
+    mappings: Array<{
+      location_id: string;
+      ehr_site_id: string;
+      ehr_site_name?: string;
+    }>;
+  }) => api.put<Practice>("/api/practice/me/ehr/locations", body),
+  testEhrConnection: () =>
+    api.post<{ ok: boolean; message: string; sync_status: SyncStatus }>(
+      "/api/practice/me/ehr/test"
+    ),
+  runEhrSync: () =>
+    api.post<{
+      ok: boolean;
+      message: string;
+      patients_imported: number;
+      patients_updated: number;
+      sync_status: SyncStatus;
+    }>("/api/practice/me/ehr/sync"),
+  addLocation: (name: string, address: string) =>
+    api.post<ApiLocation>("/api/practice/locations", { name, address }),
+  inviteStaff: (body: {
+    email: string;
+    first_name: string;
+    last_name: string;
+  }) => api.post<{ message: string }>("/api/practice/invite-staff", body),
+};
+
+export const invitesApi = {
+  preview: (token: string) =>
+    api.get<{
+      email: string;
+      first_name: string;
+      last_name: string;
+      practice_name: string;
+      invite_type: string;
+      expires_at: string;
+    }>(`/api/invites/preview?token=${encodeURIComponent(token)}`),
+  accept: (token: string, password: string) =>
+    request<ApiUser>(
+      "POST",
+      "/api/invites/accept",
+      { token, password },
+      { retry: false }
+    ),
+};

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ShieldCheck, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { authApi, ssoLoginUrl } from "../lib/api";
+import { BrandLogo } from "../components/branding/BrandLogo";
 
 const LOGIN_SLIDES = [
   {
@@ -32,8 +33,10 @@ export function LoginPage() {
   const [slide, setSlide] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
+  const [needsTotp, setNeedsTotp] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setSlide(s => (s + 1) % LOGIN_SLIDES.length), 4000);
@@ -56,10 +59,14 @@ export function LoginPage() {
     setNotice(null);
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
-      // On success the AuthProvider flips status → the app renders the shell.
+      await login(email.trim(), password, needsTotp ? totpCode : undefined);
     } catch (err: any) {
-      setError(err?.detail || "Unable to log in. Please try again.");
+      if (err?.status === 403 && err?.detail?.includes("Two-factor")) {
+        setNeedsTotp(true);
+        setError(null);
+      } else {
+        setError(err?.detail || "Unable to log in. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -130,9 +137,7 @@ export function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-full bg-gray-900 flex items-center justify-center mb-4">
-              <span className="text-white text-2xl font-bold" style={{ fontFamily: "serif", letterSpacing: "-0.05em" }}>n</span>
-            </div>
+            <BrandLogo className="w-[180px] h-auto object-contain mb-4" alt="NexHealth" />
             <h2 className="text-xl font-bold text-gray-900">Log in to NexHealth</h2>
           </div>
 
@@ -164,6 +169,24 @@ export function LoginPage() {
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all"
               />
             </div>
+
+            {!forgotMode && needsTotp && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+                  Authentication code
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  required
+                  value={totpCode}
+                  onChange={e => setTotpCode(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all"
+                  placeholder="6-digit code from authenticator"
+                />
+              </div>
+            )}
 
             {/* Password (hidden in forgot mode) */}
             {!forgotMode && (
