@@ -53,6 +53,18 @@ function formatDob(iso: string | null): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+/** Parses a "MM/DD/YYYY" (or already-ISO "YYYY-MM-DD") input into an ISO date string. */
+export function parseDob(input?: string): string | undefined {
+  if (!input) return undefined;
+  const trimmed = input.trim();
+  const mdy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
+  if (mdy) {
+    const [, m, d, y] = mdy;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -125,8 +137,10 @@ export function mapFormSubmission(s: ApiFormSubmission): FormSubmission {
 
 export const staffApi = {
   patients: {
-    list: (q = "", archived = false) =>
-      api.get<ApiPatient[]>(`/api/patients?q=${encodeURIComponent(q)}&archived=${archived}`),
+    list: (q = "", archived = false, allLocations = false) =>
+      api.get<ApiPatient[]>(
+        `/api/patients?q=${encodeURIComponent(q)}&archived=${archived}&all_locations=${allLocations}`
+      ),
     get: (id: string) => api.get<ApiPatient>(`/api/patients/${id}`),
     create: (body: Record<string, unknown>) => api.post<ApiPatient>("/api/patients", body),
     update: (id: string, body: Record<string, unknown>) =>
@@ -139,8 +153,13 @@ export const staffApi = {
       api.post<ApiPatient>("/api/insurance/verify", { patient_id: patientId }),
   },
   appointments: {
-    list: (date?: string) =>
-      api.get<ApiAppointment[]>(`/api/appointments${date ? `?date=${date}` : ""}`),
+    list: (date?: string, patientId?: string) => {
+      const params = new URLSearchParams();
+      if (date) params.set("date", date);
+      if (patientId) params.set("patient_id", patientId);
+      const qs = params.toString();
+      return api.get<ApiAppointment[]>(`/api/appointments${qs ? `?${qs}` : ""}`);
+    },
     update: (id: string, body: Record<string, unknown>) =>
       api.patch<ApiAppointment>(`/api/appointments/${id}`, body),
   },
@@ -152,7 +171,7 @@ export const staffApi = {
       api.post("/api/forms/send", { patient_id: patientId, form_template_id: formTemplateId }),
   },
   messages: {
-    list: () =>
+    list: (patientId?: string) =>
       api.get<
         {
           id: string;
@@ -162,7 +181,7 @@ export const staffApi = {
           sent_at: string;
           patient_name: string;
         }[]
-      >("/api/messages"),
+      >(`/api/messages${patientId ? `?patient_id=${patientId}` : ""}`),
     send: (patientId: string, body: string, channel = "sms") =>
       api.post("/api/messages", { patient_id: patientId, body, channel }),
   },

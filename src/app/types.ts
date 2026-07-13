@@ -22,8 +22,6 @@ export type Appointment = {
 
 // ── Patients ─────────────────────────────────────────────────────────────────────
 
-export type PatientResult = { id: string; name: string; dob: string; phone: string; email: string; initials: string };
-
 export type EligibilityStatus = "active" | "unverified" | "self-pay" | "inactive" | "unknown";
 
 export type InsuranceData = {
@@ -48,7 +46,23 @@ export type Patient = {
   insuranceData?: InsuranceData;
 };
 
-export type HistoryItem = { id: string; amount: string; date: string; time: string };
+export type ActivityType = "appointment" | "message" | "form" | "payment" | "verification" | "note";
+
+export type ActivityItem = {
+  id: string;
+  type: ActivityType;
+  title: string;
+  body: string;
+  createdAt: string;
+};
+
+export type MessageItem = {
+  id: string;
+  body: string;
+  direction: string;
+  channel: string;
+  sentAt: string;
+};
 
 // ── Forms ────────────────────────────────────────────────────────────────────────
 

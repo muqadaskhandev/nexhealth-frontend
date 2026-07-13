@@ -118,7 +118,7 @@ export default function App() {
           <p className="text-sm font-medium text-red-800">{staff.error}</p>
         </div>
       )}
-      <TopBar onOpenSettings={() => setActiveNav("settings")} />
+      <TopBar onOpenSettings={() => setActiveNav("settings")} onSelectPatient={setPanelPatient} />
       <div className="flex flex-1 overflow-hidden min-h-0 w-full">
         {activeNav !== "settings" && (
           <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} />

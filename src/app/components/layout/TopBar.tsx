@@ -5,8 +5,9 @@ import { usePractice } from "../../hooks/usePractice";
 import { GlobalSearch } from "./GlobalSearch";
 import { LocationPicker } from "./LocationPicker";
 import { UserMenu } from "./UserMenu";
+import type { Patient } from "../../types";
 
-export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function TopBar({ onOpenSettings, onSelectPatient }: { onOpenSettings: () => void; onSelectPatient: (patient: Patient) => void }) {
   const { user } = useAuth();
   const practice = usePractice(user?.account_type === "practice");
 
@@ -18,7 +19,7 @@ export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }) {
         alt={practice?.name || "NexHealth"}
         className="w-[180px] h-auto object-contain flex-shrink-0"
       /> */}
-      <GlobalSearch />
+      <GlobalSearch onSelectPatient={onSelectPatient} />
       <div className="flex-1 hidden lg:block" />
       <LocationPicker />
       <div className="h-5 w-px bg-gray-200 flex-shrink-0" />
