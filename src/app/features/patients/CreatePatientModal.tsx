@@ -20,10 +20,12 @@ export function CreatePatientModal({
     language: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     if (!form.firstName.trim() || !form.lastName.trim() || submitting) return;
     setSubmitting(true);
+    setError(null);
     try {
       await onSave({
         firstName: form.firstName,
@@ -36,6 +38,9 @@ export function CreatePatientModal({
         language: form.language || "English",
       });
       onClose();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr?.detail || "Could not create patient — please check the fields and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -55,6 +60,12 @@ export function CreatePatientModal({
           <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-amber-800">This does not create a patient in your health record system</p>
         </div>
+        {error && (
+          <div className="mx-6 mb-4 flex items-start gap-2.5 px-3.5 py-3 bg-red-50 border border-red-200 rounded-lg">
+            <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
         <div className="px-6 pb-6 space-y-3 max-h-[60vh] overflow-y-auto">
           <input className={inputCls} placeholder="First name" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} />
           <input className={inputCls} placeholder="Last name"  value={form.lastName}  onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} />
@@ -95,7 +106,9 @@ export function CreatePatientModal({
           </div>
         </div>
         <div className="flex items-center gap-4 px-6 py-4 border-t border-gray-100">
-          <button onClick={handleSave} className="px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors">Save</button>
+          <button onClick={handleSave} disabled={submitting} className="px-6 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors">
+            {submitting ? "Saving…" : "Save"}
+          </button>
           <button onClick={onClose} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Cancel</button>
         </div>
       </div>

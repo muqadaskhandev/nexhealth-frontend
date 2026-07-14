@@ -307,7 +307,11 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
         />
       )}
       {modal === "notificationPrefs" && (
-        <EditNotificationPreferencesModal onClose={() => setModal(null)} />
+        <EditNotificationPreferencesModal
+          patient={patient}
+          onClose={() => setModal(null)}
+          onSave={(prefs) => onSavePatient({ ...patient, notificationPrefs: prefs })}
+        />
       )}
     </>
   );

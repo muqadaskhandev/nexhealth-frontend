@@ -53,14 +53,30 @@ function formatDob(iso: string | null): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-/** Parses a "MM/DD/YYYY" (or already-ISO "YYYY-MM-DD") input into an ISO date string. */
+function isValidCalendarDate(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const d = new Date(year, month - 1, day);
+  return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+}
+
+/**
+ * Parses a "MM/DD/YYYY" (or already-ISO "YYYY-MM-DD") input into an ISO date string.
+ * Falls back to "DD/MM/YYYY" when the MM/DD reading isn't a valid calendar date
+ * (e.g. "27/08/1994"), since that's a common way for this field to get filled in.
+ */
 export function parseDob(input?: string): string | undefined {
   if (!input) return undefined;
   const trimmed = input.trim();
-  const mdy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
-  if (mdy) {
-    const [, m, d, y] = mdy;
-    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
+  if (slash) {
+    const [, a, b, yearStr] = slash;
+    const year = Number(yearStr);
+    for (const [month, day] of [[Number(a), Number(b)], [Number(b), Number(a)]]) {
+      if (isValidCalendarDate(year, month, day)) {
+        return `${yearStr}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
+    }
+    return undefined;
   }
   return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
 }
@@ -87,6 +103,9 @@ export function mapPatient(p: ApiPatient): Patient {
     synced: p.synced,
     archived: p.archived,
     insuranceData: p.insurance_data as Patient["insuranceData"],
+    notificationPrefs: Object.keys(p.notification_prefs || {}).length
+      ? (p.notification_prefs as Patient["notificationPrefs"])
+      : undefined,
   };
 }
 
@@ -151,6 +170,7 @@ export const staffApi = {
       ),
     verifyInsurance: (patientId: string) =>
       api.post<ApiPatient>("/api/insurance/verify", { patient_id: patientId }),
+    duplicates: () => api.get<ApiPatient[][]>("/api/patients/duplicates"),
   },
   appointments: {
     list: (date?: string, patientId?: string) => {

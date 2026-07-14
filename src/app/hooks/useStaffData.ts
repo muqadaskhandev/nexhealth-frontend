@@ -45,7 +45,7 @@ export function useStaffData(enabled: boolean) {
         provider_name: updated.provider,
         archived: updated.archived,
         insurance_data: updated.insuranceData,
-        notification_prefs: {},
+        notification_prefs: updated.notificationPrefs ?? {},
       };
       const saved = mapPatient(await staffApi.patients.update(updated.id, body));
       setPatients((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));

@@ -38,12 +38,19 @@ export type InsuranceData = {
   npi?: string;
 };
 
+export type NotificationPrefs = {
+  email: boolean;
+  sms: boolean;
+  types: Record<string, { email: boolean; sms: boolean }>;
+};
+
 export type Patient = {
   id: string; firstName: string; lastName: string; dob: string; gender: string;
   email: string; phone: string; provider: string; language: string;
   initials: string; synced: boolean; archived: boolean;
   preferredName?: string; address?: string;
   insuranceData?: InsuranceData;
+  notificationPrefs?: NotificationPrefs;
 };
 
 export type ActivityType = "appointment" | "message" | "form" | "payment" | "verification" | "note";
