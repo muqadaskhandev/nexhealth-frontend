@@ -1,6 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { PatientsListView } from "./PatientsListView";
 import { ArchivedPatientsView } from "./ArchivedPatientsView";
+import { DuplicatePatientsView } from "./DuplicatePatientsView";
 import { CreatePatientModal } from "./CreatePatientModal";
 import type { Patient } from "../../types";
 
@@ -17,14 +18,21 @@ export function PatientsSection({
   onCreatePatient: (p: Partial<Patient>) => Promise<Patient>;
   onSavePatient: (p: Patient) => Promise<Patient>;
 }) {
-  const [view, setView] = useState<"list" | "archived">("list");
+  const [view, setView] = useState<"list" | "archived" | "duplicates">("list");
   const [showCreate, setShowCreate] = useState(false);
 
   return (
     <>
-      {view === "list" ? (
-        <PatientsListView patients={patients} onOpenPanel={onOpenPanel} onCreateOpen={() => setShowCreate(true)} onViewArchived={() => setView("archived")} />
-      ) : (
+      {view === "list" && (
+        <PatientsListView
+          patients={patients}
+          onOpenPanel={onOpenPanel}
+          onCreateOpen={() => setShowCreate(true)}
+          onViewArchived={() => setView("archived")}
+          onViewDuplicates={() => setView("duplicates")}
+        />
+      )}
+      {view === "archived" && (
         <ArchivedPatientsView
           patients={patients}
           onOpenPanel={onOpenPanel}
@@ -35,6 +43,12 @@ export function PatientsSection({
             const saved = await onSavePatient({ ...p, archived: false });
             setPatients((prev) => prev.map((x) => (x.id === id ? saved : x)));
           }}
+        />
+      )}
+      {view === "duplicates" && (
+        <DuplicatePatientsView
+          onOpenPanel={onOpenPanel}
+          onBack={() => setView("list")}
         />
       )}
       {showCreate && (

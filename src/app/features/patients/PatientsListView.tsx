@@ -4,9 +4,9 @@ import { PatientAvatar } from "../../components/shared/PatientAvatar";
 import { SyncTooltip } from "../../components/shared/SyncTooltip";
 import type { Patient } from "../../types";
 
-export function PatientsListView({ patients, onOpenPanel, onCreateOpen, onViewArchived }: {
+export function PatientsListView({ patients, onOpenPanel, onCreateOpen, onViewArchived, onViewDuplicates }: {
   patients: Patient[]; onOpenPanel: (p: Patient) => void;
-  onCreateOpen: () => void; onViewArchived: () => void;
+  onCreateOpen: () => void; onViewArchived: () => void; onViewDuplicates: () => void;
 }) {
   const active = patients.filter(p => !p.archived);
   const [search, setSearch] = useState("");
@@ -17,6 +17,7 @@ export function PatientsListView({ patients, onOpenPanel, onCreateOpen, onViewAr
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
         <div className="flex items-center gap-3">
+          <button onClick={onViewDuplicates} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Review duplicate patients</button>
           <button onClick={onViewArchived} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">View archived patients</button>
           <button onClick={onCreateOpen} className="px-4 py-2 text-sm font-semibold border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors text-gray-800">Create patient</button>
         </div>

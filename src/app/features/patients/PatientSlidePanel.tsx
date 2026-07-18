@@ -1,17 +1,33 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, X, CircleDollarSign } from "lucide-react";
+import { ChevronDown, X, CircleDollarSign, Calendar, MessageSquare, FileText, ShieldCheck, StickyNote } from "lucide-react";
 import { PatientAvatar } from "../../components/shared/PatientAvatar";
 import { SyncTooltip } from "../../components/shared/SyncTooltip";
 import { InsuranceAccordion } from "../insurance/InsuranceAccordion";
 import { EditPatientInfoModal } from "./EditPatientInfoModal";
 import { EditNotificationPreferencesModal } from "./EditNotificationPreferencesModal";
-import type { Patient, HistoryItem } from "../../types";
+import { staffApi, type ApiAppointment } from "../../lib/staff-api";
+import type { Patient, ActivityItem, ActivityType, MessageItem } from "../../types";
 
-const PATIENT_HISTORY: HistoryItem[] = [
-  { id: "h1", amount: "$100.00", date: "Dec 3, 2024",  time: "12:06 PM" },
-  { id: "h2", amount: "$40.00",  date: "Dec 2, 2024",  time: "8:21 PM"  },
-  { id: "h3", amount: "$75.00",  date: "Nov 15, 2024", time: "3:45 PM"  },
-];
+const ACTIVITY_ICON: Record<ActivityType, typeof CircleDollarSign> = {
+  appointment: Calendar,
+  message: MessageSquare,
+  form: FileText,
+  payment: CircleDollarSign,
+  verification: ShieldCheck,
+  note: StickyNote,
+};
+
+const APPT_STATUS_CLASS: Record<string, string> = {
+  "checked-in": "bg-emerald-50 text-emerald-700 border-emerald-200",
+  confirmed: "bg-blue-50 text-blue-700 border-blue-200",
+  unconfirmed: "bg-gray-100 text-gray-600 border-gray-200",
+  cancelled: "bg-red-50 text-red-600 border-red-200",
+};
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
 
 export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
   patient: Patient; onClose: () => void;
@@ -24,6 +40,32 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
   });
   const [modal, setModal] = useState<"editInfo" | "notificationPrefs" | null>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
+
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    staffApi.patients.activity(patient.id).then((rows) => {
+      if (cancelled) return;
+      setActivity(rows.map((a) => ({ id: a.id, type: a.activity_type as ActivityType, title: a.title, body: a.body, createdAt: a.created_at })));
+    });
+    staffApi.messages.list(patient.id).then((rows) => {
+      if (cancelled) return;
+      setMessages(rows.map((m) => ({ id: m.id, body: m.body, direction: m.direction, channel: m.channel, sentAt: m.sent_at })));
+    });
+    staffApi.appointments.list(undefined, patient.id).then((rows) => {
+      if (cancelled) return;
+      setAppointments(rows);
+    });
+    return () => { cancelled = true; };
+  }, [patient.id]);
+
+  const now = Date.now();
+  const upcomingAppointment = appointments
+    .filter((a) => new Date(a.starts_at).getTime() > now)
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0];
 
   useEffect(() => {
     if (!actionsOpen) return;
@@ -139,11 +181,21 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
               <button onClick={() => toggleAccordion("appointment")} className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-500 font-medium">Upcoming appointment</p>
-                  <p className="text-sm font-semibold text-gray-900 mt-0.5">No upcoming appointments</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-0.5">
+                    {upcomingAppointment
+                      ? `${formatDateTime(upcomingAppointment.starts_at)} · ${upcomingAppointment.provider_name}`
+                      : "No upcoming appointments"}
+                  </p>
                 </div>
                 <ChevronDown size={15} className={`text-gray-400 transition-transform flex-shrink-0 ml-2 ${accordion["appointment"] ? "rotate-180" : ""}`} />
               </button>
-              {accordion["appointment"] && <div className="px-4 py-3 border-t border-border bg-gray-50/50 text-sm text-gray-500">No upcoming appointments scheduled.</div>}
+              {accordion["appointment"] && (
+                <div className="px-4 py-3 border-t border-border bg-gray-50/50 text-sm text-gray-500">
+                  {upcomingAppointment
+                    ? `${upcomingAppointment.appointment_type} with ${upcomingAppointment.provider_name}, ${upcomingAppointment.duration_minutes} minutes.`
+                    : "No upcoming appointments scheduled."}
+                </div>
+              )}
             </div>
 
             {/* Payments */}
@@ -183,28 +235,64 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
 
             {/* Tab content */}
             {activeTab === "history" && (
-              <div className="space-y-1 pb-4">
-                {PATIENT_HISTORY.map(item => (
-                  <div key={item.id} className="flex items-start gap-3 py-3 border-b border-border last:border-0">
-                    <div className="w-8 h-8 rounded-full bg-teal-50 border-2 border-teal-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <CircleDollarSign size={15} className="text-teal-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-800">Submitted a payment of <span className="font-semibold">{item.amount}</span></p>
-                      <p className="text-xs text-gray-400">{item.date} · {item.time}</p>
-                      <button className="mt-2 px-3 py-1 text-xs font-medium border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-gray-700">
-                        See details
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              activity.length === 0 ? (
+                <div className="py-8 text-center text-gray-400 text-sm">No activity yet</div>
+              ) : (
+                <div className="space-y-1 pb-4">
+                  {activity.map(item => {
+                    const Icon = ACTIVITY_ICON[item.type] ?? StickyNote;
+                    return (
+                      <div key={item.id} className="flex items-start gap-3 py-3 border-b border-border last:border-0">
+                        <div className="w-8 h-8 rounded-full bg-teal-50 border-2 border-teal-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Icon size={15} className="text-teal-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-800">{item.title}</p>
+                          {item.body && <p className="text-sm text-gray-500 mt-0.5">{item.body}</p>}
+                          <p className="text-xs text-gray-400 mt-1">{formatDateTime(item.createdAt)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
             )}
             {activeTab === "messages" && (
-              <div className="py-8 text-center text-gray-400 text-sm">No messages yet</div>
+              messages.length === 0 ? (
+                <div className="py-8 text-center text-gray-400 text-sm">No messages yet</div>
+              ) : (
+                <div className="space-y-3 pb-4">
+                  {messages.map(m => (
+                    <div key={m.id} className={`flex ${m.direction === "outbound" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[80%] rounded-xl px-3 py-2 ${m.direction === "outbound" ? "bg-teal-50 border border-teal-200" : "bg-gray-100"}`}>
+                        <p className="text-sm text-gray-800">{m.body}</p>
+                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
+                          <span className="uppercase">{m.channel}</span>·{formatDateTime(m.sentAt)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
             )}
             {activeTab === "appointments" && (
-              <div className="py-8 text-center text-gray-400 text-sm">No upcoming appointments</div>
+              appointments.length === 0 ? (
+                <div className="py-8 text-center text-gray-400 text-sm">No upcoming appointments</div>
+              ) : (
+                <div className="space-y-1 pb-4">
+                  {appointments.map(a => (
+                    <div key={a.id} className="flex items-start justify-between gap-3 py-3 border-b border-border last:border-0">
+                      <div className="min-w-0">
+                        <p className="text-sm text-gray-800">{a.appointment_type} with {a.provider_name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(a.starts_at)} · {a.duration_minutes} minutes</p>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium flex-shrink-0 ${APPT_STATUS_CLASS[a.status] ?? APPT_STATUS_CLASS.unconfirmed}`}>
+                        {a.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
         </div>
@@ -219,7 +307,11 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
         />
       )}
       {modal === "notificationPrefs" && (
-        <EditNotificationPreferencesModal onClose={() => setModal(null)} />
+        <EditNotificationPreferencesModal
+          patient={patient}
+          onClose={() => setModal(null)}
+          onSave={(prefs) => onSavePatient({ ...patient, notificationPrefs: prefs })}
+        />
       )}
     </>
   );
