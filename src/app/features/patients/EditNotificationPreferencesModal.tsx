@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, ChevronDown, ChevronRight } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
+import type { NotificationPrefs, Patient } from "../../types";
 
 const NOTIFICATION_TYPES = [
   "Cancelled", "Continuing Care Recalls", "Form reminders", "Form requests",
@@ -9,17 +10,38 @@ const NOTIFICATION_TYPES = [
   "Save the Date", "Waitlist",
 ];
 
-export function EditNotificationPreferencesModal({ onClose }: { onClose: () => void }) {
-  const [emailOn, setEmailOn] = useState(true);
-  const [smsOn, setSmsOn] = useState(true);
+function defaultChecks(): Record<string, { email: boolean; sms: boolean }> {
+  return Object.fromEntries(NOTIFICATION_TYPES.map(t => [t, { email: true, sms: true }]));
+}
+
+export function EditNotificationPreferencesModal({ patient, onClose, onSave }: {
+  patient: Patient;
+  onClose: () => void;
+  onSave: (prefs: NotificationPrefs) => void;
+}) {
+  const [checks, setChecks] = useState<Record<string, { email: boolean; sms: boolean }>>(() => {
+    const saved = patient.notificationPrefs?.types;
+    return saved ? { ...defaultChecks(), ...saved } : defaultChecks();
+  });
   const [apptExpanded, setApptExpanded] = useState(true);
   const [patientExpanded, setPatientExpanded] = useState(false);
-  const [checks, setChecks] = useState<Record<string, { email: boolean; sms: boolean }>>(
-    Object.fromEntries(NOTIFICATION_TYPES.map(t => [t, { email: true, sms: true }]))
-  );
+
+  const emailOn = NOTIFICATION_TYPES.every(t => checks[t].email);
+  const smsOn = NOTIFICATION_TYPES.every(t => checks[t].sms);
 
   function toggleCheck(type: string, channel: "email" | "sms") {
     setChecks(prev => ({ ...prev, [type]: { ...prev[type], [channel]: !prev[type][channel] } }));
+  }
+
+  function setChannelAll(channel: "email" | "sms", value: boolean) {
+    setChecks(prev => Object.fromEntries(
+      NOTIFICATION_TYPES.map(t => [t, { ...prev[t], [channel]: value }])
+    ));
+  }
+
+  function handleSave() {
+    onSave({ email: emailOn, sms: smsOn, types: checks });
+    onClose();
   }
 
   return (
@@ -39,11 +61,11 @@ export function EditNotificationPreferencesModal({ onClose }: { onClose: () => v
             <p className="text-xs text-gray-500 leading-relaxed mb-3">Changes to SMS preferences will automatically apply to all patients sharing this phone number.</p>
             <div className="flex items-center gap-5">
               <label className="flex items-center gap-2 cursor-pointer">
-                <Toggle on={emailOn} onChange={setEmailOn} />
+                <Toggle on={emailOn} onChange={(v) => setChannelAll("email", v)} />
                 <span className="text-sm font-medium text-gray-700">Email</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <Toggle on={smsOn} onChange={setSmsOn} />
+                <Toggle on={smsOn} onChange={(v) => setChannelAll("sms", v)} />
                 <span className="text-sm font-medium text-gray-700">SMS</span>
               </label>
             </div>
@@ -101,7 +123,7 @@ export function EditNotificationPreferencesModal({ onClose }: { onClose: () => v
 
         {/* Footer */}
         <div className="flex items-center gap-4 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-          <button onClick={onClose} className="px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors">Save</button>
+          <button onClick={handleSave} className="px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors">Save</button>
           <button onClick={onClose} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Cancel</button>
         </div>
       </div>

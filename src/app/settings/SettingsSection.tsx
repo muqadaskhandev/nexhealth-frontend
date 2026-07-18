@@ -8,6 +8,7 @@ import {
   User,
   Users,
 } from "lucide-react";
+import { QRCodeSVG as QRCode } from "qrcode.react";
 import { useAuth } from "../auth/AuthContext";
 import {
   ApiLocation,
@@ -193,9 +194,12 @@ function TotpSettings() {
   const { user } = useAuth();
   const [uri, setUri] = useState<string | null>(null);
   const [code, setCode] = useState("");
+  const [disableCode, setDisableCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(user?.totp_enabled || false);
 
   if (!user || user.account_type !== "practice") return null;
 
@@ -222,6 +226,7 @@ function TotpSettings() {
       setNotice("Two-factor authentication is now enabled.");
       setUri(null);
       setCode("");
+      setIsEnabled(true);
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
       setError(apiErr?.detail || "Invalid code.");
@@ -230,15 +235,99 @@ function TotpSettings() {
     }
   }
 
+  async function disableTotp() {
+    if (!disableCode || disableCode.length !== 6) {
+      setError("Please enter a valid 6-digit code.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await authApi.totpDisable(disableCode);
+      setNotice("Two-factor authentication has been disabled.");
+      setIsEnabled(false);
+      setShowDisableConfirm(false);
+      setDisableCode("");
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr?.detail || "Could not disable 2FA. Invalid code?");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl border border-border p-5 space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Two-factor authentication (2FA)</h3>
-      {user.totp_enabled ? (
-        <p className="text-sm text-green-700">2FA is enabled on your account.</p>
+      {isEnabled ? (
+        <>
+          <p className="text-sm text-green-700">✓ 2FA is enabled on your account.</p>
+          {error && (
+            <div className="px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>
+          )}
+          {notice && (
+            <div className="px-3 py-2 rounded-lg bg-green-50 text-sm text-green-700">{notice}</div>
+          )}
+          {showDisableConfirm ? (
+            <div className="space-y-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <p className="text-sm font-medium text-gray-900">
+                Disable 2FA on your account
+              </p>
+              <p className="text-xs text-gray-600">
+                For security, enter your 6-digit authentication code to confirm:
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="000000"
+                value={disableCode}
+                onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ""))}
+                className={`${inputCls} text-center tracking-widest font-mono text-lg`}
+                autoFocus
+              />
+              <p className="text-xs text-gray-500">
+                After disabling, you won't need a code to log in.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={disableTotp}
+                  disabled={loading || disableCode.length !== 6}
+                  className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded disabled:opacity-60 hover:bg-red-600"
+                >
+                  {loading ? "Disabling…" : "Confirm & Disable"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDisableConfirm(false);
+                    setDisableCode("");
+                    setError(null);
+                  }}
+                  disabled={loading}
+                  className="px-3 py-1.5 bg-gray-200 text-gray-800 text-xs font-semibold rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowDisableConfirm(true)}
+              disabled={loading}
+              className="px-4 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-lg border border-red-200 hover:bg-red-100 disabled:opacity-60 transition-colors"
+            >
+              Disable 2FA
+            </button>
+          )}
+        </>
       ) : (
         <>
           <p className="text-sm text-gray-500">
-            Required for Practice Admins. Use Google Authenticator or Authy.
+            Protect your account with an authenticator app like Google Authenticator, Authy, or Microsoft Authenticator.
           </p>
           {error && (
             <div className="px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>
@@ -251,30 +340,44 @@ function TotpSettings() {
               type="button"
               onClick={startSetup}
               disabled={loading}
-              className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg disabled:opacity-60"
+              className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg disabled:opacity-60 hover:bg-gray-800 transition-colors"
             >
-              Set up 2FA
+              {loading ? "Setting up…" : "Set up 2FA"}
             </button>
           ) : (
-            <form onSubmit={enableTotp} className="space-y-3">
-              <p className="text-xs text-gray-500 break-all">
-                Add this to your authenticator app: <code className="text-gray-700">{uri}</code>
-              </p>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="6-digit code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className={inputCls}
-              />
+            <form onSubmit={enableTotp} className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                <p className="text-xs font-semibold text-gray-700">Step 1: Scan QR Code</p>
+                <p className="text-xs text-gray-600">
+                  Open your authenticator app and scan this code:
+                </p>
+                <div className="bg-white p-3 rounded border border-gray-200 flex justify-center">
+                  <QRCode value={uri} size={200} level="H" includeMargin={true} />
+                </div>
+                <p className="text-xs text-gray-600">
+                  Or manually enter this key: <code className="text-gray-800 font-mono text-xs">{uri.split("secret=")[1]?.split("&")[0] || uri}</code>
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-700">Step 2: Verify Code</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                  className={`${inputCls} text-center tracking-widest font-mono text-lg`}
+                  autoFocus
+                  required
+                />
+              </div>
               <button
                 type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg"
+                disabled={loading || code.length !== 6}
+                className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg disabled:opacity-60 hover:bg-teal-600 transition-colors w-full"
               >
-                Enable 2FA
+                {loading ? "Verifying…" : "Enable 2FA"}
               </button>
             </form>
           )}

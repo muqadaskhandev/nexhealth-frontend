@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Appointment, AppointmentStatus, Patient } from "../types";
-import { mapAppointment, mapPatient, staffApi } from "../lib/staff-api";
+import { mapAppointment, mapPatient, parseDob, staffApi } from "../lib/staff-api";
 
 export function useStaffData(enabled: boolean) {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -45,7 +45,7 @@ export function useStaffData(enabled: boolean) {
         provider_name: updated.provider,
         archived: updated.archived,
         insurance_data: updated.insuranceData,
-        notification_prefs: {},
+        notification_prefs: updated.notificationPrefs ?? {},
       };
       const saved = mapPatient(await staffApi.patients.update(updated.id, body));
       setPatients((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
@@ -63,6 +63,8 @@ export function useStaffData(enabled: boolean) {
         phone: data.phone,
         gender: data.gender,
         provider_name: data.provider,
+        dob: parseDob(data.dob),
+        language: data.language,
       })
     );
     setPatients((prev) => [...prev, saved]);
