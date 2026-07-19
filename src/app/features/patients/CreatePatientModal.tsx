@@ -1,6 +1,126 @@
-import { useState } from "react";
-import { X, AlertTriangle, ChevronDown, Lock } from "lucide-react";
+import { useRef, useState } from "react";
+import { X, AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Lock, Calendar } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
 import type { Patient } from "../../types";
+
+function formatDobDisplay(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${mm}/${dd}/${d.getFullYear()}`;
+}
+
+function parseDobToDate(input: string): Date | undefined {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(input.trim());
+  if (!m) return undefined;
+  const month = Number(m[1]);
+  const day = Number(m[2]);
+  const year = Number(m[3]);
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return undefined;
+  return d;
+}
+
+function DobCalendar({
+  value,
+  onChange,
+}: {
+  value?: Date;
+  onChange: (d: Date) => void;
+}) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [viewDate, setViewDate] = useState(() => value ?? new Date(today.getFullYear() - 25, today.getMonth(), 1));
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthName = viewDate.toLocaleString("default", { month: "long" });
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          className="p-1 rounded-lg hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <div className="flex items-center gap-1">
+          <span className="text-sm font-bold text-gray-900">{monthName}</span>
+          <button
+            type="button"
+            onClick={() => setViewDate(new Date(year - 1, month, 1))}
+            className="p-0.5 rounded hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
+            aria-label="Previous year"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <span className="text-sm font-bold text-teal-600 tabular-nums w-10 text-center">{year}</span>
+          <button
+            type="button"
+            onClick={() => setViewDate(new Date(year + 1, month, 1))}
+            className="p-0.5 rounded hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
+            aria-label="Next year"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          className="p-1 rounded-lg hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-0 mb-1">
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+          <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0">
+        {Array.from({ length: firstDay }).map((_, i) => (
+          <div key={`e${i}`} />
+        ))}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day = i + 1;
+          const date = new Date(year, month, day);
+          date.setHours(0, 0, 0, 0);
+          const isFuture = date > today;
+          const isSelected =
+            !!value &&
+            value.getDate() === day &&
+            value.getMonth() === month &&
+            value.getFullYear() === year;
+          const isToday = date.getTime() === today.getTime() && !isSelected;
+          return (
+            <button
+              key={day}
+              type="button"
+              disabled={isFuture}
+              onClick={() => onChange(date)}
+              className={`w-9 h-9 flex items-center justify-center text-sm rounded-full mx-auto transition-colors ${
+                isSelected
+                  ? "bg-teal-500 text-white font-bold shadow-sm"
+                  : isFuture
+                    ? "text-gray-300 cursor-not-allowed"
+                    : isToday
+                      ? "text-teal-600 font-semibold ring-1 ring-teal-300 hover:bg-teal-50"
+                      : "text-gray-700 hover:bg-teal-50 hover:text-teal-700"
+              }`}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function CreatePatientModal({
   onClose,
@@ -21,9 +141,12 @@ export function CreatePatientModal({
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDobCalendar, setShowDobCalendar] = useState(false);
+  const savingRef = useRef(false);
 
   async function handleSave() {
-    if (!form.firstName.trim() || !form.lastName.trim() || submitting) return;
+    if (!form.firstName.trim() || !form.lastName.trim() || savingRef.current) return;
+    savingRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
@@ -41,7 +164,7 @@ export function CreatePatientModal({
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
       setError(apiErr?.detail || "Could not create patient — please check the fields and try again.");
-    } finally {
+      savingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -92,7 +215,40 @@ export function CreatePatientModal({
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1.5">Date of birth</label>
-            <input className={inputCls} placeholder="MM/DD/YYYY" value={form.dob} onChange={e => setForm(f => ({ ...f, dob: e.target.value }))} />
+            <Popover open={showDobCalendar} onOpenChange={setShowDobCalendar}>
+              <div className="relative">
+                <input
+                  className={inputCls}
+                  placeholder="MM/DD/YYYY"
+                  value={form.dob}
+                  onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))}
+                  style={{ paddingRight: "2.75rem" }}
+                />
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-teal-500 hover:bg-teal-50 hover:text-teal-600 transition-colors"
+                    aria-label="Open calendar"
+                  >
+                    <Calendar size={16} />
+                  </button>
+                </PopoverTrigger>
+              </div>
+              <PopoverContent
+                align="start"
+                sideOffset={8}
+                className="w-auto p-4 rounded-2xl border-gray-100 shadow-xl bg-white"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
+                <DobCalendar
+                  value={parseDobToDate(form.dob)}
+                  onChange={(d) => {
+                    setForm((f) => ({ ...f, dob: formatDobDisplay(d) }));
+                    setShowDobCalendar(false);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1.5">Preferred language</label>

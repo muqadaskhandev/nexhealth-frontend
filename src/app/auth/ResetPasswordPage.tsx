@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { authApi } from "../lib/api";
+import { toastError, toastSuccess } from "../lib/toast";
 
 export function ResetPasswordPage() {
   const params = new URLSearchParams(window.location.search);
@@ -31,11 +32,14 @@ export function ResetPasswordPage() {
     setSubmitting(true);
     try {
       await authApi.resetPassword(token, password);
+      toastSuccess("Password updated");
       setSuccess(true);
       window.history.replaceState({}, "", "/");
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
-      setError(apiErr?.detail || "Could not reset password. The link may have expired.");
+      const msg = apiErr?.detail || "Could not reset password. The link may have expired.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setSubmitting(false);
     }

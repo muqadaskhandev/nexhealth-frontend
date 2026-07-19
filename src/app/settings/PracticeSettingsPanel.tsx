@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { practiceApi, Practice } from "../lib/api";
 import { BrandLogo } from "../components/branding/BrandLogo";
+import { toastError, toastSuccess } from "../lib/toast";
 import { SynchronizerPanel } from "./SynchronizerPanel";
 
 const inputCls =
@@ -17,7 +18,6 @@ const PRODUCT_LABELS: Record<string, string> = {
 export function PracticeSettingsPanel() {
   const [practice, setPractice] = useState<Practice | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -46,10 +46,12 @@ export function PracticeSettingsPanel() {
         enabled_products: practice.enabled_products,
       });
       setPractice(updated);
-      setNotice("Practice settings saved.");
+      toastSuccess("Practice settings saved");
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
-      setError(apiErr?.detail || "Could not save.");
+      const msg = apiErr?.detail || "Could not save.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setSaving(false);
     }
@@ -68,9 +70,6 @@ export function PracticeSettingsPanel() {
 
       {error && (
         <div className="px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>
-      )}
-      {notice && (
-        <div className="px-3 py-2 rounded-lg bg-green-50 text-sm text-green-700">{notice}</div>
       )}
 
       <form onSubmit={saveProfile} className="bg-white rounded-xl border border-border p-5 space-y-4">
@@ -158,7 +157,6 @@ export function PracticeSettingsPanel() {
       <SynchronizerPanel
         practice={practice}
         onPracticeChange={setPractice}
-        onNotice={setNotice}
         onError={setError}
       />
 

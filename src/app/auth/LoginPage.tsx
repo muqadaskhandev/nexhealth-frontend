@@ -3,6 +3,7 @@ import { ShieldCheck, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { authApi, ssoLoginUrl } from "../lib/api";
 import { BrandLogo } from "../components/branding/BrandLogo";
+import { toastError, toastSuccess } from "../lib/toast";
 
 const LOGIN_SLIDES = [
   {
@@ -32,7 +33,6 @@ export function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [slide, setSlide] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [forgotMode, setForgotMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,12 +54,13 @@ export function LoginPage() {
   async function handleLogin() {
     if (submitting) return;
     setError(null);
-    setNotice(null);
     setSubmitting(true);
     try {
       await login(email.trim(), password);
     } catch (err: any) {
-      setError(err?.detail || "Unable to log in. Please try again.");
+      const msg = err?.detail || "Unable to log in. Please try again.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -68,14 +69,15 @@ export function LoginPage() {
   async function handleForgot() {
     if (submitting) return;
     setError(null);
-    setNotice(null);
     setSubmitting(true);
     try {
       await authApi.forgotPassword(email.trim());
-      setNotice("If an account exists for that email, a reset link has been sent.");
+      toastSuccess("If an account exists for that email, a reset link has been sent.");
       setForgotMode(false);
     } catch (err: any) {
-      setError(err?.detail || "Something went wrong. Please try again.");
+      const msg = err?.detail || "Something went wrong. Please try again.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -134,15 +136,10 @@ export function LoginPage() {
             <h2 className="text-xl font-bold text-gray-900">Log in to NexHealth</h2>
           </div>
 
-          {/* Error / notice banners */}
+          {/* Error banner */}
           {error && (
             <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-700">
               {error}
-            </div>
-          )}
-          {notice && (
-            <div className="mb-4 px-4 py-3 rounded-lg bg-green-50 border border-green-100 text-sm text-green-700">
-              {notice}
             </div>
           )}
 
@@ -170,7 +167,7 @@ export function LoginPage() {
                   <label className="text-sm font-semibold text-gray-800">Password</label>
                   <button
                     type="button"
-                    onClick={() => { setForgotMode(true); setError(null); setNotice(null); }}
+                    onClick={() => { setForgotMode(true); setError(null); }}
                     className="text-sm text-teal-500 hover:text-teal-600 transition-colors"
                   >
                     Forgot password?
@@ -210,7 +207,7 @@ export function LoginPage() {
             {forgotMode && (
               <button
                 type="button"
-                onClick={() => { setForgotMode(false); setError(null); setNotice(null); }}
+                onClick={() => { setForgotMode(false); setError(null); }}
                 className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
               >
                 ← Back to log in

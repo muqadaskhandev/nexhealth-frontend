@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { LogOut, Plus } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { BrandLogo } from "../components/branding/BrandLogo";
@@ -9,6 +9,14 @@ import {
   PracticeCreatePayload,
   SubscriptionPlan,
 } from "../lib/api";
+import {
+  COUNTRY_DIAL_CODES,
+  CUSTOM_OPTION,
+  US_STATES,
+  citiesForState,
+  formatPhoneWithDial,
+} from "../lib/locationFormat";
+import { toastError, toastSuccess } from "../lib/toast";
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100";
@@ -27,7 +35,6 @@ export function PlatformAdminPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,6 +65,7 @@ export function PlatformAdminPage() {
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600">{user?.email}</span>
           <button
+            type="button"
             onClick={() => logout()}
             className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
           >
@@ -72,15 +80,11 @@ export function PlatformAdminPage() {
             {error}
           </div>
         )}
-        {notice && (
-          <div className="px-4 py-3 rounded-lg bg-green-50 text-sm text-green-700 border border-green-100">
-            {notice}
-          </div>
-        )}
 
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-900">Practices</h2>
           <button
+            type="button"
             onClick={() => setShowForm((v) => !v)}
             className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg"
           >
@@ -93,7 +97,7 @@ export function PlatformAdminPage() {
             onCancel={() => setShowForm(false)}
             onSuccess={() => {
               setShowForm(false);
-              setNotice("Practice created. Invite email sent via SES.");
+              toastSuccess("Practice created. Invite email sent.");
               load();
             }}
           />
@@ -160,9 +164,20 @@ function OnboardPracticeForm({
     admin_email: "",
     admin_first_name: "",
     admin_last_name: "",
+    default_location_name: "",
   });
+  const [dial, setDial] = useState("1");
+  const [nationalPhone, setNationalPhone] = useState("");
+  const [customDial, setCustomDial] = useState(false);
+  const [customState, setCustomState] = useState(false);
+  const [customCity, setCustomCity] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const cityOptions = useMemo(
+    () => (customState ? [] : citiesForState(form.state || "")),
+    [form.state, customState]
+  );
 
   function set<K extends keyof PracticeCreatePayload>(key: K, value: PracticeCreatePayload[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -173,11 +188,21 @@ function OnboardPracticeForm({
     setSubmitting(true);
     setError(null);
     try {
-      await platformApi.createPractice(form);
+      const phone = formatPhoneWithDial(dial, nationalPhone);
+      const locationName =
+        form.default_location_name?.trim() ||
+        (form.city ? `${form.name} — ${form.city}` : `${form.name} — Main`);
+      await platformApi.createPractice({
+        ...form,
+        phone,
+        default_location_name: locationName,
+      });
       onSuccess();
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
-      setError(apiErr?.detail || "Could not create practice.");
+      const msg = apiErr?.detail || "Could not create practice.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -203,14 +228,89 @@ function OnboardPracticeForm({
             className={inputCls}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-          <input value={form.city} onChange={(e) => set("city", e.target.value)} className={inputCls} />
-        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-          <input value={form.state} onChange={(e) => set("state", e.target.value)} className={inputCls} />
+          <select
+            required={!customState}
+            value={customState ? CUSTOM_OPTION : form.state}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next === CUSTOM_OPTION) {
+                setCustomState(true);
+                setCustomCity(true);
+                set("state", "");
+                set("city", "");
+                return;
+              }
+              setCustomState(false);
+              setCustomCity(false);
+              set("state", next);
+              const cities = citiesForState(next);
+              if (!cities.includes(form.city || "")) set("city", "");
+            }}
+            className={inputCls}
+          >
+            <option value="">Select state</option>
+            {US_STATES.map((s) => (
+              <option key={s.code} value={s.code}>
+                {s.name} ({s.code})
+              </option>
+            ))}
+            <option value={CUSTOM_OPTION}>Other (enter custom)…</option>
+          </select>
+          {customState && (
+            <input
+              required
+              value={form.state}
+              onChange={(e) => set("state", e.target.value)}
+              className={`${inputCls} mt-2`}
+              placeholder="Enter state / province / region"
+            />
+          )}
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+          <select
+            required={!customCity}
+            value={customCity ? CUSTOM_OPTION : form.city}
+            disabled={!form.state && !customState}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next === CUSTOM_OPTION) {
+                setCustomCity(true);
+                set("city", "");
+                return;
+              }
+              setCustomCity(false);
+              set("city", next);
+            }}
+            className={inputCls}
+          >
+            <option value="">
+              {form.state || customState ? "Select city" : "Select state first"}
+            </option>
+            {cityOptions.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+            <option value={CUSTOM_OPTION} disabled={!form.state && !customState}>
+              Other (enter custom)…
+            </option>
+          </select>
+          {customCity && (
+            <input
+              required
+              value={form.city}
+              onChange={(e) => set("city", e.target.value)}
+              className={`${inputCls} mt-2`}
+              placeholder="Enter city"
+            />
+          )}
+        </div>
+
         <div className="col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
           <input
@@ -219,6 +319,17 @@ function OnboardPracticeForm({
             className={inputCls}
           />
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+          <input
+            value={form.zip_code}
+            onChange={(e) => set("zip_code", e.target.value)}
+            className={inputCls}
+            placeholder="94114"
+          />
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
           <select
@@ -231,10 +342,69 @@ function OnboardPracticeForm({
             <option value="enterprise">Enterprise</option>
           </select>
         </div>
-        <div>
+
+        <div className="col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-          <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} />
+          <div className="flex gap-2">
+            <select
+              value={customDial ? CUSTOM_OPTION : dial}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next === CUSTOM_OPTION) {
+                  setCustomDial(true);
+                  setDial("");
+                  return;
+                }
+                setCustomDial(false);
+                setDial(next);
+              }}
+              className="w-[7.5rem] shrink-0 px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 bg-white"
+              aria-label="Country code"
+            >
+              {COUNTRY_DIAL_CODES.map((c) => (
+                <option key={`${c.code}-${c.dial}`} value={c.dial}>
+                  {c.code} +{c.dial}
+                </option>
+              ))}
+              <option value={CUSTOM_OPTION}>Other…</option>
+            </select>
+            {customDial && (
+              <input
+                required
+                value={dial}
+                onChange={(e) => setDial(e.target.value.replace(/[^\d]/g, ""))}
+                className="w-20 shrink-0 px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 bg-white"
+                placeholder="92"
+                inputMode="numeric"
+                aria-label="Custom country code"
+              />
+            )}
+            <input
+              required
+              value={nationalPhone}
+              onChange={(e) => setNationalPhone(e.target.value)}
+              className={inputCls}
+              placeholder="4155550100"
+              inputMode="tel"
+            />
+          </div>
         </div>
+      </div>
+
+      <hr className="border-gray-100" />
+      <p className="text-sm font-medium text-gray-800">Default location</p>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Location name</label>
+        <input
+          value={form.default_location_name}
+          onChange={(e) => set("default_location_name", e.target.value)}
+          className={inputCls}
+          placeholder={
+            form.name && form.city
+              ? `${form.name} — ${form.city}`
+              : "e.g. Better Dental — San Francisco"
+          }
+        />
       </div>
 
       <hr className="border-gray-100" />

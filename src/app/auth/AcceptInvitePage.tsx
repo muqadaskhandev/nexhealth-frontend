@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { invitesApi } from "../lib/api";
+import { toastError, toastSuccess } from "../lib/toast";
 
 export function AcceptInvitePage() {
   const params = new URLSearchParams(window.location.search);
@@ -46,11 +47,14 @@ export function AcceptInvitePage() {
     setError(null);
     try {
       await invitesApi.accept(token, password);
+      toastSuccess("Account created. Signing you in…");
       setDone(true);
       window.location.href = "/";
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
-      setError(apiErr?.detail || "Could not accept invitation.");
+      const msg = apiErr?.detail || "Could not accept invitation.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setSubmitting(false);
     }

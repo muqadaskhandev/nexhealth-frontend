@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { AlertCircle } from "lucide-react";
 import { ssoApi } from "../lib/api";
 import { BrandLogo } from "../components/branding/BrandLogo";
+import { toastError } from "../lib/toast";
 
 export function Sso2faPage() {
   const [code, setCode] = useState("");
@@ -40,7 +41,9 @@ export function Sso2faPage() {
       // Successful verification - redirect to home
       window.location.href = "/";
     } catch (err: any) {
-      setError(err?.detail || "Invalid code. Please try again.");
+      const msg = err?.detail || "Invalid code. Please try again.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setSubmitting(false);
     }

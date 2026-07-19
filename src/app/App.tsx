@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./auth/AuthContext";
 import { LoginPage } from "./auth/LoginPage";
 import { AcceptInvitePage } from "./auth/AcceptInvitePage";
@@ -21,12 +21,23 @@ import { useStaffData } from "./hooks/useStaffData";
 import type { AppointmentStatus, Patient } from "./types";
 
 export default function App() {
-  const { status, user } = useAuth();
+  const { status, user, activeLocation } = useAuth();
   const [activeNav, setActiveNav] = useState("home");
+  const [settingsTab, setSettingsTab] = useState<"account" | "logo" | "users" | "synchronizer" | "locations" | undefined>();
   const [panelPatient, setPanelPatient] = useState<Patient | null>(null);
 
   const isPracticeUser = status === "authenticated" && user?.account_type === "practice";
   const staff = useStaffData(isPracticeUser);
+
+  // Patient panels are location-scoped — close them when the user switches.
+  useEffect(() => {
+    setPanelPatient(null);
+  }, [activeLocation?.id]);
+
+  function openSettings(tab?: typeof settingsTab) {
+    setSettingsTab(tab);
+    setActiveNav("settings");
+  }
 
   const isResetPassword =
     window.location.pathname === "/reset-password" ||
@@ -79,7 +90,15 @@ export default function App() {
 
   function renderMain() {
     if (activeNav === "settings") {
-      return <SettingsSection onBack={() => setActiveNav("home")} />;
+      return (
+        <SettingsSection
+          initialTab={settingsTab}
+          onBack={() => {
+            setSettingsTab(undefined);
+            setActiveNav("home");
+          }}
+        />
+      );
     }
     if (activeNav === "patients") {
       return (
@@ -118,7 +137,11 @@ export default function App() {
           <p className="text-sm font-medium text-red-800">{staff.error}</p>
         </div>
       )}
-      <TopBar onOpenSettings={() => setActiveNav("settings")} onSelectPatient={setPanelPatient} />
+      <TopBar
+        onOpenSettings={() => openSettings()}
+        onOpenUsers={() => openSettings("users")}
+        onSelectPatient={setPanelPatient}
+      />
       <div className="flex flex-1 overflow-hidden min-h-0 w-full">
         {activeNav !== "settings" && (
           <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} />

@@ -30,6 +30,7 @@ type AuthState = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   switchLocation: (locationId: string) => Promise<void>;
+  refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -128,6 +129,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setActiveLocation(loc);
   }, []);
 
+  const refreshSession = useCallback(async () => {
+    const session = await authApi.me();
+    applySession(session);
+  }, [applySession]);
+
   const value = useMemo<AuthState>(
     () => ({
       status,
@@ -138,8 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       switchLocation,
+      refreshSession,
     }),
-    [status, user, locations, activeLocation, providers, login, logout, switchLocation]
+    [status, user, locations, activeLocation, providers, login, logout, switchLocation, refreshSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

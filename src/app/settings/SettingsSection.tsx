@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useState, type ReactNode, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
   Eye,
   EyeOff,
   KeyRound,
-  MapPin,
-  User,
-  Users,
 } from "lucide-react";
 import { QRCodeSVG as QRCode } from "qrcode.react";
 import { useAuth } from "../auth/AuthContext";
@@ -18,9 +15,12 @@ import {
   UserDetail,
   usersApi,
 } from "../lib/api";
-import { PracticeSettingsPanel } from "./PracticeSettingsPanel";
+import { LogoSettingsPanel } from "./LogoSettingsPanel";
+import { SynchronizerSettings } from "./SynchronizerSettings";
+import { LocationsSettingsPanel } from "./LocationsSettingsPanel";
+import { toastError, toastSuccess } from "../lib/toast";
 
-type SettingsTab = "account" | "practice" | "users" | "locations";
+type SettingsTab = "account" | "logo" | "users" | "synchronizer" | "locations";
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all bg-white";
@@ -34,31 +34,51 @@ function SettingsNav({
   setTab: (t: SettingsTab) => void;
   isAdmin: boolean;
 }) {
-  const items: { id: SettingsTab; label: string; icon: ReactNode; admin?: boolean }[] = [
-    { id: "account", label: "Account", icon: <User size={16} /> },
-    { id: "practice", label: "Practice", icon: <MapPin size={16} />, admin: true },
-    { id: "users", label: "Users", icon: <Users size={16} />, admin: true },
-    { id: "locations", label: "Locations", icon: <MapPin size={16} /> },
+  const accountItems: { id: SettingsTab; label: string; admin?: boolean }[] = [
+    { id: "account", label: "Profile" },
+  ];
+  const generalItems: { id: SettingsTab; label: string; admin?: boolean }[] = [
+    { id: "logo", label: "Logo", admin: true },
+    { id: "users", label: "Users", admin: true },
+    { id: "synchronizer", label: "Synchronizer", admin: true },
+    { id: "locations", label: "Locations" },
   ];
 
+  function renderGroup(
+    title: string,
+    items: { id: SettingsTab; label: string; admin?: boolean }[]
+  ) {
+    const visible = items.filter((item) => !item.admin || isAdmin);
+    if (visible.length === 0) return null;
+    return (
+      <div className="mb-4">
+        <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+          {title}
+        </p>
+        <div className="space-y-0.5">
+          {visible.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTab(item.id)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                tab === item.id
+                  ? "bg-teal-400 text-white font-medium"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <nav className="w-52 flex-shrink-0 border-r border-border bg-white py-4 px-2 space-y-0.5">
-      {items
-        .filter((item) => !item.admin || isAdmin)
-        .map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setTab(item.id)}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
-              tab === item.id
-                ? "bg-gray-900 text-white font-medium"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            <span className={tab === item.id ? "text-white" : "text-gray-400"}>{item.icon}</span>
-            {item.label}
-          </button>
-        ))}
+    <nav className="w-56 flex-shrink-0 border-r border-border bg-white py-4 px-2 overflow-y-auto">
+      {renderGroup("Account settings", accountItems)}
+      {renderGroup("General", generalItems)}
     </nav>
   );
 }
@@ -70,13 +90,11 @@ function AccountSettings({ onPasswordChanged }: { onPasswordChanged: () => void 
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setNotice(null);
     if (next.length < 8) {
       setError("New password must be at least 8 characters.");
       return;
@@ -88,14 +106,16 @@ function AccountSettings({ onPasswordChanged }: { onPasswordChanged: () => void 
     setSubmitting(true);
     try {
       await authApi.changePassword(current, next);
-      setNotice("Password updated. Please sign in again.");
+      toastSuccess("Password updated. Please sign in again.");
       setCurrent("");
       setNext("");
       setConfirm("");
       onPasswordChanged();
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
-      setError(apiErr?.detail || "Could not change password.");
+      const msg = apiErr?.detail || "Could not change password.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -127,11 +147,6 @@ function AccountSettings({ onPasswordChanged }: { onPasswordChanged: () => void 
         {error && (
           <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-100 text-sm text-red-700">
             {error}
-          </div>
-        )}
-        {notice && (
-          <div className="px-3 py-2 rounded-lg bg-green-50 border border-green-100 text-sm text-green-700">
-            {notice}
           </div>
         )}
 
@@ -196,7 +211,6 @@ function TotpSettings() {
   const [code, setCode] = useState("");
   const [disableCode, setDisableCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [isEnabled, setIsEnabled] = useState(user?.totp_enabled || false);
@@ -211,7 +225,9 @@ function TotpSettings() {
       setUri(res.provisioning_uri);
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
-      setError(apiErr?.detail || "Could not start 2FA setup.");
+      const msg = apiErr?.detail || "Could not start 2FA setup.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setLoading(false);
     }
@@ -223,13 +239,15 @@ function TotpSettings() {
     setError(null);
     try {
       await authApi.totpEnable(code);
-      setNotice("Two-factor authentication is now enabled.");
+      toastSuccess("Two-factor authentication enabled");
       setUri(null);
       setCode("");
       setIsEnabled(true);
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
-      setError(apiErr?.detail || "Invalid code.");
+      const msg = apiErr?.detail || "Invalid code.";
+      setError(msg);
+      toastError(msg);
     } finally {
       setLoading(false);
     }
@@ -245,13 +263,15 @@ function TotpSettings() {
     setError(null);
     try {
       await authApi.totpDisable(disableCode);
-      setNotice("Two-factor authentication has been disabled.");
+      toastSuccess("Two-factor authentication disabled");
       setIsEnabled(false);
       setShowDisableConfirm(false);
       setDisableCode("");
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
-      setError(apiErr?.detail || "Could not disable 2FA. Invalid code?");
+      const msg = apiErr?.detail || "Could not disable 2FA. Invalid code?";
+      setError(msg);
+      toastError(msg);
     } finally {
       setLoading(false);
     }
@@ -265,9 +285,6 @@ function TotpSettings() {
           <p className="text-sm text-green-700">✓ 2FA is enabled on your account.</p>
           {error && (
             <div className="px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>
-          )}
-          {notice && (
-            <div className="px-3 py-2 rounded-lg bg-green-50 text-sm text-green-700">{notice}</div>
           )}
           {showDisableConfirm ? (
             <div className="space-y-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -331,9 +348,6 @@ function TotpSettings() {
           </p>
           {error && (
             <div className="px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>
-          )}
-          {notice && (
-            <div className="px-3 py-2 rounded-lg bg-green-50 text-sm text-green-700">{notice}</div>
           )}
           {!uri ? (
             <button
@@ -431,6 +445,7 @@ function UserFormModal({
   const [lastName, setLastName] = useState(initial?.last_name ?? "");
   const [role, setRole] = useState<"admin" | "member">(initial?.role ?? "member");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
   const [locationIds, setLocationIds] = useState<Set<string>>(
     () => new Set(initial?.locations.map((l) => l.id) ?? [])
@@ -450,6 +465,10 @@ function UserFormModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (locationIds.size === 0) {
+      setError("Select at least one location.");
+      return;
+    }
     setSubmitting(true);
     try {
       if (isEdit && initial) {
@@ -534,13 +553,23 @@ function UserFormModal({
             <option value="admin">Admin</option>
           </select>
           {!isEdit && (
-            <input
-              className={inputCls}
-              type="password"
-              placeholder="Password (optional — invite via reset)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                className={`${inputCls} pr-10`}
+                type={showPassword ? "text" : "password"}
+                placeholder="Password (optional — invite via reset)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           )}
           {isEdit && (
             <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -590,27 +619,46 @@ function UserFormModal({
 }
 
 function InviteStaffModal({
+  allLocations,
   onClose,
   onSent,
 }: {
+  allLocations: ApiLocation[];
   onClose: () => void;
   onSent: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [role, setRole] = useState<"admin" | "member">("member");
+  const [locationIds, setLocationIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  function toggleLocation(id: string, on: boolean) {
+    setLocationIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setError(null);
+    if (locationIds.size === 0) {
+      setError("Select at least one location.");
+      return;
+    }
+    setSubmitting(true);
     try {
       await practiceApi.inviteStaff({
         email,
         first_name: firstName,
         last_name: lastName,
+        role,
+        location_ids: [...locationIds],
       });
       onSent();
     } catch (err: unknown) {
@@ -625,7 +673,7 @@ function InviteStaffModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-md space-y-4"
+        className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto"
       >
         <h3 className="font-semibold text-gray-900">Invite staff member</h3>
         <p className="text-sm text-gray-500">An email invite will be sent via AWS SES.</p>
@@ -656,6 +704,34 @@ function InviteStaffModal({
             className={inputCls}
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+          <select
+            className={inputCls}
+            value={role}
+            onChange={(e) => setRole(e.target.value as "admin" | "member")}
+          >
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-800 mb-2">Locations</p>
+          <div className="border border-gray-200 rounded-lg px-3 max-h-40 overflow-y-auto">
+            {allLocations.length === 0 ? (
+              <p className="py-3 text-sm text-gray-500">No locations available.</p>
+            ) : (
+              allLocations.map((loc) => (
+                <LocationCheckbox
+                  key={loc.id}
+                  location={loc}
+                  checked={locationIds.has(loc.id)}
+                  onChange={(on) => toggleLocation(loc.id, on)}
+                />
+              ))
+            )}
+          </div>
+        </div>
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600">
             Cancel
@@ -673,11 +749,11 @@ function InviteStaffModal({
   );
 }
 
-function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
+function UsersSettings() {
+  const [practiceLocations, setPracticeLocations] = useState<ApiLocation[]>([]);
   const [users, setUsers] = useState<UserDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [editing, setEditing] = useState<UserDetail | null>(null);
@@ -686,7 +762,12 @@ function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
     setLoading(true);
     setError(null);
     try {
-      setUsers(await usersApi.list());
+      const [userRows, practice] = await Promise.all([
+        usersApi.list(),
+        practiceApi.me(),
+      ]);
+      setUsers(userRows);
+      setPracticeLocations(practice.locations);
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
       setError(apiErr?.detail || "Could not load users.");
@@ -701,7 +782,7 @@ function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
 
   async function handleCreate(payload: UserCreatePayload) {
     await usersApi.create(payload);
-    setNotice("User created.");
+    toastSuccess("User created");
     await load();
   }
 
@@ -709,17 +790,19 @@ function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
     data: { id: string; updates: Parameters<typeof usersApi.update>[1] }
   ) {
     await usersApi.update(data.id, data.updates);
-    setNotice("User updated.");
+    toastSuccess("User updated");
     await load();
   }
 
   async function handleSendReset(u: UserDetail) {
     try {
       await usersApi.sendReset(u.id);
-      setNotice(`Password reset sent to ${u.email}.`);
+      toastSuccess(`Password reset sent to ${u.email}`);
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
-      setError(apiErr?.detail || "Could not send reset.");
+      const msg = apiErr?.detail || "Could not send reset.";
+      setError(msg);
+      toastError(msg);
     }
   }
 
@@ -749,11 +832,6 @@ function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
       {error && (
         <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-700">
           {error}
-        </div>
-      )}
-      {notice && (
-        <div className="px-4 py-3 rounded-lg bg-green-50 border border-green-100 text-sm text-green-700">
-          {notice}
         </div>
       )}
 
@@ -811,17 +889,18 @@ function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
 
       {showInvite && (
         <InviteStaffModal
+          allLocations={practiceLocations}
           onClose={() => setShowInvite(false)}
           onSent={() => {
             setShowInvite(false);
-            setNotice("Invitation email sent via SES.");
+            toastSuccess("Invitation email sent");
           }}
         />
       )}
       {showCreate && (
         <UserFormModal
           title="Add user"
-          allLocations={allLocations}
+          allLocations={practiceLocations}
           onClose={() => setShowCreate(false)}
           onSave={async (p) => {
             if ("email" in p) await handleCreate(p);
@@ -831,7 +910,7 @@ function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
       {editing && (
         <UserFormModal
           title={`Edit ${editing.full_name}`}
-          allLocations={allLocations}
+          allLocations={practiceLocations}
           initial={editing}
           onClose={() => setEditing(null)}
           onSave={async (p) => {
@@ -844,66 +923,43 @@ function UsersSettings({ allLocations }: { allLocations: ApiLocation[] }) {
 }
 
 function LocationsSettings() {
-  const { locations, activeLocation } = useAuth();
-
-  return (
-    <div className="space-y-5 max-w-2xl">
-      <div>
-        <h2 className="text-lg font-bold text-gray-900">Locations</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Practice locations you can access. Contact an admin to change addresses or branding.
-        </p>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {locations.map((loc) => (
-          <div
-            key={loc.id}
-            className={`bg-white rounded-xl border p-4 ${
-              loc.id === activeLocation?.id ? "border-teal-400 ring-1 ring-teal-100" : "border-border"
-            }`}
-          >
-            <div className="flex items-start gap-2">
-              <MapPin size={16} className="text-teal-500 flex-shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900">{loc.name}</p>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">{loc.address}</p>
-                {loc.id === activeLocation?.id && (
-                  <span className="inline-block mt-2 text-[10px] font-semibold uppercase tracking-wide text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">
-                    Active
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <LocationsSettingsPanel />;
 }
 
-export function SettingsSection({ onBack }: { onBack: () => void }) {
+export function SettingsSection({
+  onBack,
+  initialTab,
+}: {
+  onBack: () => void;
+  initialTab?: SettingsTab;
+}) {
   const { user, logout, locations } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [tab, setTab] = useState<SettingsTab>("account");
+  const [tab, setTab] = useState<SettingsTab>(initialTab ?? "account");
+
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="px-6 py-4 border-b border-border bg-white flex items-center gap-3">
         <button
+          type="button"
           onClick={onBack}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700"
         >
           <ArrowLeft size={15} />
-          Back
+          Settings
         </button>
-        <h1 className="text-xl font-bold text-gray-900">Settings</h1>
       </div>
       <div className="flex flex-1 min-h-0">
         <SettingsNav tab={tab} setTab={setTab} isAdmin={!!isAdmin} />
         <div className="flex-1 overflow-y-auto p-6 bg-background">
           {tab === "account" && <AccountSettings onPasswordChanged={() => logout()} />}
-          {tab === "practice" && isAdmin && <PracticeSettingsPanel />}
-          {tab === "users" && isAdmin && <UsersSettings allLocations={locations} />}
+          {tab === "logo" && isAdmin && <LogoSettingsPanel />}
+          {tab === "users" && isAdmin && <UsersSettings />}
+          {tab === "synchronizer" && isAdmin && <SynchronizerSettings />}
           {tab === "locations" && <LocationsSettings />}
         </div>
       </div>

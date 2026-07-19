@@ -75,6 +75,7 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
+  delete: <T>(path: string, body?: unknown) => request<T>("DELETE", path, body),
 };
 
 // ── Typed domain calls ───────────────────────────────────────────────────────
@@ -82,6 +83,13 @@ export type ApiLocation = {
   id: string;
   name: string;
   address: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  phone?: string;
+  email?: string;
+  logo_url?: string | null;
   ehr_site_id?: string | null;
   ehr_site_name?: string | null;
 };
@@ -302,12 +310,64 @@ export const practiceApi = {
       patients_updated: number;
       sync_status: SyncStatus;
     }>("/api/practice/me/ehr/sync"),
-  addLocation: (name: string, address: string) =>
-    api.post<ApiLocation>("/api/practice/locations", { name, address }),
+  addLocation: (body: {
+    name: string;
+    address?: string;
+    address_line2?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+    phone?: string;
+    email?: string;
+  }) => api.post<ApiLocation>("/api/practice/locations", body),
+  updateLocation: (
+    locationId: string,
+    body: {
+      name?: string;
+      address?: string;
+      address_line2?: string;
+      city?: string;
+      state?: string;
+      zip_code?: string;
+      phone?: string;
+      email?: string;
+    }
+  ) => api.patch<ApiLocation>(`/api/practice/locations/${locationId}`, body),
+  uploadLocationLogo: async (locationId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/practice/locations/${locationId}/logo`, {
+      method: "POST",
+      body: form,
+      credentials: "include",
+      headers: {
+        "X-CSRF-Token":
+          document.cookie
+            .split("; ")
+            .find((c) => c.startsWith("csrf_token="))
+            ?.split("=")
+            .slice(1)
+            .join("=") || "",
+      },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+      throw err;
+    }
+    return (await res.json()) as ApiLocation;
+  },
+  removeLocationLogo: (locationId: string) =>
+    api.delete<ApiLocation>(`/api/practice/locations/${locationId}/logo`),
+  copyLocationLogo: (locationId: string, locationIds: string[]) =>
+    api.post<ApiLocation[]>(`/api/practice/locations/${locationId}/logo/copy`, {
+      location_ids: locationIds,
+    }),
   inviteStaff: (body: {
     email: string;
     first_name: string;
     last_name: string;
+    role: "admin" | "member";
+    location_ids: string[];
   }) => api.post<{ message: string }>("/api/practice/invite-staff", body),
 };
 

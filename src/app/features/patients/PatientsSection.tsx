@@ -55,8 +55,7 @@ export function PatientsSection({
         <CreatePatientModal
           onClose={() => setShowCreate(false)}
           onSave={async (p) => {
-            const saved = await onCreatePatient(p);
-            setPatients((prev) => [saved, ...prev]);
+            await onCreatePatient(p);
           }}
         />
       )}

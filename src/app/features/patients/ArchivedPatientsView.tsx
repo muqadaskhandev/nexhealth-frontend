@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { PatientAvatar } from "../../components/shared/PatientAvatar";
+import { SyncTooltip } from "../../components/shared/SyncTooltip";
 import type { Patient } from "../../types";
 
 export function ArchivedPatientsView({ patients, onOpenPanel, onBack, onUnarchive }: {
@@ -37,6 +38,7 @@ export function ArchivedPatientsView({ patients, onOpenPanel, onBack, onUnarchiv
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-gray-900">{patient.firstName} {patient.lastName}</span>
+                          {!patient.synced && <SyncTooltip />}
                           <span className="px-1.5 py-0.5 text-[10px] font-medium border border-pink-400 text-pink-600 rounded">Archived</span>
                         </div>
                         <p className="text-xs text-gray-500">{patient.dob}</p>
