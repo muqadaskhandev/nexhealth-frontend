@@ -92,6 +92,8 @@ export type ApiLocation = {
   logo_url?: string | null;
   ehr_site_id?: string | null;
   ehr_site_name?: string | null;
+  separate_by_patient_type?: boolean;
+  allow_cancellations_for_unmapped?: boolean;
 };
 
 export type ApiUser = {
@@ -331,6 +333,8 @@ export const practiceApi = {
       zip_code?: string;
       phone?: string;
       email?: string;
+      separate_by_patient_type?: boolean;
+      allow_cancellations_for_unmapped?: boolean;
     }
   ) => api.patch<ApiLocation>(`/api/practice/locations/${locationId}`, body),
   uploadLocationLogo: async (locationId: string, file: File) => {

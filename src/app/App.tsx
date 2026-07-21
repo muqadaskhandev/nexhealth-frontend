@@ -17,6 +17,7 @@ import { CommunicationsSection } from "./features/communications/CommunicationsS
 import { PaymentsSection } from "./features/payments/PaymentsSection";
 import { VerificationSection } from "./features/verification/VerificationSection";
 import { WaitlistSection } from "./features/scheduling/WaitlistSection";
+import { OnlineBookingSection } from "./features/scheduling/OnlineBookingSection";
 import { useStaffData } from "./hooks/useStaffData";
 import type { AppointmentStatus, Patient } from "./types";
 
@@ -119,6 +120,9 @@ export default function App() {
     }
     if (activeNav === "waitlist" || activeNav === "scheduling") {
       return <WaitlistSection />;
+    }
+    if (activeNav === "online-booking") {
+      return <OnlineBookingSection />;
     }
     return (
       <HomeDashboard

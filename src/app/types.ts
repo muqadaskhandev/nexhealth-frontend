@@ -89,3 +89,30 @@ export type FormSubmission = {
 };
 
 export type Packet = { id: string; name: string; forms: string[] };
+
+// ── Scheduling: appointment types & mapping rules ─────────────────────────────────
+
+export type PatientTypeRule = "new" | "existing" | "all";
+
+export type InsertionRule = { id: string; codeType: string; codes: string[] };
+
+export type AppointmentType = {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  availableOnline: boolean;
+  patientType: PatientTypeRule;
+  allowPatientCancel: boolean;
+  insertionRules: InsertionRule[];
+};
+
+export type MappingField = "visit_type" | "service_type" | "procedure_code" | "operatory" | "provider";
+
+export type MappingCondition = { field: MappingField; values: string[] };
+
+export type MappingRule = {
+  id: string;
+  targetAppointmentTypeId: string;
+  conditions: MappingCondition[];
+  position: number;
+};

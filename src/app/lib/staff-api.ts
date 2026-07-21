@@ -1,5 +1,15 @@
 import { api } from "./api";
-import type { Appointment, AppointmentStatus, FormSubmission, Patient } from "../types";
+import type {
+  Appointment,
+  AppointmentStatus,
+  AppointmentType,
+  FormSubmission,
+  InsertionRule,
+  MappingCondition,
+  MappingRule,
+  Patient,
+  PatientTypeRule,
+} from "../types";
 
 // ── API types (snake_case from backend) ─────────────────────────────────────
 export type ApiPatient = {
@@ -154,6 +164,48 @@ export function mapFormSubmission(s: ApiFormSubmission): FormSubmission {
   };
 }
 
+export type ApiInsertionRule = { id: string; code_type: string; codes: string[] };
+
+export type ApiAppointmentType = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  available_online: boolean;
+  patient_type: PatientTypeRule;
+  allow_patient_cancel: boolean;
+  insertion_rules: ApiInsertionRule[];
+  created_at: string;
+};
+
+export function mapAppointmentType(t: ApiAppointmentType): AppointmentType {
+  return {
+    id: t.id,
+    name: t.name,
+    durationMinutes: t.duration_minutes,
+    availableOnline: t.available_online,
+    patientType: t.patient_type,
+    allowPatientCancel: t.allow_patient_cancel,
+    insertionRules: t.insertion_rules.map((r) => ({ id: r.id, codeType: r.code_type, codes: r.codes })),
+  };
+}
+
+export type ApiMappingRule = {
+  id: string;
+  target_appointment_type_id: string;
+  conditions: MappingCondition[];
+  position: number;
+  created_at: string;
+};
+
+export function mapMappingRule(r: ApiMappingRule): MappingRule {
+  return {
+    id: r.id,
+    targetAppointmentTypeId: r.target_appointment_type_id,
+    conditions: r.conditions,
+    position: r.position,
+  };
+}
+
 export const staffApi = {
   patients: {
     list: (q = "", archived = false, allLocations = false) =>
@@ -232,4 +284,21 @@ export const staffApi = {
       pending_forms: number;
       pending_payments: number;
     }>("/api/dashboard/stats"),
+  appointmentTypes: {
+    list: () => api.get<ApiAppointmentType[]>("/api/appointment-types"),
+    create: (body: Record<string, unknown>) =>
+      api.post<ApiAppointmentType>("/api/appointment-types", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiAppointmentType>(`/api/appointment-types/${id}`, body),
+    delete: (id: string) => api.delete(`/api/appointment-types/${id}`),
+  },
+  mappingRules: {
+    list: () => api.get<ApiMappingRule[]>("/api/mapping-rules"),
+    create: (body: Record<string, unknown>) => api.post<ApiMappingRule>("/api/mapping-rules", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiMappingRule>(`/api/mapping-rules/${id}`, body),
+    delete: (id: string) => api.delete(`/api/mapping-rules/${id}`),
+    reorder: (orderedIds: string[]) =>
+      api.post<ApiMappingRule[]>("/api/mapping-rules/reorder", { ordered_ids: orderedIds }),
+  },
 };
