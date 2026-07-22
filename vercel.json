@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://nexhealth-backend-4jui.onrender.com/api/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://nexhealth-backend-4jui.onrender.com/health"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://nexhealth-backend-4jui.onrender.com/uploads/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

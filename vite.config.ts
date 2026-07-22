@@ -35,6 +35,8 @@ export default defineConfig({
   // origin in development. This keeps auth cookies first-party (no cross-origin
   // SameSite issues) and lets the SSO redirect flow return to the SPA.
   server: {
+    // Allow ngrok (and similar) hostnames when tunneling the dev server.
+    allowedHosts: ['.ngrok-free.app', '.ngrok.io', '.ngrok.app'],
     proxy: {
       '/api': { target: 'http://localhost:8000', changeOrigin: true },
       '/health': { target: 'http://localhost:8000', changeOrigin: true },
