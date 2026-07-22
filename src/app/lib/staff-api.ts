@@ -3,12 +3,17 @@ import type {
   Appointment,
   AppointmentStatus,
   AppointmentType,
+  AvailabilitySlot,
   FormSubmission,
   InsertionRule,
   MappingCondition,
   MappingRule,
+  Operatory,
   Patient,
   PatientTypeRule,
+  Provider,
+  ProviderStatus,
+  RepeatMode,
 } from "../types";
 
 // ── API types (snake_case from backend) ─────────────────────────────────────
@@ -206,6 +211,64 @@ export function mapMappingRule(r: ApiMappingRule): MappingRule {
   };
 }
 
+export type ApiProvider = {
+  id: string;
+  name: string;
+  role: string;
+  status: ProviderStatus;
+  default_appointment_type_ids: string[];
+  default_insurances: string[];
+  created_at: string;
+};
+
+export function mapProvider(p: ApiProvider): Provider {
+  return {
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    status: p.status,
+    defaultAppointmentTypeIds: p.default_appointment_type_ids,
+    defaultInsurances: p.default_insurances,
+  };
+}
+
+export type ApiOperatory = { id: string; name: string; active: boolean; created_at: string };
+
+export function mapOperatory(o: ApiOperatory): Operatory {
+  return { id: o.id, name: o.name, active: o.active };
+}
+
+export type ApiAvailabilitySlot = {
+  id: string;
+  provider_id: string;
+  operatory_id: string | null;
+  repeat_mode: RepeatMode;
+  specific_date: string | null;
+  day_of_week: number | null;
+  starts_on: string | null;
+  start_time: string;
+  end_time: string;
+  use_provider_defaults: boolean;
+  appointment_type_ids: string[];
+  created_at: string;
+};
+
+export function mapAvailabilitySlot(s: ApiAvailabilitySlot): AvailabilitySlot {
+  return {
+    id: s.id,
+    providerId: s.provider_id,
+    operatoryId: s.operatory_id,
+    repeatMode: s.repeat_mode,
+    specificDate: s.specific_date,
+    dayOfWeek: s.day_of_week,
+    startsOn: s.starts_on,
+    startTime: s.start_time,
+    endTime: s.end_time,
+    useProviderDefaults: s.use_provider_defaults,
+    appointmentTypeIds: s.appointment_type_ids,
+  };
+}
+
 export const staffApi = {
   patients: {
     list: (q = "", archived = false, allLocations = false) =>
@@ -300,5 +363,31 @@ export const staffApi = {
     delete: (id: string) => api.delete(`/api/mapping-rules/${id}`),
     reorder: (orderedIds: string[]) =>
       api.post<ApiMappingRule[]>("/api/mapping-rules/reorder", { ordered_ids: orderedIds }),
+  },
+  providers: {
+    list: () => api.get<ApiProvider[]>("/api/providers"),
+    create: (body: Record<string, unknown>) => api.post<ApiProvider>("/api/providers", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiProvider>(`/api/providers/${id}`, body),
+    delete: (id: string) => api.delete(`/api/providers/${id}`),
+  },
+  operatories: {
+    list: () => api.get<ApiOperatory[]>("/api/operatories"),
+    create: (body: Record<string, unknown>) => api.post<ApiOperatory>("/api/operatories", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiOperatory>(`/api/operatories/${id}`, body),
+    delete: (id: string) => api.delete(`/api/operatories/${id}`),
+  },
+  availabilitySlots: {
+    list: (providerId?: string) =>
+      api.get<ApiAvailabilitySlot[]>(
+        `/api/availability-slots${providerId ? `?provider_id=${providerId}` : ""}`
+      ),
+    create: (body: Record<string, unknown>) =>
+      api.post<ApiAvailabilitySlot>("/api/availability-slots", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiAvailabilitySlot>(`/api/availability-slots/${id}`, body),
+    delete: (id: string) => api.delete(`/api/availability-slots/${id}`),
+    clone: (id: string) => api.post<ApiAvailabilitySlot>(`/api/availability-slots/${id}/clone`),
   },
 };

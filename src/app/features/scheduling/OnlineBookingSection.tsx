@@ -8,13 +8,14 @@ import { toastError, toastSuccess } from "../../lib/toast";
 import { AppointmentTypeModal } from "./AppointmentTypeModal";
 import { MappingRulesView } from "./MappingRulesView";
 import { PreviewBookingModal } from "./PreviewBookingModal";
+import { ProvidersAvailabilityView } from "./ProvidersAvailabilityView";
 import type { AppointmentType } from "../../types";
 
 type Tab = "new" | "existing" | "unavailable";
 
 export function OnlineBookingSection() {
   const { activeLocation } = useAuth();
-  const [view, setView] = useState<"types" | "mapping">("types");
+  const [view, setView] = useState<"types" | "mapping" | "availability">("types");
   const [types, setTypes] = useState<AppointmentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -65,6 +66,9 @@ export function OnlineBookingSection() {
   if (view === "mapping") {
     return <MappingRulesView types={types} onBack={() => setView("types")} />;
   }
+  if (view === "availability") {
+    return <ProvidersAvailabilityView onBack={() => setView("types")} />;
+  }
 
   const filtered = types.filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()));
   const tabbed = filtered.filter((t) => {
@@ -81,12 +85,20 @@ export function OnlineBookingSection() {
 
       <div className="bg-white rounded-xl border border-border overflow-visible">
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 py-3 border-b border-border">
-          <button
-            onClick={() => setView("mapping")}
-            className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Mapping rules
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setView("availability")}
+              className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Availability
+            </button>
+            <button
+              onClick={() => setView("mapping")}
+              className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Mapping rules
+            </button>
+          </div>
           <button
             onClick={() => setPreviewing(true)}
             className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"

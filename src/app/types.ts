@@ -116,3 +116,38 @@ export type MappingRule = {
   conditions: MappingCondition[];
   position: number;
 };
+
+// ── Scheduling: providers, operatories & availability ─────────────────────────────
+
+export type ProviderStatus = "active" | "inactive";
+
+export type Provider = {
+  id: string;
+  name: string;
+  role: string;
+  status: ProviderStatus;
+  defaultAppointmentTypeIds: string[];
+  defaultInsurances: string[];
+};
+
+export type Operatory = {
+  id: string;
+  name: string;
+  active: boolean;
+};
+
+export type RepeatMode = "once" | "weekly";
+
+export type AvailabilitySlot = {
+  id: string;
+  providerId: string;
+  operatoryId: string | null;
+  repeatMode: RepeatMode;
+  specificDate: string | null;
+  dayOfWeek: number | null;
+  startsOn: string | null;
+  startTime: string;
+  endTime: string;
+  useProviderDefaults: boolean;
+  appointmentTypeIds: string[];
+};
