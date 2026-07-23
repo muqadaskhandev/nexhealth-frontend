@@ -3,6 +3,7 @@ import type {
   Appointment,
   AppointmentStatus,
   AppointmentType,
+  AvailabilityBlock,
   AvailabilitySlot,
   FormSubmission,
   InsertionRule,
@@ -269,6 +270,27 @@ export function mapAvailabilitySlot(s: ApiAvailabilitySlot): AvailabilitySlot {
   };
 }
 
+export type ApiAvailabilityBlock = {
+  id: string;
+  provider_id: string;
+  operatory_id: string | null;
+  starts_at: string;
+  ends_at: string;
+  notes: string;
+  created_at: string;
+};
+
+export function mapAvailabilityBlock(b: ApiAvailabilityBlock): AvailabilityBlock {
+  return {
+    id: b.id,
+    providerId: b.provider_id,
+    operatoryId: b.operatory_id,
+    startsAt: b.starts_at,
+    endsAt: b.ends_at,
+    notes: b.notes,
+  };
+}
+
 export const staffApi = {
   patients: {
     list: (q = "", archived = false, allLocations = false) =>
@@ -389,5 +411,16 @@ export const staffApi = {
       api.patch<ApiAvailabilitySlot>(`/api/availability-slots/${id}`, body),
     delete: (id: string) => api.delete(`/api/availability-slots/${id}`),
     clone: (id: string) => api.post<ApiAvailabilitySlot>(`/api/availability-slots/${id}/clone`),
+  },
+  availabilityBlocks: {
+    list: (providerId?: string) =>
+      api.get<ApiAvailabilityBlock[]>(
+        `/api/availability-blocks${providerId ? `?provider_id=${providerId}` : ""}`
+      ),
+    create: (body: Record<string, unknown>) =>
+      api.post<ApiAvailabilityBlock>("/api/availability-blocks", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiAvailabilityBlock>(`/api/availability-blocks/${id}`, body),
+    delete: (id: string) => api.delete(`/api/availability-blocks/${id}`),
   },
 };

@@ -151,3 +151,12 @@ export type AvailabilitySlot = {
   useProviderDefaults: boolean;
   appointmentTypeIds: string[];
 };
+
+export type AvailabilityBlock = {
+  id: string;
+  providerId: string;
+  operatoryId: string | null;
+  startsAt: string;
+  endsAt: string;
+  notes: string;
+};

@@ -5,12 +5,13 @@ import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { IconButton } from "../../components/shared/IconButton";
 import { useAuth } from "../../auth/AuthContext";
 import { practiceApi } from "../../lib/api";
-import { staffApi, mapAppointmentType, mapAvailabilitySlot, mapOperatory, mapProvider } from "../../lib/staff-api";
+import { staffApi, mapAppointmentType, mapAvailabilityBlock, mapAvailabilitySlot, mapOperatory, mapProvider } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import { ProviderModal } from "./ProviderModal";
 import { ProviderDefaultsModal } from "./ProviderDefaultsModal";
 import { AvailabilitySlotModal } from "./AvailabilitySlotModal";
-import type { AppointmentType, AvailabilitySlot, Operatory, Provider } from "../../types";
+import { BlockAvailabilityModal } from "./BlockAvailabilityModal";
+import type { AppointmentType, AvailabilityBlock, AvailabilitySlot, Operatory, Provider } from "../../types";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -41,6 +42,16 @@ function formatAppointmentTypes(slot: AvailabilitySlot, types: AppointmentType[]
   return names.length > 0 ? names.join(", ") : "No types selected";
 }
 
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
   const { activeLocation, refreshSession } = useAuth();
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -58,6 +69,10 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
   const [slotModal, setSlotModal] = useState<{ providerId: string; initial?: AvailabilitySlot } | null>(null);
   const [deletingSlot, setDeletingSlot] = useState<AvailabilitySlot | null>(null);
 
+  const [blocks, setBlocks] = useState<AvailabilityBlock[]>([]);
+  const [blockModal, setBlockModal] = useState<{ providerId: string; initial?: AvailabilityBlock } | null>(null);
+  const [deletingBlock, setDeletingBlock] = useState<AvailabilityBlock | null>(null);
+
   const [newOperatoryName, setNewOperatoryName] = useState("");
   const [addingOperatory, setAddingOperatory] = useState(false);
   const [deletingOperatory, setDeletingOperatory] = useState<Operatory | null>(null);
@@ -73,12 +88,14 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
       staffApi.operatories.list(),
       staffApi.availabilitySlots.list(),
       staffApi.appointmentTypes.list(),
+      staffApi.availabilityBlocks.list(),
     ])
-      .then(([p, o, s, t]) => {
+      .then(([p, o, s, t, b]) => {
         setProviders(p.map(mapProvider));
         setOperatories(o.map(mapOperatory));
         setSlots(s.map(mapAvailabilitySlot));
         setAppointmentTypes(t.map(mapAppointmentType));
+        setBlocks(b.map(mapAvailabilityBlock));
       })
       .finally(() => setLoading(false));
   }
@@ -192,6 +209,19 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
     }
   }
 
+  async function handleDeleteBlock() {
+    if (!deletingBlock) return;
+    try {
+      await staffApi.availabilityBlocks.delete(deletingBlock.id);
+      toastSuccess("Block removed");
+      setDeletingBlock(null);
+      refresh();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not remove this block — please try again.");
+    }
+  }
+
   const filteredProviders = providers.filter(
     (p) => !search || p.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -294,6 +324,7 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
         <div className="space-y-4">
           {filteredProviders.map((provider) => {
             const providerSlots = slots.filter((s) => s.providerId === provider.id);
+            const providerBlocks = blocks.filter((b) => b.providerId === provider.id);
             return (
               <div key={provider.id} className="bg-white rounded-xl border border-border overflow-hidden">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-border">
@@ -413,6 +444,63 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
                     <Plus size={14} /> Add time
                   </button>
                 </div>
+
+                <div className="px-4 sm:px-5 py-3 border-t border-border">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Blocked times</p>
+                  {providerBlocks.length === 0 ? (
+                    <p className="text-sm text-gray-400 py-1">No blocked times.</p>
+                  ) : (
+                    <div className="overflow-x-auto -mx-1">
+                      <table className="w-full text-sm min-w-[560px]">
+                        <thead>
+                          <tr className="text-xs text-gray-500">
+                            <th className="text-left font-semibold py-1.5 px-1">Starts</th>
+                            <th className="text-left font-semibold py-1.5 px-1">Ends</th>
+                            <th className="text-left font-semibold py-1.5 px-1">Operatory</th>
+                            <th className="text-left font-semibold py-1.5 px-1">Notes</th>
+                            <th className="py-1.5 px-1" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {providerBlocks.map((block) => (
+                            <tr key={block.id}>
+                              <td className="py-2 px-1 text-gray-700 whitespace-nowrap">{formatDateTime(block.startsAt)}</td>
+                              <td className="py-2 px-1 text-gray-700 whitespace-nowrap">{formatDateTime(block.endsAt)}</td>
+                              <td className="py-2 px-1 text-gray-700">
+                                {block.operatoryId ? operatories.find((o) => o.id === block.operatoryId)?.name ?? "—" : "Whole provider"}
+                              </td>
+                              <td className="py-2 px-1 text-gray-700 truncate max-w-[200px]">{block.notes || "—"}</td>
+                              <td className="py-2 px-1">
+                                <div className="flex items-center gap-1 justify-end">
+                                  <IconButton
+                                    label="Edit"
+                                    onClick={() => setBlockModal({ providerId: provider.id, initial: block })}
+                                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
+                                  >
+                                    <Pencil size={12} />
+                                  </IconButton>
+                                  <IconButton
+                                    label="Delete"
+                                    onClick={() => setDeletingBlock(block)}
+                                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-red-500 hover:bg-red-50"
+                                  >
+                                    <Trash2 size={12} />
+                                  </IconButton>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setBlockModal({ providerId: provider.id })}
+                    className="mt-2 flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700"
+                  >
+                    <Plus size={14} /> Block time
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -464,6 +552,19 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
           }}
         />
       )}
+      {blockModal && (
+        <BlockAvailabilityModal
+          providerId={blockModal.providerId}
+          operatories={operatories}
+          useOperatories={useOperatories}
+          initial={blockModal.initial}
+          onClose={() => setBlockModal(null)}
+          onSaved={() => {
+            setBlockModal(null);
+            refresh();
+          }}
+        />
+      )}
 
       {deletingProvider && (
         <ConfirmModal
@@ -493,6 +594,16 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
           danger
           onConfirm={handleDeleteSlot}
           onCancel={() => setDeletingSlot(null)}
+        />
+      )}
+      {deletingBlock && (
+        <ConfirmModal
+          title="Remove this block?"
+          message="The provider will become bookable online during this window again. This can't be undone."
+          confirmLabel="Remove"
+          danger
+          onConfirm={handleDeleteBlock}
+          onCancel={() => setDeletingBlock(null)}
         />
       )}
       {confirmingOperatoryMode && (
