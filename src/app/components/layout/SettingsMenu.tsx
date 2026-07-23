@@ -30,6 +30,7 @@ export function SettingsMenu({ onOpenSettings, onOpenUsers, isAdmin }: Props) {
         }`}
         aria-label="Settings menu"
         aria-expanded={open}
+        title="Settings"
       >
         <SettingsIcon size={18} />
       </button>

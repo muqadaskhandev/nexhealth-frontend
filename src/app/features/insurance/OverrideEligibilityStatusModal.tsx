@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Info, ChevronDown } from "lucide-react";
+import { IconButton } from "../../components/shared/IconButton";
 import type { EligibilityStatus } from "../../types";
 
 const ELIGIBILITY_OPTIONS: { value: EligibilityStatus; label: string }[] = [
@@ -22,7 +23,7 @@ export function OverrideEligibilityStatusModal({ current, onClose, onSave }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4">
           <h2 className="text-base font-bold text-gray-900">Override eligibility status</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={15} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={15} /></IconButton>
         </div>
 
         {/* Blue info banner */}

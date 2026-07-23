@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Copy, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
+import { IconButton } from "../../components/shared/IconButton";
 import { useAuth } from "../../auth/AuthContext";
 import { practiceApi } from "../../lib/api";
 import { staffApi, mapAppointmentType, mapAvailabilitySlot, mapOperatory, mapProvider } from "../../lib/staff-api";
@@ -231,9 +232,13 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
                     <span className="text-sm text-gray-800 truncate">{o.name}</span>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <Toggle on={o.active} onChange={() => toggleOperatoryActive(o)} />
-                      <button onClick={() => setDeletingOperatory(o)} className="text-gray-400 hover:text-red-500">
+                      <IconButton
+                        label="Delete"
+                        onClick={() => setDeletingOperatory(o)}
+                        className="text-gray-400 hover:text-red-500"
+                      >
                         <Trash2 size={14} />
-                      </button>
+                      </IconButton>
                     </div>
                   </div>
                 ))}
@@ -299,9 +304,13 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-semibold text-gray-900 truncate">{provider.name}</span>
-                        <button onClick={() => setEditingProvider(provider)} className="text-gray-400 hover:text-teal-600 flex-shrink-0">
+                        <IconButton
+                          label="Edit"
+                          onClick={() => setEditingProvider(provider)}
+                          className="text-gray-400 hover:text-teal-600 flex-shrink-0"
+                        >
                           <Pencil size={12} />
-                        </button>
+                        </IconButton>
                       </div>
                       <span className="text-xs text-gray-500">{provider.role || "No role set"}</span>
                     </div>
@@ -311,9 +320,13 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
                       <span className="text-xs font-medium text-gray-600">{provider.status === "active" ? "Active" : "Inactive"}</span>
                       <Toggle on={provider.status === "active"} onChange={() => toggleProviderStatus(provider)} />
                     </label>
-                    <button onClick={() => setDeletingProvider(provider)} className="text-gray-400 hover:text-red-500">
+                    <IconButton
+                      label="Delete"
+                      onClick={() => setDeletingProvider(provider)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
                       <Trash2 size={14} />
-                    </button>
+                    </IconButton>
                   </div>
                 </div>
 
@@ -364,24 +377,27 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
                               </td>
                               <td className="py-2 px-1">
                                 <div className="flex items-center gap-1 justify-end">
-                                  <button
+                                  <IconButton
+                                    label="Edit"
                                     onClick={() => setSlotModal({ providerId: provider.id, initial: slot })}
                                     className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
                                   >
                                     <Pencil size={12} />
-                                  </button>
-                                  <button
+                                  </IconButton>
+                                  <IconButton
+                                    label="Clone"
                                     onClick={() => handleCloneSlot(slot)}
                                     className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
                                   >
                                     <Copy size={12} />
-                                  </button>
-                                  <button
+                                  </IconButton>
+                                  <IconButton
+                                    label="Delete"
                                     onClick={() => setDeletingSlot(slot)}
                                     className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-red-500 hover:bg-red-50"
                                   >
                                     <Trash2 size={12} />
-                                  </button>
+                                  </IconButton>
                                 </div>
                               </td>
                             </tr>

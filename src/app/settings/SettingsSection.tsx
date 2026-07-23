@@ -15,6 +15,7 @@ import {
   UserDetail,
   usersApi,
 } from "../lib/api";
+import { IconButton } from "../components/shared/IconButton";
 import { LogoSettingsPanel } from "./LogoSettingsPanel";
 import { SynchronizerSettings } from "./SynchronizerSettings";
 import { LocationsSettingsPanel } from "./LocationsSettingsPanel";
@@ -171,13 +172,13 @@ function AccountSettings({ onPasswordChanged }: { onPasswordChanged: () => void 
               onChange={(e) => setNext(e.target.value)}
               className={`${inputCls} pr-10`}
             />
-            <button
-              type="button"
+            <IconButton
+              label={show ? "Hide" : "Show"}
               onClick={() => setShow((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
               {show ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+            </IconButton>
           </div>
         </div>
         <div>
@@ -561,14 +562,13 @@ function UserFormModal({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <button
-                type="button"
+              <IconButton
+                label={showPassword ? "Hide" : "Show"}
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+              </IconButton>
             </div>
           )}
           {isEdit && (

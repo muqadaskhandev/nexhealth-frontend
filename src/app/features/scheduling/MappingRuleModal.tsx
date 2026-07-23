@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
+import { IconButton } from "../../components/shared/IconButton";
 import { staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { AppointmentType, MappingField, MappingRule } from "../../types";
@@ -100,9 +101,9 @@ export function MappingRuleModal({ types, initial, onClose, onSaved }: {
       >
         <div className="flex items-center justify-between px-6 pt-6 pb-4 flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-900">{initial ? "Edit rule" : "New rule"}</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
+          <IconButton label="Close" onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
             <X size={16} />
-          </button>
+          </IconButton>
         </div>
 
         {error && (
@@ -136,9 +137,9 @@ export function MappingRuleModal({ types, initial, onClose, onSaved }: {
                     {cond.values.map((v) => (
                       <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-50 border border-teal-200 rounded text-xs text-teal-800">
                         {v}
-                        <button onClick={() => removeValue(idx, v)} className="text-teal-500 hover:text-teal-700">
+                        <IconButton label="Remove" onClick={() => removeValue(idx, v)} className="text-teal-500 hover:text-teal-700">
                           <X size={11} />
-                        </button>
+                        </IconButton>
                       </span>
                     ))}
                   </div>

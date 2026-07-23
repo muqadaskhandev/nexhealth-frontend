@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { X, AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Lock, Calendar } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
+import { IconButton } from "../../components/shared/IconButton";
 import type { Patient } from "../../types";
 
 function formatDobDisplay(d: Date): string {
@@ -40,40 +41,38 @@ function DobCalendar({
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-3">
-        <button
-          type="button"
+        <IconButton
+          label="Previous month"
           onClick={() => setViewDate(new Date(year, month - 1, 1))}
           className="p-1 rounded-lg hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
         >
           <ChevronLeft size={16} />
-        </button>
+        </IconButton>
         <div className="flex items-center gap-1">
           <span className="text-sm font-bold text-gray-900">{monthName}</span>
-          <button
-            type="button"
+          <IconButton
+            label="Previous year"
             onClick={() => setViewDate(new Date(year - 1, month, 1))}
             className="p-0.5 rounded hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
-            aria-label="Previous year"
           >
             <ChevronLeft size={14} />
-          </button>
+          </IconButton>
           <span className="text-sm font-bold text-teal-600 tabular-nums w-10 text-center">{year}</span>
-          <button
-            type="button"
+          <IconButton
+            label="Next year"
             onClick={() => setViewDate(new Date(year + 1, month, 1))}
             className="p-0.5 rounded hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
-            aria-label="Next year"
           >
             <ChevronRight size={14} />
-          </button>
+          </IconButton>
         </div>
-        <button
-          type="button"
+        <IconButton
+          label="Next month"
           onClick={() => setViewDate(new Date(year, month + 1, 1))}
           className="p-1 rounded-lg hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
         >
           <ChevronRight size={16} />
-        </button>
+        </IconButton>
       </div>
       <div className="grid grid-cols-7 gap-0 mb-1">
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
@@ -177,7 +176,7 @@ export function CreatePatientModal({
       <div className="bg-white w-full max-w-md mx-4 rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-6 pb-4">
           <h2 className="text-lg font-bold text-gray-900">Create new patient</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={16} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={16} /></IconButton>
         </div>
         <div className="mx-6 mb-4 flex items-start gap-2.5 px-3.5 py-3 bg-amber-50 border border-amber-200 rounded-lg">
           <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
@@ -229,6 +228,7 @@ export function CreatePatientModal({
                     type="button"
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-teal-500 hover:bg-teal-50 hover:text-teal-600 transition-colors"
                     aria-label="Open calendar"
+                    title="Open calendar"
                   >
                     <Calendar size={16} />
                   </button>

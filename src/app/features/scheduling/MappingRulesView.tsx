@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowUp, ArrowDown, Plus, Trash2 } from "lucide-react";
 import { staffApi, mapMappingRule } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
+import { IconButton } from "../../components/shared/IconButton";
 import { MappingRuleModal } from "./MappingRuleModal";
 import type { AppointmentType, MappingRule } from "../../types";
 
@@ -142,15 +143,29 @@ export function MappingRulesView({ types, onBack }: { types: AppointmentType[]; 
                   {summarize(rule, types)}
                 </button>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => move(idx, -1)} disabled={idx === 0} className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">
+                  <IconButton
+                    label="Move up"
+                    onClick={() => move(idx, -1)}
+                    disabled={idx === 0}
+                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
                     <ArrowUp size={13} />
-                  </button>
-                  <button onClick={() => move(idx, 1)} disabled={idx === rules.length - 1} className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">
+                  </IconButton>
+                  <IconButton
+                    label="Move down"
+                    onClick={() => move(idx, 1)}
+                    disabled={idx === rules.length - 1}
+                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
                     <ArrowDown size={13} />
-                  </button>
-                  <button onClick={() => setDeletingRule(rule)} className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-red-500 hover:bg-red-50">
+                  </IconButton>
+                  <IconButton
+                    label="Delete"
+                    onClick={() => setDeletingRule(rule)}
+                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-red-500 hover:bg-red-50"
+                  >
                     <Trash2 size={13} />
-                  </button>
+                  </IconButton>
                 </div>
               </div>
             ))}

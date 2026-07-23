@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
+import { IconButton } from "../../components/shared/IconButton";
 import type { Patient, InsuranceData } from "../../types";
 
 const INSURERS = [
@@ -53,7 +54,7 @@ export function VerifyOnDemandModal({ patient, onClose, onVerified }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3 flex-shrink-0">
           <h2 className="text-base font-bold text-gray-900">Verify on demand</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={15} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={15} /></IconButton>
         </div>
 
         {/* Teal info banner */}

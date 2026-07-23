@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { authApi, practiceApi, type ApiLocation } from "../lib/api";
 import { formatLocationAddress } from "../lib/locationFormat";
 import { toastSuccess } from "../lib/toast";
+import { IconButton } from "../components/shared/IconButton";
 import { LocationEditForm } from "./LocationEditForm";
 
 /**
@@ -164,16 +165,13 @@ export function LocationsSettingsPanel() {
                   </div>
                 </div>
                 {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditing(loc);
-                    }}
+                  <IconButton
+                    label="Edit"
+                    onClick={() => setEditing(loc)}
                     className="w-9 h-9 rounded-lg bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600 flex-shrink-0"
-                    aria-label={`Edit ${loc.name}`}
                   >
                     <Pencil size={15} />
-                  </button>
+                  </IconButton>
                 )}
               </div>
             );

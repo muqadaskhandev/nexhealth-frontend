@@ -3,6 +3,7 @@ import {
   ArrowLeft, Search, ChevronDown, Archive, Copy, RefreshCw, Wrench,
   Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList,
 } from "lucide-react";
+import { IconButton } from "../../components/shared/IconButton";
 import { NewPacketModal } from "./NewPacketModal";
 import { MANAGE_FORMS } from "./forms-data";
 import type { Packet } from "../../types";
@@ -136,12 +137,13 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
                   </td>
                   <td className="px-5 py-3 text-gray-400 text-xs">—</td>
                   <td className="px-3 py-3 relative">
-                    <button
+                    <IconButton
+                      label="More"
                       onClick={() => setEllipsisOpen(ellipsisOpen === form ? null : form)}
                       className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === form ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
                     >
                       <MoreHorizontal size={15} />
-                    </button>
+                    </IconButton>
                     {ellipsisOpen === form && (
                       <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
                         {ELLIPSIS_ITEMS.map(item => (
@@ -190,12 +192,13 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
                           <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{pkt.forms.slice(0, 3).join(", ")}{pkt.forms.length > 3 ? "…" : ""}</p>
                         </td>
                         <td className="px-3 py-3 relative">
-                          <button
+                          <IconButton
+                            label="More"
                             onClick={() => setEllipsisOpen(ellipsisOpen === pkt.id ? null : pkt.id)}
                             className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === pkt.id ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
                           >
                             <MoreHorizontal size={15} />
-                          </button>
+                          </IconButton>
                           {ellipsisOpen === pkt.id && (
                             <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
                               <button onClick={() => setEllipsisOpen(null)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><Edit size={14} />Edit</button>

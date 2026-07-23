@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown, X, CircleDollarSign, Calendar, MessageSquare, FileText, ShieldCheck, StickyNote } from "lucide-react";
 import { PatientAvatar } from "../../components/shared/PatientAvatar";
 import { SyncTooltip } from "../../components/shared/SyncTooltip";
+import { IconButton } from "../../components/shared/IconButton";
 import { InsuranceAccordion } from "../insurance/InsuranceAccordion";
 import { EditPatientInfoModal } from "./EditPatientInfoModal";
 import { EditNotificationPreferencesModal } from "./EditNotificationPreferencesModal";
@@ -147,9 +148,9 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
                   </div>
                 )}
               </div>
-              <button onClick={onClose} className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+              <IconButton label="Close" onClick={onClose} className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
                 <X size={15} />
-              </button>
+              </IconButton>
             </div>
           </div>
         </div>

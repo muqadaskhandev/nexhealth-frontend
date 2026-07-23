@@ -122,7 +122,7 @@ export function FormsListView({
                   </div>
                 </td>
                 <td className="px-3 py-3">
-                  <button className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button title="More" className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
                     <MoreHorizontal size={15} />
                   </button>
                 </td>

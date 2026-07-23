@@ -105,8 +105,8 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
                   </td>
                   <td className="px-3 py-3 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1 rounded hover:bg-gray-200 text-gray-400 transition-colors"><Info size={14} /></button>
-                      <button className="p-1 rounded hover:bg-gray-200 text-gray-400 transition-colors"><MoreHorizontal size={14} /></button>
+                      <button title="Details" className="p-1 rounded hover:bg-gray-200 text-gray-400 transition-colors"><Info size={14} /></button>
+                      <button title="More" className="p-1 rounded hover:bg-gray-200 text-gray-400 transition-colors"><MoreHorizontal size={14} /></button>
                     </div>
                   </td>
                 </tr>

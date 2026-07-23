@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Upload } from "lucide-react";
+import { IconButton } from "../../components/shared/IconButton";
 
 export function DigitizeModal({ onClose }: { onClose: () => void }) {
   const [hasFile, setHasFile] = useState(false);
@@ -10,7 +11,7 @@ export function DigitizeModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white w-full max-w-md mx-4 rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-6 pb-4">
           <h2 className="text-base font-bold text-gray-900">Upload your forms</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={15} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={15} /></IconButton>
         </div>
         <div className="px-6 pb-6 space-y-4">
           <p className="text-sm text-gray-600">Upload your documents to digitize them. We support PDF, JPG, PNG, DOC, and DOCX files up to 10MB each.</p>

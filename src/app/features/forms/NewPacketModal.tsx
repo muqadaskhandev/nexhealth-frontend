@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Search, Check, FileText } from "lucide-react";
+import { IconButton } from "../../components/shared/IconButton";
 import { MANAGE_FORMS } from "./forms-data";
 import type { Packet } from "../../types";
 
@@ -40,7 +41,7 @@ export function NewPacketModal({ onClose, onSave }: { onClose: () => void; onSav
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-5 flex-shrink-0">
           <h2 className="text-xl font-bold text-gray-900">New Packet</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></IconButton>
         </div>
 
         <div className="overflow-y-auto flex-1 px-6 pb-2">

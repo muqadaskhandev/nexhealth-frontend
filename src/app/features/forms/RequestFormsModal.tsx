@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Search, Info, Calendar, ChevronLeft, ChevronRight, ChevronDown, Edit, FileText } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
+import { IconButton } from "../../components/shared/IconButton";
 import { MANAGE_FORMS } from "./forms-data";
 import type { Patient } from "../../types";
 
@@ -22,9 +23,9 @@ function MiniCalendar({ value, onChange }: { value: Date; onChange: (d: Date) =>
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-72 z-50">
       <div className="flex items-center justify-between mb-3">
-        <button onClick={prevMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronLeft size={16} /></button>
+        <IconButton label="Previous month" onClick={prevMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronLeft size={16} /></IconButton>
         <span className="text-sm font-bold text-gray-900">{monthName} {year}</span>
-        <button onClick={nextMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronRight size={16} /></button>
+        <IconButton label="Next month" onClick={nextMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronRight size={16} /></IconButton>
       </div>
       <div className="grid grid-cols-7 gap-0 mb-1">
         {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
@@ -117,7 +118,7 @@ export function RequestFormsModal({
               <button className="text-blue-600 underline">form request template</button>.
             </p>
           </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0"><X size={18} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0"><X size={18} /></IconButton>
         </div>
 
         <div className="overflow-y-auto flex-1 px-6 pb-2 space-y-5">
@@ -135,7 +136,7 @@ export function RequestFormsModal({
                   placeholder="Search by name, date of birth, email, or phone"
                   className="flex-1 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent"
                 />
-                {selectedPatient && <button onClick={() => { setSelectedPatient(""); setPatientSearch(""); }} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>}
+                {selectedPatient && <IconButton label="Clear" onClick={() => { setSelectedPatient(""); setPatientSearch(""); }} className="text-gray-400 hover:text-gray-600"><X size={13} /></IconButton>}
               </div>
               {showPatientDrop && patientMatches.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
@@ -190,7 +191,7 @@ export function RequestFormsModal({
                       <FileText size={13} className="text-gray-400" />
                       <span className="text-sm text-gray-700">{f}</span>
                     </div>
-                    <button onClick={() => setSelectedForms(prev => prev.filter(x => x !== f))} className="text-gray-300 hover:text-gray-500 transition-colors"><X size={13} /></button>
+                    <IconButton label="Remove" onClick={() => setSelectedForms(prev => prev.filter(x => x !== f))} className="text-gray-300 hover:text-gray-500 transition-colors"><X size={13} /></IconButton>
                   </div>
                 ))}
               </div>
@@ -219,9 +220,9 @@ export function RequestFormsModal({
                   <Calendar size={14} className="text-gray-400" />
                   {fmtExpiry}
                 </div>
-                <button onClick={() => setShowCalendar(v => !v)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                <IconButton label="Edit" onClick={() => setShowCalendar(v => !v)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
                   <Edit size={14} />
-                </button>
+                </IconButton>
               </div>
               <p className="text-xs text-gray-400 mt-1">
                 Set by your default expiration date.{" "}

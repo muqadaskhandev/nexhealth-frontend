@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Lock, ChevronDown } from "lucide-react";
+import { IconButton } from "../../components/shared/IconButton";
 import type { Patient } from "../../types";
 
 export function EditPatientInfoModal({ patient, onClose, onSave }: {
@@ -30,7 +31,7 @@ export function EditPatientInfoModal({ patient, onClose, onSave }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-900">Edit patient info</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"><X size={16} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"><X size={16} /></IconButton>
         </div>
 
         <div className="overflow-y-auto px-6 pb-2 space-y-4 flex-1">

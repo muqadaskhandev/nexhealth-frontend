@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, X } from "lucide-react";
+import { IconButton } from "../../components/shared/IconButton";
 
 const FORM_TEMPLATES = [
   "Patient Intake Form", "Medical History", "HIPAA Consent",
@@ -33,7 +34,7 @@ export function FormBuilderView({ onExit }: { onExit: () => void }) {
         <h2 className="text-base font-bold text-gray-900">Form Builder</h2>
         <div className="flex items-center gap-2">
           <button onClick={onExit} className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors">Save and exit</button>
-          <button onClick={onExit} className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"><X size={15} /></button>
+          <IconButton label="Close" onClick={onExit} className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"><X size={15} /></IconButton>
         </div>
       </div>
 
