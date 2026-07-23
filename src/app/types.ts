@@ -128,6 +128,8 @@ export type Provider = {
   status: ProviderStatus;
   defaultAppointmentTypeIds: string[];
   defaultInsurances: string[];
+  appointmentTypeDurations: Record<string, number>;
+  avatarUrl: string | null;
 };
 
 export type Operatory = {
@@ -159,4 +161,24 @@ export type AvailabilityBlock = {
   startsAt: string;
   endsAt: string;
   notes: string;
+};
+
+// ── Scheduling: custom booking form fields & insurance ────────────────────────
+
+export type BookingFieldType = "text" | "note" | "single_select" | "multi_select" | "payment";
+
+export type BookingFormField = {
+  id: string;
+  fieldType: BookingFieldType;
+  label: string;
+  showTo: PatientTypeRule;
+  required: boolean;
+  noteText: string;
+  options: string[];
+  position: number;
+};
+
+export type BookingInsurance = {
+  id: string;
+  name: string;
 };

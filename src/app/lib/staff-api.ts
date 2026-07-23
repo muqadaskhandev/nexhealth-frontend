@@ -5,6 +5,9 @@ import type {
   AppointmentType,
   AvailabilityBlock,
   AvailabilitySlot,
+  BookingFieldType,
+  BookingFormField,
+  BookingInsurance,
   FormSubmission,
   InsertionRule,
   MappingCondition,
@@ -219,6 +222,8 @@ export type ApiProvider = {
   status: ProviderStatus;
   default_appointment_type_ids: string[];
   default_insurances: string[];
+  appointment_type_durations: Record<string, number>;
+  avatar_url: string | null;
   created_at: string;
 };
 
@@ -230,6 +235,8 @@ export function mapProvider(p: ApiProvider): Provider {
     status: p.status,
     defaultAppointmentTypeIds: p.default_appointment_type_ids,
     defaultInsurances: p.default_insurances,
+    appointmentTypeDurations: p.appointment_type_durations,
+    avatarUrl: p.avatar_url,
   };
 }
 
@@ -289,6 +296,37 @@ export function mapAvailabilityBlock(b: ApiAvailabilityBlock): AvailabilityBlock
     endsAt: b.ends_at,
     notes: b.notes,
   };
+}
+
+export type ApiBookingFormField = {
+  id: string;
+  field_type: BookingFieldType;
+  label: string;
+  show_to: PatientTypeRule;
+  required: boolean;
+  note_text: string;
+  options: string[];
+  position: number;
+  created_at: string;
+};
+
+export function mapBookingFormField(f: ApiBookingFormField): BookingFormField {
+  return {
+    id: f.id,
+    fieldType: f.field_type,
+    label: f.label,
+    showTo: f.show_to,
+    required: f.required,
+    noteText: f.note_text,
+    options: f.options,
+    position: f.position,
+  };
+}
+
+export type ApiBookingInsurance = { id: string; name: string; created_at: string };
+
+export function mapBookingInsurance(i: ApiBookingInsurance): BookingInsurance {
+  return { id: i.id, name: i.name };
 }
 
 export const staffApi = {
@@ -392,6 +430,30 @@ export const staffApi = {
     update: (id: string, body: Record<string, unknown>) =>
       api.patch<ApiProvider>(`/api/providers/${id}`, body),
     delete: (id: string) => api.delete(`/api/providers/${id}`),
+    uploadAvatar: async (id: string, file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/providers/${id}/avatar`, {
+        method: "POST",
+        body: form,
+        credentials: "include",
+        headers: {
+          "X-CSRF-Token":
+            document.cookie
+              .split("; ")
+              .find((c) => c.startsWith("csrf_token="))
+              ?.split("=")
+              .slice(1)
+              .join("=") || "",
+        },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+        throw err;
+      }
+      return (await res.json()) as ApiProvider;
+    },
+    removeAvatar: (id: string) => api.delete<ApiProvider>(`/api/providers/${id}/avatar`),
   },
   operatories: {
     list: () => api.get<ApiOperatory[]>("/api/operatories"),
@@ -422,5 +484,22 @@ export const staffApi = {
     update: (id: string, body: Record<string, unknown>) =>
       api.patch<ApiAvailabilityBlock>(`/api/availability-blocks/${id}`, body),
     delete: (id: string) => api.delete(`/api/availability-blocks/${id}`),
+  },
+  bookingFormFields: {
+    list: () => api.get<ApiBookingFormField[]>("/api/booking-form-fields"),
+    create: (body: Record<string, unknown>) =>
+      api.post<ApiBookingFormField>("/api/booking-form-fields", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiBookingFormField>(`/api/booking-form-fields/${id}`, body),
+    delete: (id: string) => api.delete(`/api/booking-form-fields/${id}`),
+    reorder: (orderedIds: string[]) =>
+      api.post<ApiBookingFormField[]>("/api/booking-form-fields/reorder", { ordered_ids: orderedIds }),
+  },
+  bookingInsurances: {
+    list: () => api.get<ApiBookingInsurance[]>("/api/booking-insurances"),
+    create: (name: string) => api.post<ApiBookingInsurance>("/api/booking-insurances", { name }),
+    bulkCreate: (names: string[]) =>
+      api.post<ApiBookingInsurance[]>("/api/booking-insurances/bulk", { names }),
+    delete: (id: string) => api.delete(`/api/booking-insurances/${id}`),
   },
 };

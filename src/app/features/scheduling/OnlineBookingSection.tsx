@@ -9,19 +9,23 @@ import { AppointmentTypeModal } from "./AppointmentTypeModal";
 import { MappingRulesView } from "./MappingRulesView";
 import { PreviewBookingModal } from "./PreviewBookingModal";
 import { ProvidersAvailabilityView } from "./ProvidersAvailabilityView";
+import { BookingFormFieldsView } from "./BookingFormFieldsView";
+import { BookingInsuranceView } from "./BookingInsuranceView";
+import { BulkEditPatientTypeModal } from "./BulkEditPatientTypeModal";
 import type { AppointmentType } from "../../types";
 
 type Tab = "new" | "existing" | "unavailable";
 
 export function OnlineBookingSection() {
   const { activeLocation } = useAuth();
-  const [view, setView] = useState<"types" | "mapping" | "availability">("types");
+  const [view, setView] = useState<"types" | "mapping" | "availability" | "fields" | "insurance">("types");
   const [types, setTypes] = useState<AppointmentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<Tab>("new");
   const [editing, setEditing] = useState<AppointmentType | "new" | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [bulkEditing, setBulkEditing] = useState(false);
   const [separateByType, setSeparateByType] = useState(activeLocation?.separate_by_patient_type ?? true);
   const [allowCancelUnmapped, setAllowCancelUnmapped] = useState(
     activeLocation?.allow_cancellations_for_unmapped ?? false
@@ -69,6 +73,12 @@ export function OnlineBookingSection() {
   if (view === "availability") {
     return <ProvidersAvailabilityView onBack={() => setView("types")} />;
   }
+  if (view === "fields") {
+    return <BookingFormFieldsView onBack={() => setView("types")} />;
+  }
+  if (view === "insurance") {
+    return <BookingInsuranceView onBack={() => setView("types")} />;
+  }
 
   const filtered = types.filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()));
   const tabbed = filtered.filter((t) => {
@@ -97,6 +107,18 @@ export function OnlineBookingSection() {
               className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Mapping rules
+            </button>
+            <button
+              onClick={() => setView("fields")}
+              className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Form fields
+            </button>
+            <button
+              onClick={() => setView("insurance")}
+              className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Insurance
             </button>
           </div>
           <button
@@ -127,6 +149,12 @@ export function OnlineBookingSection() {
               className="flex-1 min-w-0 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent"
             />
           </div>
+          <button
+            onClick={() => setBulkEditing(true)}
+            className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors whitespace-nowrap"
+          >
+            Bulk edit
+          </button>
           <button
             onClick={() => setEditing("new")}
             className="flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
@@ -203,6 +231,17 @@ export function OnlineBookingSection() {
       )}
 
       {previewing && <PreviewBookingModal types={types} onClose={() => setPreviewing(false)} />}
+
+      {bulkEditing && (
+        <BulkEditPatientTypeModal
+          types={types}
+          onClose={() => setBulkEditing(false)}
+          onSaved={() => {
+            setBulkEditing(false);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

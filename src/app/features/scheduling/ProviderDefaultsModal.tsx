@@ -14,13 +14,19 @@ export function ProviderDefaultsModal({ provider, appointmentTypes, mode, onClos
   onSaved: () => void;
 }) {
   const [typeIds, setTypeIds] = useState<string[]>(provider.defaultAppointmentTypeIds);
+  const [durations, setDurations] = useState<Record<string, number>>(provider.appointmentTypeDurations);
   const [insurances, setInsurances] = useState<string[]>(provider.defaultInsurances);
   const [pasteText, setPasteText] = useState("");
+  const [csvError, setCsvError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function toggleType(id: string) {
     setTypeIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+  }
+
+  function setDuration(id: string, minutes: number) {
+    setDurations((prev) => ({ ...prev, [id]: minutes }));
   }
 
   function addPastedInsurances() {
@@ -37,13 +43,37 @@ export function ProviderDefaultsModal({ provider, appointmentTypes, mode, onClos
     setInsurances((prev) => prev.filter((i) => i !== name));
   }
 
+  function handleCsvFile(file: File | null) {
+    if (!file) return;
+    setCsvError(null);
+    file
+      .text()
+      .then((text) => {
+        const names = text
+          .split(/\r?\n/)
+          .map((line) => line.split(",")[0]?.trim().replace(/^"|"$/g, ""))
+          .filter((name): name is string => Boolean(name));
+        if (names.length === 0) {
+          setCsvError("No insurance names found in that file.");
+          return;
+        }
+        setInsurances((prev) => Array.from(new Set([...prev, ...names])));
+      })
+      .catch(() => setCsvError("Could not read that file — please try again."));
+  }
+
   async function handleSave() {
     if (submitting) return;
     setSubmitting(true);
     setError(null);
     const body =
       mode === "types"
-        ? { default_appointment_type_ids: typeIds }
+        ? {
+            default_appointment_type_ids: typeIds,
+            appointment_type_durations: Object.fromEntries(
+              typeIds.filter((id) => durations[id] !== undefined).map((id) => [id, durations[id]])
+            ),
+          }
         : { default_insurances: insurances };
     try {
       await staffApi.providers.update(provider.id, body);
@@ -90,10 +120,25 @@ export function ProviderDefaultsModal({ provider, appointmentTypes, mode, onClos
             ) : (
               <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
                 {appointmentTypes.map((t) => (
-                  <label key={t.id} className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer">
-                    <span className="text-sm text-gray-800 truncate">{t.name}</span>
-                    <Toggle on={typeIds.includes(t.id)} onChange={() => toggleType(t.id)} />
-                  </label>
+                  <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                      <Toggle on={typeIds.includes(t.id)} onChange={() => toggleType(t.id)} />
+                      <span className="text-sm text-gray-800 truncate">{t.name}</span>
+                    </label>
+                    {typeIds.includes(t.id) && (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <input
+                          type="number"
+                          min={5}
+                          step={5}
+                          value={durations[t.id] ?? t.durationMinutes}
+                          onChange={(e) => setDuration(t.id, Math.max(5, Number(e.target.value) || t.durationMinutes))}
+                          className="w-16 px-2 py-1 border border-gray-200 rounded-md text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+                        />
+                        <span className="text-xs text-gray-500">min</span>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )
@@ -123,12 +168,24 @@ export function ProviderDefaultsModal({ provider, appointmentTypes, mode, onClos
                   onChange={(e) => setPasteText(e.target.value)}
                   placeholder="Paste insurance names, separated by commas or new lines"
                 />
-                <button
-                  onClick={addPastedInsurances}
-                  className="mt-2 text-sm font-medium text-teal-600 hover:text-teal-700"
-                >
-                  + Add insurance(s)
-                </button>
+                <div className="flex items-center gap-4 mt-2">
+                  <button
+                    onClick={addPastedInsurances}
+                    className="text-sm font-medium text-teal-600 hover:text-teal-700"
+                  >
+                    + Add insurance(s)
+                  </button>
+                  <label className="text-sm font-medium text-teal-600 hover:text-teal-700 cursor-pointer">
+                    Upload CSV
+                    <input
+                      type="file"
+                      accept=".csv,text/csv"
+                      className="hidden"
+                      onChange={(e) => handleCsvFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                </div>
+                {csvError && <p className="text-xs text-red-600 mt-1">{csvError}</p>}
               </div>
             </div>
           )}

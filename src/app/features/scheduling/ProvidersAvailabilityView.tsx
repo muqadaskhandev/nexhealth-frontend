@@ -329,9 +329,13 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
               <div key={provider.id} className="bg-white rounded-xl border border-border overflow-hidden">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-border">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                      {provider.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
-                    </div>
+                    {provider.avatarUrl ? (
+                      <img src={provider.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                        {provider.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-semibold text-gray-900 truncate">{provider.name}</span>

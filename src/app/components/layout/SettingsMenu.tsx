@@ -59,6 +59,14 @@ export function SettingsMenu({ onOpenSettings, onOpenUsers, isAdmin }: Props) {
               Manage users
             </button>
           )}
+          <button
+            type="button"
+            disabled
+            title="No integrations marketplace in this demo"
+            className="w-full px-4 py-2.5 text-left text-sm text-gray-300 cursor-not-allowed"
+          >
+            Apps
+          </button>
         </div>
       )}
     </div>
