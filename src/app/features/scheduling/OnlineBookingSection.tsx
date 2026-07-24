@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Search, Plus } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
+import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { useAuth } from "../../auth/AuthContext";
 import { practiceApi } from "../../lib/api";
 import { staffApi, mapAppointmentType } from "../../lib/staff-api";
@@ -30,6 +31,8 @@ export function OnlineBookingSection() {
   const [allowCancelUnmapped, setAllowCancelUnmapped] = useState(
     activeLocation?.allow_cancellations_for_unmapped ?? false
   );
+  const [confirmingSeparateByType, setConfirmingSeparateByType] = useState(false);
+  const [savingSeparateByType, setSavingSeparateByType] = useState(false);
 
   useEffect(() => {
     setSeparateByType(activeLocation?.separate_by_patient_type ?? true);
@@ -65,6 +68,20 @@ export function OnlineBookingSection() {
       const apiErr = err as { detail?: string };
       toastError(apiErr?.detail || "Could not update this setting — please try again.");
     }
+  }
+
+  function handleSeparateByTypeChange(value: boolean) {
+    // Turning it ON changes the booking form for every location, so confirm first —
+    // turning it off has no such warning in the reference and applies immediately.
+    if (value) setConfirmingSeparateByType(true);
+    else toggleLocationSetting("separate_by_patient_type", false);
+  }
+
+  async function confirmSeparateByType() {
+    setSavingSeparateByType(true);
+    await toggleLocationSetting("separate_by_patient_type", true);
+    setSavingSeparateByType(false);
+    setConfirmingSeparateByType(false);
   }
 
   if (view === "mapping") {
@@ -136,7 +153,7 @@ export function OnlineBookingSection() {
               During online booking, patients can choose if they are a new or existing patient.
             </p>
           </div>
-          <Toggle on={separateByType} onChange={(v) => toggleLocationSetting("separate_by_patient_type", v)} />
+          <Toggle on={separateByType} onChange={handleSeparateByTypeChange} />
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-5 py-3 border-b border-border">
@@ -240,6 +257,17 @@ export function OnlineBookingSection() {
             setBulkEditing(false);
             refresh();
           }}
+        />
+      )}
+
+      {confirmingSeparateByType && (
+        <ConfirmModal
+          title="Turn on new and existing choice for patient?"
+          message="This will allow you to separate appointment types by new and existing patients. This change will be applied to all your locations."
+          confirmLabel="Yes, separate appointment types"
+          submitting={savingSeparateByType}
+          onConfirm={confirmSeparateByType}
+          onCancel={() => setConfirmingSeparateByType(false)}
         />
       )}
     </div>
