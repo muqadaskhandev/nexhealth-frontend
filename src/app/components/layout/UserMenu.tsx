@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { User, LogOut } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
+import { roleLabel as staffRoleLabel } from "../../lib/staffRoles";
 
 export function UserMenu() {
   const { user, logout } = useAuth();
@@ -13,6 +14,11 @@ export function UserMenu() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const roleLabel =
+    user?.account_type === "super_admin"
+      ? "SUPER ADMIN"
+      : staffRoleLabel(user?.role || "member").toUpperCase();
+
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(v => !v)} className="w-8 h-8 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center hover:opacity-90 transition-opacity">
@@ -23,7 +29,9 @@ export function UserMenu() {
           <div className="px-4 py-3 border-b border-gray-100">
             <p className="text-sm font-semibold text-gray-900 truncate">{user?.full_name || "—"}</p>
             <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-            <span className="inline-block mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">{user?.role}</span>
+            <span className="inline-block mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-white bg-teal-500 px-2 py-0.5 rounded-full">
+              {roleLabel}
+            </span>
           </div>
           <button onClick={() => logout()} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
             <LogOut size={15} className="text-gray-400" /> Log out

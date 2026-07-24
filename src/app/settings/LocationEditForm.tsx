@@ -1,6 +1,11 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { practiceApi, type ApiLocation } from "../lib/api";
 import {
+  emailError,
+  formatNationalPhoneInput,
+  nationalPhoneError,
+} from "../lib/fieldFormat";
+import {
   COUNTRY_DIAL_CODES,
   CUSTOM_OPTION,
   US_STATES,
@@ -15,34 +20,81 @@ import {
 const inputCls =
   "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 bg-white";
 
+export type LocationFormValues = {
+  name: string;
+  address: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  phone: string;
+  email: string;
+};
+
 type Props = {
   /** Pass null / undefined to create a new location. */
   location?: ApiLocation | null;
-  onSaved: (loc: ApiLocation) => void;
+  /** Seed values when creating locally (platform onboarding drafts). */
+  initialValues?: Partial<LocationFormValues> | null;
   onCancel: () => void;
+  /** Persist via practice API (default). Set false for local draft save. */
+  persist?: boolean;
+  submitLabel?: string;
+  onSaved: (loc: ApiLocation | LocationFormValues) => void;
 };
 
-export function LocationEditForm({ location, onSaved, onCancel }: Props) {
+export function LocationEditForm({
+  location,
+  initialValues,
+  onSaved,
+  onCancel,
+  persist = true,
+  submitLabel,
+}: Props) {
   const isCreate = !location;
-  const parsed = parsePhoneWithDial(location?.phone || "");
-  const initialCustomState = !!(location?.state && !isListedState(location.state));
+  const seed = location
+    ? {
+        name: location.name || "",
+        address: location.address || "",
+        address_line2: location.address_line2 || "",
+        city: location.city || "",
+        state: location.state || "",
+        zip_code: location.zip_code || "",
+        phone: location.phone || "",
+        email: location.email || "",
+      }
+    : {
+        name: initialValues?.name || "",
+        address: initialValues?.address || "",
+        address_line2: initialValues?.address_line2 || "",
+        city: initialValues?.city || "",
+        state: initialValues?.state || "",
+        zip_code: initialValues?.zip_code || "",
+        phone: initialValues?.phone || "",
+        email: initialValues?.email || "",
+      };
+
+  const parsed = parsePhoneWithDial(seed.phone);
+  const initialCustomState = !!(seed.state && !isListedState(seed.state));
   const initialCustomCity = !!(
-    location?.city &&
-    (initialCustomState || !isListedCity(location.state || "", location.city))
+    seed.city &&
+    (initialCustomState || !isListedCity(seed.state || "", seed.city))
   );
-  const initialCustomDial = location ? !isListedDial(parsed.dial) : false;
+  const initialCustomDial = seed.phone ? !isListedDial(parsed.dial) : false;
 
   const [form, setForm] = useState({
-    name: location?.name || "",
-    address: location?.address || "",
-    address_line2: location?.address_line2 || "",
-    city: location?.city || "",
-    state: location?.state || "",
-    zip_code: location?.zip_code || "",
-    email: location?.email || "",
+    name: seed.name,
+    address: seed.address,
+    address_line2: seed.address_line2,
+    city: seed.city,
+    state: seed.state,
+    zip_code: seed.zip_code,
+    email: seed.email,
   });
   const [dial, setDial] = useState(parsed.dial || "1");
-  const [nationalPhone, setNationalPhone] = useState(parsed.national);
+  const [nationalPhone, setNationalPhone] = useState(
+    formatNationalPhoneInput(parsed.national, parsed.dial || "1")
+  );
   const [customState, setCustomState] = useState(initialCustomState);
   const [customCity, setCustomCity] = useState(initialCustomCity);
   const [customDial, setCustomDial] = useState(initialCustomDial);
@@ -56,16 +108,28 @@ export function LocationEditForm({ location, onSaved, onCancel }: Props) {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    const fieldError =
+      nationalPhoneError(nationalPhone, dial || "1") ||
+      emailError(form.email);
+    if (fieldError) {
+      setError(fieldError);
+      return;
+    }
     setSaving(true);
     setError(null);
-    const body = {
+    const body: LocationFormValues = {
       ...form,
+      email: form.email.trim(),
       phone: formatPhoneWithDial(dial, nationalPhone),
     };
     try {
+      if (!persist) {
+        onSaved(body);
+        return;
+      }
       const saved = isCreate
         ? await practiceApi.addLocation(body)
-        : await practiceApi.updateLocation(location.id, body);
+        : await practiceApi.updateLocation(location!.id, body);
       onSaved(saved);
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
@@ -98,7 +162,7 @@ export function LocationEditForm({ location, onSaved, onCancel }: Props) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Location address</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
         <input
           value={form.address}
           onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -114,6 +178,47 @@ export function LocationEditForm({ location, onSaved, onCancel }: Props) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+          <select
+            required={!customCity}
+            value={customCity ? CUSTOM_OPTION : form.city}
+            disabled={!form.state && !customState}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next === CUSTOM_OPTION) {
+                setCustomCity(true);
+                setForm({ ...form, city: "" });
+                return;
+              }
+              setCustomCity(false);
+              setForm({ ...form, city: next });
+            }}
+            className={inputCls}
+          >
+            <option value="">
+              {form.state || customState ? "Select city" : "Select state first"}
+            </option>
+            {cityOptions.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+            <option value={CUSTOM_OPTION} disabled={!form.state && !customState}>
+              Other (enter custom)…
+            </option>
+          </select>
+          {customCity && (
+            <input
+              required
+              value={form.city}
+              onChange={(e) => setForm({ ...form, city: e.target.value })}
+              className={`${inputCls} mt-2`}
+              placeholder="Enter city"
+            />
+          )}
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
           <select
@@ -156,51 +261,10 @@ export function LocationEditForm({ location, onSaved, onCancel }: Props) {
             />
           )}
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-          <select
-            required={!customCity}
-            value={customCity ? CUSTOM_OPTION : form.city}
-            disabled={!form.state && !customState}
-            onChange={(e) => {
-              const next = e.target.value;
-              if (next === CUSTOM_OPTION) {
-                setCustomCity(true);
-                setForm({ ...form, city: "" });
-                return;
-              }
-              setCustomCity(false);
-              setForm({ ...form, city: next });
-            }}
-            className={inputCls}
-          >
-            <option value="">
-              {form.state || customState ? "Select city" : "Select state first"}
-            </option>
-            {cityOptions.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-            <option value={CUSTOM_OPTION} disabled={!form.state && !customState}>
-              Other (enter custom)…
-            </option>
-          </select>
-          {customCity && (
-            <input
-              required
-              value={form.city}
-              onChange={(e) => setForm({ ...form, city: e.target.value })}
-              className={`${inputCls} mt-2`}
-              placeholder="Enter city"
-            />
-          )}
-        </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
         <input
           value={form.zip_code}
           onChange={(e) => setForm({ ...form, zip_code: e.target.value })}
@@ -225,6 +289,7 @@ export function LocationEditForm({ location, onSaved, onCancel }: Props) {
               }
               setCustomDial(false);
               setDial(next);
+              setNationalPhone((prev) => formatNationalPhoneInput(prev, next));
             }}
             className="w-[7.5rem] shrink-0 px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 bg-white"
             aria-label="Country code"
@@ -248,9 +313,13 @@ export function LocationEditForm({ location, onSaved, onCancel }: Props) {
           )}
           <input
             value={nationalPhone}
-            onChange={(e) => setNationalPhone(e.target.value)}
+            onChange={(e) =>
+              setNationalPhone(formatNationalPhoneInput(e.target.value, dial || "1"))
+            }
             className={inputCls}
-            inputMode="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
+            placeholder={dial === "1" ? "(555) 123-4567" : "Phone number"}
           />
         </div>
       </div>
@@ -264,6 +333,8 @@ export function LocationEditForm({ location, onSaved, onCancel }: Props) {
         </p>
         <input
           type="email"
+          inputMode="email"
+          autoComplete="email"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           className={inputCls}
@@ -277,7 +348,9 @@ export function LocationEditForm({ location, onSaved, onCancel }: Props) {
           disabled={saving}
           className="px-5 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-lg disabled:opacity-60"
         >
-          {saving ? "Saving…" : isCreate ? "Create location" : "Save"}
+          {saving
+            ? "Saving…"
+            : submitLabel || (isCreate ? "Create location" : "Save")}
         </button>
         <button
           type="button"

@@ -13,12 +13,23 @@ export function LocationPicker() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const query = locSearch.trim().toLowerCase();
-  const filtered = locations.filter(
-    (l) =>
-      !query ||
-      l.name.toLowerCase().includes(query) ||
-      (l.address ?? "").toLowerCase().includes(query)
-  );
+  const filtered = locations.filter((l) => {
+    if (!query) return true;
+    const haystack = [
+      l.name,
+      l.address,
+      l.address_line2,
+      l.city,
+      l.state,
+      l.zip_code,
+      l.phone,
+      l.email,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(query);
+  });
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -78,7 +89,7 @@ export function LocationPicker() {
         onClick={() => {
           if (!single) setOpen((v) => !v);
         }}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm text-gray-700 font-medium transition-colors max-w-[280px] ${
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm text-gray-700 font-medium transition-colors max-w-[280px] whitespace-nowrap ${
           single
             ? "border-gray-200 cursor-default"
             : open
@@ -87,7 +98,7 @@ export function LocationPicker() {
         }`}
       >
         <MapPin size={14} className="text-teal-500 flex-shrink-0" />
-        <span className="truncate">{label}</span>
+        <span className="truncate whitespace-nowrap">{label}</span>
         {!single && (
           <ChevronsUpDown size={14} className="text-gray-400 flex-shrink-0" />
         )}

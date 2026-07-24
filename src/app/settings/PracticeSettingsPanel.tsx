@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { practiceApi, Practice } from "../lib/api";
 import { BrandLogo } from "../components/branding/BrandLogo";
 import { toastError, toastSuccess } from "../lib/toast";
+import { formatPhoneInput, phoneError } from "../lib/fieldFormat";
 import { SynchronizerPanel } from "./SynchronizerPanel";
 
 const inputCls =
@@ -23,7 +24,9 @@ export function PracticeSettingsPanel() {
   useEffect(() => {
     practiceApi
       .me()
-      .then(setPractice)
+      .then((data) =>
+        setPractice({ ...data, phone: formatPhoneInput(data.phone || "") })
+      )
       .catch((err: { detail?: string }) =>
         setError(err?.detail || "Could not load practice settings.")
       );
@@ -32,6 +35,11 @@ export function PracticeSettingsPanel() {
   async function saveProfile(e: FormEvent) {
     e.preventDefault();
     if (!practice) return;
+    const phoneErr = phoneError(practice.phone || "");
+    if (phoneErr) {
+      setError(phoneErr);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -105,7 +113,7 @@ export function PracticeSettingsPanel() {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
             <input
               value={practice.address}
               onChange={(e) => setPractice({ ...practice, address: e.target.value })}
@@ -129,7 +137,7 @@ export function PracticeSettingsPanel() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
             <input
               value={practice.zip_code}
               onChange={(e) => setPractice({ ...practice, zip_code: e.target.value })}
@@ -139,9 +147,15 @@ export function PracticeSettingsPanel() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
             <input
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
               value={practice.phone}
-              onChange={(e) => setPractice({ ...practice, phone: e.target.value })}
+              onChange={(e) =>
+                setPractice({ ...practice, phone: formatPhoneInput(e.target.value) })
+              }
               className={inputCls}
+              placeholder="(555) 123-4567"
             />
           </div>
         </div>

@@ -19,6 +19,14 @@ import { LogoSettingsPanel } from "./LogoSettingsPanel";
 import { SynchronizerSettings } from "./SynchronizerSettings";
 import { LocationsSettingsPanel } from "./LocationsSettingsPanel";
 import { toastError, toastSuccess } from "../lib/toast";
+import { emailError } from "../lib/fieldFormat";
+import {
+  STAFF_ROLES,
+  PERMISSION_MATRIX,
+  capabilityLabel,
+  roleLabel,
+  type StaffRole,
+} from "../lib/staffRoles";
 
 type SettingsTab = "account" | "logo" | "users" | "synchronizer" | "locations";
 
@@ -39,7 +47,7 @@ function SettingsNav({
   ];
   const generalItems: { id: SettingsTab; label: string; admin?: boolean }[] = [
     { id: "logo", label: "Logo", admin: true },
-    { id: "users", label: "Users", admin: true },
+    { id: "users", label: "Staff", admin: true },
     { id: "synchronizer", label: "Synchronizer", admin: true },
     { id: "locations", label: "Locations" },
   ];
@@ -401,6 +409,75 @@ function TotpSettings() {
   );
 }
 
+function RolePermissionsSummary({ role }: { role: StaffRole }) {
+  const option = STAFF_ROLES.find((r) => r.value === role);
+  const rows = PERMISSION_MATRIX.map((row) => ({
+    area: row.area,
+    description: row.description,
+    capability: row.access[role],
+  }));
+
+  return (
+    <div className="rounded-lg border border-teal-100 bg-teal-50/60 px-3 py-3 space-y-2">
+      <div>
+        <p className="text-sm font-semibold text-gray-900">
+          {option?.label ?? role} permissions
+        </p>
+        <p className="text-xs text-gray-600 mt-0.5">{option?.summary}</p>
+      </div>
+      <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+        {rows.map((row) => (
+          <li
+            key={row.area}
+            className="flex items-start justify-between gap-3 text-xs"
+          >
+            <span className="min-w-0">
+              <span className="font-medium text-gray-800">{row.area}</span>
+              <span className="block text-gray-500">{row.description}</span>
+            </span>
+            <span
+              className={`shrink-0 font-semibold ${
+                row.capability ? "text-teal-700" : "text-gray-400"
+              }`}
+            >
+              {capabilityLabel(row.capability)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-gray-500 pt-1 border-t border-teal-100/80">
+        View · Edit · Manage — highest access level for each area.
+      </p>
+    </div>
+  );
+}
+
+function RoleSelect({
+  value,
+  onChange,
+}: {
+  value: StaffRole;
+  onChange: (role: StaffRole) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">Role</label>
+      <select
+        className={inputCls}
+        value={value}
+        onChange={(e) => onChange(e.target.value as StaffRole)}
+      >
+        {STAFF_ROLES.map((r) => (
+          <option key={r.value} value={r.value}>
+            {r.label}
+          </option>
+        ))}
+      </select>
+      <RolePermissionsSummary role={value} />
+    </div>
+  );
+}
+
 function LocationCheckbox({
   location,
   checked,
@@ -443,7 +520,9 @@ function UserFormModal({
   const [email, setEmail] = useState(initial?.email ?? "");
   const [firstName, setFirstName] = useState(initial?.first_name ?? "");
   const [lastName, setLastName] = useState(initial?.last_name ?? "");
-  const [role, setRole] = useState<"admin" | "member">(initial?.role ?? "member");
+  const [role, setRole] = useState<StaffRole>(
+    (initial?.role as StaffRole | undefined) ?? "member"
+  );
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
@@ -465,6 +544,13 @@ function UserFormModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!isEdit) {
+      const err = emailError(email, { required: true });
+      if (err) {
+        setError(err);
+        return;
+      }
+    }
     if (locationIds.size === 0) {
       setError("Select at least one location.");
       return;
@@ -544,14 +630,7 @@ function UserFormModal({
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
           />
-          <select
-            className={inputCls}
-            value={role}
-            onChange={(e) => setRole(e.target.value as "admin" | "member")}
-          >
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-          </select>
+          <RoleSelect value={role} onChange={setRole} />
           {!isEdit && (
             <div className="relative">
               <input
@@ -630,7 +709,7 @@ function InviteStaffModal({
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState<"admin" | "member">("member");
+  const [role, setRole] = useState<StaffRole>("member");
   const [locationIds, setLocationIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -647,6 +726,11 @@ function InviteStaffModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    const err = emailError(email, { required: true });
+    if (err) {
+      setError(err);
+      return;
+    }
     if (locationIds.size === 0) {
       setError("Select at least one location.");
       return;
@@ -704,17 +788,7 @@ function InviteStaffModal({
             className={inputCls}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-          <select
-            className={inputCls}
-            value={role}
-            onChange={(e) => setRole(e.target.value as "admin" | "member")}
-          >
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
+        <RoleSelect value={role} onChange={setRole} />
         <div>
           <p className="text-sm font-semibold text-gray-800 mb-2">Locations</p>
           <div className="border border-gray-200 rounded-lg px-3 max-h-40 overflow-y-auto">
@@ -810,8 +884,10 @@ function UsersSettings() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">Users</h2>
-          <p className="text-sm text-gray-500 mt-1">Manage practice staff and access.</p>
+          <h2 className="text-lg font-bold text-gray-900">Staff Management</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Invite or add staff and assign a role. Each role has clear view / edit / manage access.
+          </p>
         </div>
         <div className="flex gap-2">
           <button
@@ -854,7 +930,7 @@ function UsersSettings() {
                 <tr key={u.id} className="border-b border-border last:border-0 hover:bg-gray-50/50">
                   <td className="px-5 py-3.5 font-medium text-gray-900">{u.full_name}</td>
                   <td className="px-5 py-3.5 text-gray-600">{u.email}</td>
-                  <td className="px-5 py-3.5 capitalize text-gray-600">{u.role}</td>
+                  <td className="px-5 py-3.5 text-gray-600">{roleLabel(u.role)}</td>
                   <td className="px-5 py-3.5">
                     <span
                       className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${

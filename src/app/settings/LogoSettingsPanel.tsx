@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Copy, ImageIcon } from "lucide-react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
+import { Copy, ImageIcon, Upload } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { practiceApi, type ApiLocation } from "../lib/api";
 import { BrandLogo } from "../components/branding/BrandLogo";
@@ -7,7 +7,7 @@ import { toastError, toastSuccess } from "../lib/toast";
 
 /**
  * Settings → Logo — upload / remove / copy logo for the active location,
- * matching NexHealth's logo management flow.
+ * with a preview that matches the top-left header placement.
  */
 export function LogoSettingsPanel() {
   const { locations, activeLocation, refreshSession } = useAuth();
@@ -15,6 +15,7 @@ export function LogoSettingsPanel() {
   const [location, setLocation] = useState<ApiLocation | null>(activeLocation);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [copyIds, setCopyIds] = useState<Set<string>>(new Set());
 
@@ -23,9 +24,22 @@ export function LogoSettingsPanel() {
   }, [activeLocation]);
 
   const others = locations.filter((l) => l.id !== location?.id);
+  const hasLogo = Boolean(location?.logo_url);
 
   async function onUpload(file: File | undefined) {
     if (!location || !file) return;
+    if (!["image/png", "image/jpeg"].includes(file.type)) {
+      const msg = "Only PNG and JPG images are supported.";
+      setError(msg);
+      toastError(msg);
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      const msg = "Logo must be under 2 MB.";
+      setError(msg);
+      toastError(msg);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -40,6 +54,7 @@ export function LogoSettingsPanel() {
       toastError(msg);
     } finally {
       setBusy(false);
+      setDragging(false);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
@@ -84,6 +99,12 @@ export function LogoSettingsPanel() {
     }
   }
 
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    void onUpload(e.dataTransfer.files?.[0]);
+  }
+
   if (!location) {
     return (
       <p className="text-sm text-gray-500">
@@ -97,7 +118,7 @@ export function LogoSettingsPanel() {
       <div>
         <h2 className="text-lg font-bold text-gray-900">Logo</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Shown to patients when booking an appointment or receiving emails.
+          Shown in the top-left of the app and to patients when booking or receiving emails.
         </p>
         <p className="text-xs text-gray-400 mt-1">
           Editing logo for <span className="font-medium text-gray-600">{location.name}</span>
@@ -108,23 +129,24 @@ export function LogoSettingsPanel() {
         <div className="px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>
       )}
 
-      <div className="bg-white rounded-xl border border-border p-5 space-y-4">
-        <div className="w-full max-w-md aspect-[2/1] rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden p-6">
-          {location.logo_url ? (
+      <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <div className="px-5 py-3 border-b border-border bg-gray-50/80">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Header preview
+          </p>
+        </div>
+        <div className="h-16 px-5 flex items-center border-b border-border bg-white">
+          <div className="flex items-center h-10 w-[180px]">
             <BrandLogo
               logoUrl={location.logo_url}
               alt={`${location.name} logo`}
-              className="max-h-full max-w-full object-contain"
+              className="h-full w-full object-contain object-left"
             />
-          ) : (
-            <div className="flex flex-col items-center gap-2 text-gray-400">
-              <ImageIcon size={32} />
-              <span className="text-sm">No logo uploaded</span>
-            </div>
-          )}
+          </div>
+          <div className="ml-4 h-8 flex-1 max-w-xs rounded-lg bg-gray-100" aria-hidden="true" />
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="p-5 space-y-4">
           <input
             ref={fileRef}
             type="file"
@@ -132,33 +154,73 @@ export function LogoSettingsPanel() {
             className="hidden"
             onChange={(e) => onUpload(e.target.files?.[0])}
           />
+
           <button
             type="button"
             disabled={busy}
             onClick={() => fileRef.current?.click()}
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDragging(false);
+            }}
+            onDrop={onDrop}
+            className={`w-full rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors disabled:opacity-60 ${
+              dragging
+                ? "border-teal-400 bg-teal-50"
+                : "border-gray-200 bg-gray-50/60 hover:border-teal-300 hover:bg-teal-50/40"
+            }`}
           >
-            Upload logo
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white border border-gray-200 text-teal-600">
+              {hasLogo ? <ImageIcon size={22} /> : <Upload size={22} />}
+            </div>
+            <p className="text-sm font-semibold text-gray-900">
+              {hasLogo ? "Replace logo" : "Upload logo"}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Drag and drop a PNG or JPG here, or click to browse
+            </p>
           </button>
-          {location.logo_url && (
+
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               disabled={busy}
-              onClick={onRemove}
-              className="text-sm font-medium text-teal-600 hover:text-teal-700 disabled:opacity-60"
+              onClick={() => fileRef.current?.click()}
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-teal-500 text-white hover:bg-teal-600 disabled:opacity-60 whitespace-nowrap"
             >
-              Remove logo
+              {busy ? "Working…" : hasLogo ? "Upload new logo" : "Upload logo"}
             </button>
-          )}
-        </div>
-        <p className="text-xs text-gray-500">PNG and JPG Images are supported.</p>
-        <div className="rounded-lg bg-sky-50 border border-sky-100 px-3 py-2.5 text-xs text-sky-900 space-y-1">
-          <p className="font-semibold">Logo tips</p>
-          <p>PNG recommended · 300×300 or 400×400 px · keep files under 2 MB</p>
+            {hasLogo && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onRemove}
+                className="text-sm font-medium text-teal-600 hover:text-teal-700 disabled:opacity-60"
+              >
+                Remove logo
+              </button>
+            )}
+          </div>
+
+          <div className="rounded-lg bg-sky-50 border border-sky-100 px-3.5 py-3 text-xs text-sky-900 space-y-1">
+            <p className="font-semibold">Logo tips</p>
+            <p>
+              PNG recommended · around 300×300 or a wide wordmark up to ~400×120 px · keep
+              files under 2 MB · transparent backgrounds work best in the top-left header
+            </p>
+          </div>
         </div>
       </div>
 
-      {location.logo_url && others.length > 0 && (
+      {hasLogo && others.length > 0 && (
         <div className="bg-white rounded-xl border border-border overflow-hidden">
           <div className="px-5 py-3 border-b border-border">
             <h3 className="text-sm font-semibold text-gray-900">
@@ -193,10 +255,7 @@ export function LogoSettingsPanel() {
             </div>
             <div className="px-5 py-3 max-h-64 overflow-y-auto space-y-2">
               {others.map((loc) => (
-                <label
-                  key={loc.id}
-                  className="flex items-start gap-3 py-2 cursor-pointer"
-                >
+                <label key={loc.id} className="flex items-start gap-3 py-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={copyIds.has(loc.id)}
@@ -211,9 +270,7 @@ export function LogoSettingsPanel() {
                     className="mt-1 rounded border-gray-300 text-teal-600"
                   />
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium text-gray-900">
-                      {loc.name}
-                    </span>
+                    <span className="block text-sm font-medium text-gray-900">{loc.name}</span>
                     <span className="block text-xs text-gray-500">{loc.address}</span>
                   </span>
                 </label>

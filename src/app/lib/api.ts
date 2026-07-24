@@ -18,9 +18,15 @@ function readCookie(name: string): string | null {
 
 const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
 
-async function raw(method: string, path: string, body?: unknown): Promise<Response> {
+async function raw(
+  method: string,
+  path: string,
+  body?: unknown,
+  { formData }: { formData?: FormData } = {}
+): Promise<Response> {
   const headers: Record<string, string> = {};
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  // Do not set Content-Type for FormData — the browser must add the multipart boundary.
+  if (body !== undefined && !formData) headers["Content-Type"] = "application/json";
   if (!SAFE.has(method)) {
     const csrf = readCookie("csrf_token");
     if (csrf) headers["X-CSRF-Token"] = csrf;
@@ -29,8 +35,26 @@ async function raw(method: string, path: string, body?: unknown): Promise<Respon
     method,
     headers,
     credentials: "include",
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
   });
+}
+
+async function parseError(res: Response): Promise<never> {
+  let detail = res.statusText;
+  try {
+    const data = await res.json();
+    if (typeof data.detail === "string") {
+      detail = data.detail;
+    } else if (Array.isArray(data.detail) && data.detail.length > 0) {
+      detail = data.detail
+        .map((item: { msg?: string }) => item.msg)
+        .filter(Boolean)
+        .join("; ");
+    }
+  } catch {
+    /* non-JSON error body */
+  }
+  throw { status: res.status, detail } as ApiError;
 }
 
 async function request<T>(
@@ -48,23 +72,28 @@ async function request<T>(
     if (refreshed.ok) res = await raw(method, path, body);
   }
 
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const data = await res.json();
-      if (typeof data.detail === "string") {
-        detail = data.detail;
-      } else if (Array.isArray(data.detail) && data.detail.length > 0) {
-        detail = data.detail
-          .map((item: { msg?: string }) => item.msg)
-          .filter(Boolean)
-          .join("; ");
-      }
-    } catch {
-      /* non-JSON error body */
-    }
-    throw { status: res.status, detail } as ApiError;
+  if (!res.ok) return parseError(res);
+
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+/** Multipart upload with the same cookie/CSRF/refresh behavior as `request`. */
+async function requestFormData<T>(
+  method: string,
+  path: string,
+  buildForm: () => FormData,
+  { retry = true }: { retry?: boolean } = {}
+): Promise<T> {
+  let res = await raw(method, path, undefined, { formData: buildForm() });
+
+  if (res.status === 401 && retry && !path.startsWith("/api/auth/")) {
+    const refreshed = await raw("POST", "/api/auth/refresh");
+    // Rebuild FormData — a body can only be consumed once.
+    if (refreshed.ok) res = await raw(method, path, undefined, { formData: buildForm() });
   }
+
+  if (!res.ok) return parseError(res);
 
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -101,7 +130,7 @@ export type ApiUser = {
   last_name: string;
   full_name: string;
   initials: string;
-  role: "admin" | "member";
+  role: "admin" | "member" | "provider" | "front_desk" | "billing";
   account_type: "super_admin" | "practice";
   auth_provider: "password" | "google" | "azure" | "okta";
   is_active: boolean;
@@ -162,7 +191,7 @@ export type UserCreatePayload = {
   email: string;
   first_name: string;
   last_name: string;
-  role: "admin" | "member";
+  role: "admin" | "member" | "provider" | "front_desk" | "billing";
   password?: string;
   location_ids: string[];
 };
@@ -170,7 +199,7 @@ export type UserCreatePayload = {
 export type UserUpdatePayload = {
   first_name?: string;
   last_name?: string;
-  role?: "admin" | "member";
+  role?: "admin" | "member" | "provider" | "front_desk" | "billing";
   is_active?: boolean;
   location_ids?: string[];
 };
@@ -259,6 +288,17 @@ export type EhrConnection = {
   locations_total: number;
 };
 
+export type OnboardLocationPayload = {
+  name: string;
+  address?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  phone?: string;
+  email?: string;
+};
+
 export type PracticeCreatePayload = {
   name: string;
   address?: string;
@@ -272,12 +312,42 @@ export type PracticeCreatePayload = {
   admin_first_name: string;
   admin_last_name: string;
   default_location_name?: string;
+  locations?: OnboardLocationPayload[];
+};
+
+export type PracticeUpdatePayload = {
+  name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  phone?: string;
+  subscription_plan?: SubscriptionPlan;
+  enabled_products?: EnabledProducts;
+  is_active?: boolean;
 };
 
 export const platformApi = {
   listPractices: () => api.get<Practice[]>("/api/platform/practices"),
   createPractice: (body: PracticeCreatePayload) =>
     api.post<Practice>("/api/platform/practices", body),
+  updatePractice: (practiceId: string, body: PracticeUpdatePayload) =>
+    api.patch<Practice>(`/api/platform/practices/${practiceId}`, body),
+  deletePractice: (practiceId: string) =>
+    api.delete<void>(`/api/platform/practices/${practiceId}`),
+  addPracticeLocation: (practiceId: string, body: OnboardLocationPayload) =>
+    api.post<ApiLocation>(`/api/platform/practices/${practiceId}/locations`, body),
+  updatePracticeLocation: (
+    practiceId: string,
+    locationId: string,
+    body: Partial<OnboardLocationPayload>
+  ) =>
+    api.patch<ApiLocation>(
+      `/api/platform/practices/${practiceId}/locations/${locationId}`,
+      body
+    ),
+  deletePracticeLocation: (practiceId: string, locationId: string) =>
+    api.delete<void>(`/api/platform/practices/${practiceId}/locations/${locationId}`),
 };
 
 export const practiceApi = {
@@ -333,29 +403,16 @@ export const practiceApi = {
       email?: string;
     }
   ) => api.patch<ApiLocation>(`/api/practice/locations/${locationId}`, body),
-  uploadLocationLogo: async (locationId: string, file: File) => {
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch(`/api/practice/locations/${locationId}/logo`, {
-      method: "POST",
-      body: form,
-      credentials: "include",
-      headers: {
-        "X-CSRF-Token":
-          document.cookie
-            .split("; ")
-            .find((c) => c.startsWith("csrf_token="))
-            ?.split("=")
-            .slice(1)
-            .join("=") || "",
-      },
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: "Upload failed" }));
-      throw err;
-    }
-    return (await res.json()) as ApiLocation;
-  },
+  uploadLocationLogo: (locationId: string, file: File) =>
+    requestFormData<ApiLocation>(
+      "POST",
+      `/api/practice/locations/${locationId}/logo`,
+      () => {
+        const form = new FormData();
+        form.append("file", file);
+        return form;
+      }
+    ),
   removeLocationLogo: (locationId: string) =>
     api.delete<ApiLocation>(`/api/practice/locations/${locationId}/logo`),
   copyLocationLogo: (locationId: string, locationIds: string[]) =>
@@ -366,7 +423,7 @@ export const practiceApi = {
     email: string;
     first_name: string;
     last_name: string;
-    role: "admin" | "member";
+    role: "admin" | "member" | "provider" | "front_desk" | "billing";
     location_ids: string[];
   }) => api.post<{ message: string }>("/api/practice/invite-staff", body),
 };

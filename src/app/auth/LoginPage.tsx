@@ -4,6 +4,7 @@ import { useAuth } from "./AuthContext";
 import { authApi, ssoLoginUrl } from "../lib/api";
 import { BrandLogo } from "../components/branding/BrandLogo";
 import { toastError, toastSuccess } from "../lib/toast";
+import { emailError } from "../lib/fieldFormat";
 
 const LOGIN_SLIDES = [
   {
@@ -46,13 +47,24 @@ export function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const ssoErr = params.get("sso_error");
     if (ssoErr) {
-      setError(decodeURIComponent(ssoErr));
+      const decoded = decodeURIComponent(ssoErr);
+      const friendly: Record<string, string> = {
+        account_disabled: "This account is disabled.",
+        practice_inactive: "This practice is inactive. Contact your administrator.",
+      };
+      setError(friendly[decoded] || decoded);
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
 
   async function handleLogin() {
     if (submitting) return;
+    const err = emailError(email, { required: true });
+    if (err) {
+      setError(err);
+      toastError(err);
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -68,6 +80,12 @@ export function LoginPage() {
 
   async function handleForgot() {
     if (submitting) return;
+    const err = emailError(email, { required: true });
+    if (err) {
+      setError(err);
+      toastError(err);
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {

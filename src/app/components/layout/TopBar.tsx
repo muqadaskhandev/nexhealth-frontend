@@ -1,6 +1,6 @@
 import { Menu } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
-import { BrandLogo } from "../branding/BrandLogo";
+import { TopBarLogo } from "../branding/TopBarLogo";
 import { usePractice } from "../../hooks/usePractice";
 import { GlobalSearch } from "./GlobalSearch";
 import { LocationPicker } from "./LocationPicker";
@@ -23,18 +23,15 @@ export function TopBar({
   const logoUrl = activeLocation?.logo_url || practice?.logo_url;
 
   return (
-    <header className="h-16 bg-white border-b border-border flex items-center px-4 gap-4 flex-shrink-0">
+    <header className="h-16 bg-white border-b border-border flex items-center px-4 sm:px-5 gap-3 sm:gap-4 flex-shrink-0">
       <button
         type="button"
         className="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0 lg:hidden"
+        aria-label="Open menu"
       >
         <Menu size={18} />
       </button>
-      <BrandLogo
-        logoUrl={logoUrl}
-        alt={practice?.name || "NexHealth"}
-        className="hidden sm:block w-[140px] h-8 object-contain flex-shrink-0"
-      />
+      <TopBarLogo logoUrl={logoUrl} alt={practice?.name || "VaraSync"} />
       <GlobalSearch onSelectPatient={onSelectPatient} />
       <div className="flex-1 hidden lg:block" />
       <LocationPicker />

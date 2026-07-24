@@ -18,6 +18,7 @@ import { PaymentsSection } from "./features/payments/PaymentsSection";
 import { VerificationSection } from "./features/verification/VerificationSection";
 import { WaitlistSection } from "./features/scheduling/WaitlistSection";
 import { useStaffData } from "./hooks/useStaffData";
+import { LoadingScreen } from "./components/shared/LoadingBounce";
 import type { AppointmentStatus, Patient } from "./types";
 
 export default function App() {
@@ -75,14 +76,7 @@ export default function App() {
     : null;
 
   if (status === "loading" || (isPracticeUser && staff.loading)) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-2 border-gray-200 border-t-teal-500 animate-spin" />
-          <p className="text-sm text-gray-400">Loading…</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen fullScreen />;
   }
 
   if (status !== "authenticated") return <LoginPage />;

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
+import { dobError, formatDobInput } from "../../lib/fieldFormat";
 import type { Patient, InsuranceData } from "../../types";
 
 const INSURERS = [
@@ -19,7 +20,7 @@ export function VerifyOnDemandModal({ patient, onClose, onVerified }: {
     groupNumber: "",
     firstName: patient.firstName,
     lastName: patient.lastName,
-    dob: patient.dob,
+    dob: formatDobInput(patient.dob || ""),
     providerName: `Dr. ${patient.provider}`,
     npi: "1234567890",
     taxId: "",
@@ -32,6 +33,11 @@ export function VerifyOnDemandModal({ patient, onClose, onVerified }: {
 
   function handleVerify() {
     if (!form.insuranceName) return;
+    const err = dobError(form.dob, { required: true });
+    if (err) {
+      alert(err);
+      return;
+    }
     onVerified({
       status: "active",
       name: form.insuranceName,
@@ -111,7 +117,7 @@ export function VerifyOnDemandModal({ patient, onClose, onVerified }: {
           {/* DOB */}
           <div>
             <label className={labelCls}>Patient date of birth</label>
-            <input className={inputCls} value={form.dob} onChange={e => setForm(f => ({ ...f, dob: e.target.value }))} />
+            <input className={inputCls} inputMode="numeric" placeholder="MM/DD/YYYY" value={form.dob} onChange={e => setForm(f => ({ ...f, dob: formatDobInput(e.target.value) }))} />
           </div>
 
           {/* Provider name */}

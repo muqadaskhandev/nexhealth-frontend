@@ -86,9 +86,11 @@ export function useStaffData(enabled: boolean) {
         await staffApi.patients.create({
           first_name: data.firstName,
           last_name: data.lastName,
+          preferred_name: data.preferredName,
           email: data.email,
           phone: data.phone,
           gender: data.gender,
+          address: data.address || "",
           provider_name: data.provider,
           dob: parseDob(data.dob),
           language: data.language,
