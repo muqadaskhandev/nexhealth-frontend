@@ -15,13 +15,15 @@ import { BookingInsuranceView } from "./BookingInsuranceView";
 import { BulkEditPatientTypeModal } from "./BulkEditPatientTypeModal";
 import { OnlineBookingLinksView } from "./OnlineBookingLinksView";
 import { ReserveWithGoogleView } from "./ReserveWithGoogleView";
+import { OneClickBookingView } from "./OneClickBookingView";
 import type { AppointmentType } from "../../types";
 
 type Tab = "new" | "existing" | "unavailable";
+type View = "types" | "mapping" | "availability" | "fields" | "insurance" | "links" | "google" | "oneclick";
 
 export function OnlineBookingSection() {
   const { activeLocation } = useAuth();
-  const [view, setView] = useState<"types" | "mapping" | "availability" | "fields" | "insurance" | "links" | "google">("types");
+  const [view, setView] = useState<View>("types");
   const [types, setTypes] = useState<AppointmentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -104,6 +106,9 @@ export function OnlineBookingSection() {
   if (view === "google") {
     return <ReserveWithGoogleView onBack={() => setView("types")} />;
   }
+  if (view === "oneclick") {
+    return <OneClickBookingView types={types} onBack={() => setView("types")} />;
+  }
 
   const filtered = types.filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()));
   const tabbed = filtered.filter((t) => {
@@ -156,6 +161,12 @@ export function OnlineBookingSection() {
               className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Google
+            </button>
+            <button
+              onClick={() => setView("oneclick")}
+              className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              1-Click Booking
             </button>
           </div>
           <button
