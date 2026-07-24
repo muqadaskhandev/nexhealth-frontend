@@ -13,13 +13,15 @@ import { ProvidersAvailabilityView } from "./ProvidersAvailabilityView";
 import { BookingFormFieldsView } from "./BookingFormFieldsView";
 import { BookingInsuranceView } from "./BookingInsuranceView";
 import { BulkEditPatientTypeModal } from "./BulkEditPatientTypeModal";
+import { OnlineBookingLinksView } from "./OnlineBookingLinksView";
+import { ReserveWithGoogleView } from "./ReserveWithGoogleView";
 import type { AppointmentType } from "../../types";
 
 type Tab = "new" | "existing" | "unavailable";
 
 export function OnlineBookingSection() {
   const { activeLocation } = useAuth();
-  const [view, setView] = useState<"types" | "mapping" | "availability" | "fields" | "insurance">("types");
+  const [view, setView] = useState<"types" | "mapping" | "availability" | "fields" | "insurance" | "links" | "google">("types");
   const [types, setTypes] = useState<AppointmentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -96,6 +98,12 @@ export function OnlineBookingSection() {
   if (view === "insurance") {
     return <BookingInsuranceView onBack={() => setView("types")} />;
   }
+  if (view === "links") {
+    return <OnlineBookingLinksView types={types} onBack={() => setView("types")} />;
+  }
+  if (view === "google") {
+    return <ReserveWithGoogleView onBack={() => setView("types")} />;
+  }
 
   const filtered = types.filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()));
   const tabbed = filtered.filter((t) => {
@@ -136,6 +144,18 @@ export function OnlineBookingSection() {
               className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Insurance
+            </button>
+            <button
+              onClick={() => setView("links")}
+              className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Links
+            </button>
+            <button
+              onClick={() => setView("google")}
+              className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Google
             </button>
           </div>
           <button
