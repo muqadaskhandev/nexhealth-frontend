@@ -6,7 +6,8 @@ import { practiceApi } from "../../lib/api";
 import { toastError, toastSuccess } from "../../lib/toast";
 
 export function ReserveWithGoogleView({ onBack }: { onBack: () => void }) {
-  const { activeLocation, locations, refreshSession } = useAuth();
+  const { user, activeLocation, locations, refreshSession } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [enabled, setEnabled] = useState(activeLocation?.reserve_with_google ?? false);
   const [saving, setSaving] = useState(false);
   const [copyTargets, setCopyTargets] = useState<string[]>([]);
@@ -15,7 +16,7 @@ export function ReserveWithGoogleView({ onBack }: { onBack: () => void }) {
   const otherLocations = locations.filter((l) => l.id !== activeLocation?.id);
 
   async function toggleReserveWithGoogle(value: boolean) {
-    if (!activeLocation || saving) return;
+    if (!activeLocation || saving || !isAdmin) return;
     setSaving(true);
     const previous = enabled;
     setEnabled(value); // optimistic
@@ -37,7 +38,7 @@ export function ReserveWithGoogleView({ onBack }: { onBack: () => void }) {
   }
 
   async function handleCopy() {
-    if (!activeLocation || copyTargets.length === 0 || copying) return;
+    if (!activeLocation || copyTargets.length === 0 || copying || !isAdmin) return;
     setCopying(true);
     try {
       await practiceApi.copyReserveWithGoogle(activeLocation.id, copyTargets);
@@ -65,6 +66,17 @@ export function ReserveWithGoogleView({ onBack }: { onBack: () => void }) {
       </div>
       <p className="text-sm text-gray-500">Get more patients by adding a "Book Online" button to your Google listing.</p>
 
+      {!isAdmin && (
+        <div className="px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+          You need the Admin permission level for Online Booking to change Reserve with Google settings.
+        </div>
+      )}
+
+      <div className="px-3.5 py-2.5 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-900">
+        Make sure to configure your Appointment types, Providers and availability, and make any desired
+        customizations to your online booking form before activating.
+      </div>
+
       <div className="bg-white rounded-xl border border-border overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-5 py-3.5 border-b border-border">
           <div className="min-w-0">
@@ -74,7 +86,7 @@ export function ReserveWithGoogleView({ onBack }: { onBack: () => void }) {
               listings within 24 hours.
             </p>
           </div>
-          <Toggle on={enabled} onChange={toggleReserveWithGoogle} />
+          <Toggle on={enabled} onChange={toggleReserveWithGoogle} disabled={!isAdmin} />
         </div>
 
         <div className="px-4 sm:px-5 py-3.5 border-b border-border">
@@ -85,7 +97,16 @@ export function ReserveWithGoogleView({ onBack }: { onBack: () => void }) {
           </ul>
         </div>
 
-        <div className="px-4 sm:px-5 py-3.5 space-y-3">
+        {enabled && (
+          <div className="px-4 sm:px-5 py-3 border-b border-border bg-red-50">
+            <ul className="text-xs text-red-800 list-disc pl-4 space-y-1">
+              <li>If you turn this off, the online booking button should be removed from your Google listing within 24 hours.</li>
+              <li>You can switch the integration back on at any time.</li>
+            </ul>
+          </div>
+        )}
+
+        <div className="px-4 sm:px-5 py-3.5 space-y-3 border-b border-border">
           <p className="text-xs font-semibold text-gray-600">Copy to other locations</p>
           {otherLocations.length === 0 ? (
             <p className="text-sm text-gray-400">No other locations to copy this setting to.</p>
@@ -94,20 +115,41 @@ export function ReserveWithGoogleView({ onBack }: { onBack: () => void }) {
               <div className="rounded-lg border border-border overflow-hidden divide-y divide-border max-h-40 overflow-y-auto">
                 {otherLocations.map((loc) => (
                   <label key={loc.id} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox" checked={copyTargets.includes(loc.id)} onChange={() => toggleTarget(loc.id)} />
+                    <input
+                      type="checkbox"
+                      checked={copyTargets.includes(loc.id)}
+                      onChange={() => toggleTarget(loc.id)}
+                      disabled={!isAdmin}
+                    />
                     <span className="truncate">{loc.name}</span>
                   </label>
                 ))}
               </div>
               <button
                 onClick={handleCopy}
-                disabled={copying || copyTargets.length === 0}
+                disabled={copying || copyTargets.length === 0 || !isAdmin}
                 className="px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
               >
                 {copying ? "Copying…" : "Copy"}
               </button>
             </>
           )}
+        </div>
+
+        <div className="px-4 sm:px-5 py-3.5 space-y-2">
+          <p className="text-sm font-semibold text-gray-900">Manually add the booking link to your Google Business page</p>
+          <p className="text-xs text-gray-500">
+            Access your{" "}
+            <a
+              href="https://www.google.com/business/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-teal-600 hover:text-teal-700 underline"
+            >
+              Google Business Listing
+            </a>{" "}
+            and follow the steps outlined by Google to add your booking link.
+          </p>
         </div>
       </div>
     </div>
