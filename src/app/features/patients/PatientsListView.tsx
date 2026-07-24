@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Archive, Copy, Search, UserPlus } from "lucide-react";
 import { PatientAvatar } from "../../components/shared/PatientAvatar";
 import { SyncTooltip } from "../../components/shared/SyncTooltip";
 import type { Patient } from "../../types";
@@ -9,17 +9,49 @@ export function PatientsListView({ patients, onOpenPanel, onCreateOpen, onViewAr
   onCreateOpen: () => void; onViewArchived: () => void; onViewDuplicates: () => void;
 }) {
   const active = patients.filter(p => !p.archived);
+  const archivedCount = patients.filter((p) => p.archived).length;
   const [search, setSearch] = useState("");
   const filtered = active.filter(p => !search || `${p.firstName} ${p.lastName}`.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="w-full min-w-0 px-6 py-5 space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
-        <div className="flex items-center gap-3">
-          <button onClick={onViewDuplicates} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Review duplicate patients</button>
-          <button onClick={onViewArchived} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">View archived patients</button>
-          <button onClick={onCreateOpen} className="px-4 py-2 text-sm font-semibold border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors text-gray-800">Create patient</button>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Search records, open a patient, and review activity from their profile.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onViewDuplicates}
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            <Copy size={15} className="text-teal-600 shrink-0" />
+            Review duplicates
+          </button>
+          <button
+            type="button"
+            onClick={onViewArchived}
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            <Archive size={15} className="text-teal-600 shrink-0" />
+            Archived
+            {archivedCount > 0 && (
+              <span className="ml-0.5 min-w-[1.25rem] h-5 px-1.5 rounded-md bg-gray-100 text-gray-600 text-xs font-semibold flex items-center justify-center">
+                {archivedCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onCreateOpen}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-teal-500 rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
+          >
+            <UserPlus size={15} className="shrink-0" />
+            Create patient
+          </button>
         </div>
       </div>
       <div className="flex items-center gap-2 px-3 py-2 bg-white border border-border rounded-lg max-w-xs">
