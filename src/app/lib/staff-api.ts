@@ -18,6 +18,11 @@ import type {
   Provider,
   ProviderStatus,
   RepeatMode,
+  WaitlistPatientCandidate,
+  WaitlistRequest,
+  WaitlistRequestPatient,
+  WaitlistRequestSlot,
+  WaitlistRequestStatus,
 } from "../types";
 
 // ── API types (snake_case from backend) ─────────────────────────────────────
@@ -329,6 +334,72 @@ export function mapBookingInsurance(i: ApiBookingInsurance): BookingInsurance {
   return { id: i.id, name: i.name };
 }
 
+export type ApiWaitlistRequestSlot = {
+  id: string;
+  provider_id: string;
+  operatory_id: string | null;
+  starts_at: string;
+  ends_at: string;
+  claimed_by_patient_id: string | null;
+  claimed_at: string | null;
+  created_appointment_id: string | null;
+};
+
+export function mapWaitlistRequestSlot(s: ApiWaitlistRequestSlot): WaitlistRequestSlot {
+  return {
+    id: s.id,
+    providerId: s.provider_id,
+    operatoryId: s.operatory_id,
+    startsAt: s.starts_at,
+    endsAt: s.ends_at,
+    claimedByPatientId: s.claimed_by_patient_id,
+    claimedAt: s.claimed_at,
+    createdAppointmentId: s.created_appointment_id,
+  };
+}
+
+export type ApiWaitlistRequestPatient = {
+  id: string;
+  patient_id: string;
+  name: string;
+  notified_at: string | null;
+};
+
+export function mapWaitlistRequestPatient(p: ApiWaitlistRequestPatient): WaitlistRequestPatient {
+  return { id: p.id, patientId: p.patient_id, name: p.name, notifiedAt: p.notified_at };
+}
+
+export type ApiWaitlistRequest = {
+  id: string;
+  status: WaitlistRequestStatus;
+  created_at: string;
+  sent_at: string;
+  slots: ApiWaitlistRequestSlot[];
+  patients: ApiWaitlistRequestPatient[];
+};
+
+export function mapWaitlistRequest(r: ApiWaitlistRequest): WaitlistRequest {
+  return {
+    id: r.id,
+    status: r.status,
+    createdAt: r.created_at,
+    sentAt: r.sent_at,
+    slots: r.slots.map(mapWaitlistRequestSlot),
+    patients: r.patients.map(mapWaitlistRequestPatient),
+  };
+}
+
+export type ApiWaitlistPatientCandidate = {
+  id: string;
+  name: string;
+  reason: "missed" | "cancelled";
+  appointment_at: string | null;
+};
+
+export function mapWaitlistPatientCandidate(c: ApiWaitlistPatientCandidate): WaitlistPatientCandidate {
+  return { id: c.id, name: c.name, reason: c.reason, appointmentAt: c.appointment_at };
+}
+
 export const staffApi = {
   patients: {
     list: (q = "", archived = false, allLocations = false) =>
@@ -501,5 +572,36 @@ export const staffApi = {
     bulkCreate: (names: string[]) =>
       api.post<ApiBookingInsurance[]>("/api/booking-insurances/bulk", { names }),
     delete: (id: string) => api.delete(`/api/booking-insurances/${id}`),
+  },
+  waitlistRequests: {
+    list: () => api.get<ApiWaitlistRequest[]>("/api/waitlist-requests"),
+    get: (id: string) => api.get<ApiWaitlistRequest>(`/api/waitlist-requests/${id}`),
+    create: (body: {
+      slots: { provider_id: string; operatory_id: string | null; starts_at: string; ends_at: string }[];
+      patient_ids: string[];
+    }) => api.post<ApiWaitlistRequest>("/api/waitlist-requests", body),
+    cancel: (id: string) => api.post<ApiWaitlistRequest>(`/api/waitlist-requests/${id}/cancel`),
+    claimSlot: (requestId: string, slotId: string, patientId: string) =>
+      api.post<ApiWaitlistRequest>(`/api/waitlist-requests/${requestId}/slots/${slotId}/claim`, {
+        patient_id: patientId,
+      }),
+    searchMissedCancelled: (params: {
+      missed?: boolean;
+      cancelled?: boolean;
+      startDate?: string;
+      endDate?: string;
+      excludeRecentDays?: number;
+    }) => {
+      const qs = new URLSearchParams();
+      qs.set("missed", String(params.missed ?? false));
+      qs.set("cancelled", String(params.cancelled ?? false));
+      if (params.startDate) qs.set("start_date", params.startDate);
+      if (params.endDate) qs.set("end_date", params.endDate);
+      if (params.excludeRecentDays !== undefined)
+        qs.set("exclude_recent_days", String(params.excludeRecentDays));
+      return api.get<ApiWaitlistPatientCandidate[]>(
+        `/api/waitlist-requests/candidates/missed-cancelled?${qs.toString()}`
+      );
+    },
   },
 };

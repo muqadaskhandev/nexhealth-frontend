@@ -182,3 +182,41 @@ export type BookingInsurance = {
   id: string;
   name: string;
 };
+
+// ── Scheduling: waitlist requests ──────────────────────────────────────────────
+
+export type WaitlistRequestStatus = "sent" | "cancelled";
+
+export type WaitlistRequestSlot = {
+  id: string;
+  providerId: string;
+  operatoryId: string | null;
+  startsAt: string;
+  endsAt: string;
+  claimedByPatientId: string | null;
+  claimedAt: string | null;
+  createdAppointmentId: string | null;
+};
+
+export type WaitlistRequestPatient = {
+  id: string;
+  patientId: string;
+  name: string;
+  notifiedAt: string | null;
+};
+
+export type WaitlistRequest = {
+  id: string;
+  status: WaitlistRequestStatus;
+  createdAt: string;
+  sentAt: string;
+  slots: WaitlistRequestSlot[];
+  patients: WaitlistRequestPatient[];
+};
+
+export type WaitlistPatientCandidate = {
+  id: string;
+  name: string;
+  reason: "missed" | "cancelled";
+  appointmentAt: string | null;
+};
