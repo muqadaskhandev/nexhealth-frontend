@@ -343,6 +343,7 @@ export type ApiWaitlistRequestSlot = {
   claimed_by_patient_id: string | null;
   claimed_at: string | null;
   created_appointment_id: string | null;
+  cancelled_at: string | null;
 };
 
 export function mapWaitlistRequestSlot(s: ApiWaitlistRequestSlot): WaitlistRequestSlot {
@@ -355,6 +356,7 @@ export function mapWaitlistRequestSlot(s: ApiWaitlistRequestSlot): WaitlistReque
     claimedByPatientId: s.claimed_by_patient_id,
     claimedAt: s.claimed_at,
     createdAppointmentId: s.created_appointment_id,
+    cancelledAt: s.cancelled_at,
   };
 }
 
@@ -585,6 +587,8 @@ export const staffApi = {
       api.post<ApiWaitlistRequest>(`/api/waitlist-requests/${requestId}/slots/${slotId}/claim`, {
         patient_id: patientId,
       }),
+    cancelSlot: (requestId: string, slotId: string) =>
+      api.post<ApiWaitlistRequest>(`/api/waitlist-requests/${requestId}/slots/${slotId}/cancel`),
     searchMissedCancelled: (params: {
       missed?: boolean;
       cancelled?: boolean;

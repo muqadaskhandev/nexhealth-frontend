@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Check, X } from "lucide-react";
+import { ArrowLeft, Ban, Check, X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { staffApi, mapWaitlistRequest } from "../../lib/staff-api";
@@ -11,6 +11,9 @@ const EXPIRY_BUFFER_MINUTES = 15;
 function slotStatus(slot: WaitlistRequestSlot, patientName: (id: string) => string): { label: string; cls: string } {
   if (slot.claimedByPatientId) {
     return { label: `Claimed by ${patientName(slot.claimedByPatientId)}`, cls: "bg-teal-50 text-teal-700 border-teal-200" };
+  }
+  if (slot.cancelledAt) {
+    return { label: "Cancelled", cls: "bg-gray-100 text-gray-500 border-gray-200" };
   }
   const expiresAt = new Date(slot.startsAt).getTime() - EXPIRY_BUFFER_MINUTES * 60 * 1000;
   if (Date.now() > expiresAt) {
@@ -32,6 +35,8 @@ export function WaitlistRequestDetailView({
   const [loading, setLoading] = useState(true);
   const [claimingSlotId, setClaimingSlotId] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
+  const [cancellingSlotId, setCancellingSlotId] = useState<string | null>(null);
+  const [cancellingSlot, setCancellingSlot] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -62,6 +67,22 @@ export function WaitlistRequestDetailView({
       toastError(apiErr?.detail || "Could not claim this slot — please try again.");
     } finally {
       setClaiming(false);
+    }
+  }
+
+  async function cancelSlot() {
+    if (!request || !cancellingSlotId) return;
+    setCancellingSlot(true);
+    try {
+      const updated = await staffApi.waitlistRequests.cancelSlot(request.id, cancellingSlotId);
+      setRequest(mapWaitlistRequest(updated));
+      toastSuccess("Slot cancelled — it's no longer bookable from this request");
+      setCancellingSlotId(null);
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not cancel this slot — please try again.");
+    } finally {
+      setCancellingSlot(false);
     }
   }
 
@@ -139,13 +160,22 @@ export function WaitlistRequestDetailView({
                       </span>
                     </div>
                     {canClaim && (
-                      <IconButton
-                        label="Mark as claimed"
-                        onClick={() => setClaimingSlotId(s.id)}
-                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-300 flex-shrink-0"
-                      >
-                        <Check size={16} />
-                      </IconButton>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <IconButton
+                          label="Mark as claimed"
+                          onClick={() => setClaimingSlotId(s.id)}
+                          className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-300"
+                        >
+                          <Check size={16} />
+                        </IconButton>
+                        <IconButton
+                          label="Cancel this slot"
+                          onClick={() => setCancellingSlotId(s.id)}
+                          className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+                        >
+                          <Ban size={16} />
+                        </IconButton>
+                      </div>
                     )}
                   </div>
                 );
@@ -232,6 +262,18 @@ export function WaitlistRequestDetailView({
           submitting={cancelling}
           onConfirm={cancelRequest}
           onCancel={() => setConfirmingCancel(false)}
+        />
+      )}
+
+      {cancellingSlotId && (
+        <ConfirmModal
+          title="Cancel this slot?"
+          message="This time will no longer be bookable from this request. If a patient tries to select it, they'll see a message that it's no longer available. This can't be undone."
+          confirmLabel="Yes, cancel slot"
+          danger
+          submitting={cancellingSlot}
+          onConfirm={cancelSlot}
+          onCancel={() => setCancellingSlotId(null)}
         />
       )}
     </div>

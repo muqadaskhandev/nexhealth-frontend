@@ -196,6 +196,7 @@ export type WaitlistRequestSlot = {
   claimedByPatientId: string | null;
   claimedAt: string | null;
   createdAppointmentId: string | null;
+  cancelledAt: string | null;
 };
 
 export type WaitlistRequestPatient = {

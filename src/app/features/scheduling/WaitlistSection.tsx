@@ -3,14 +3,27 @@ import { Plus } from "lucide-react";
 import { staffApi, mapWaitlistRequest } from "../../lib/staff-api";
 import { NewWaitlistRequestView } from "./NewWaitlistRequestView";
 import { WaitlistRequestDetailView } from "./WaitlistRequestDetailView";
-import type { WaitlistRequest } from "../../types";
+import type { WaitlistRequest, WaitlistRequestSlot } from "../../types";
+
+const EXPIRY_BUFFER_MINUTES = 15;
+
+function isSlotOpen(slot: WaitlistRequestSlot): boolean {
+  if (slot.claimedByPatientId || slot.cancelledAt) return false;
+  return Date.now() <= new Date(slot.startsAt).getTime() - EXPIRY_BUFFER_MINUTES * 60 * 1000;
+}
+
+function isRequestActive(request: WaitlistRequest): boolean {
+  return request.status === "sent" && request.slots.some(isSlotOpen);
+}
 
 type View = { name: "list" } | { name: "new" } | { name: "detail"; requestId: string };
+type RequestTab = "active" | "completed";
 
 export function WaitlistSection() {
   const [view, setView] = useState<View>({ name: "list" });
   const [requests, setRequests] = useState<WaitlistRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
+  const [requestTab, setRequestTab] = useState<RequestTab>("active");
 
   const [entries, setEntries] = useState<
     {
@@ -73,41 +86,58 @@ export function WaitlistSection() {
       </div>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center gap-1 px-4 sm:px-5 pt-3 overflow-x-auto">
+          {(["active", "completed"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setRequestTab(t)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex-shrink-0 ${
+                requestTab === t ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              {t === "active" ? "Active Requests" : "Completed Requests"}
+            </button>
+          ))}
+        </div>
         {loadingRequests ? (
           <p className="py-8 text-center text-sm text-gray-400">Loading…</p>
-        ) : requests.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">No waitlist requests sent yet.</p>
+        ) : requests.filter((r) => (requestTab === "active" ? isRequestActive(r) : !isRequestActive(r))).length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-400">
+            {requestTab === "active" ? "No active waitlist requests." : "No completed waitlist requests yet."}
+          </p>
         ) : (
-          <div className="divide-y divide-border">
-            {requests.map((r) => {
-              const claimed = r.slots.filter((s) => s.claimedByPatientId).length;
-              return (
-                <button
-                  key={r.id}
-                  onClick={() => setView({ name: "detail", requestId: r.id })}
-                  className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 px-4 sm:px-5 py-3.5 hover:bg-gray-50 transition-colors text-left"
-                >
-                  <div className="min-w-0">
-                    <span
-                      className={`inline-block px-2 py-0.5 mr-2 rounded-full text-xs font-semibold capitalize border ${
-                        r.status === "cancelled"
-                          ? "bg-gray-100 text-gray-500 border-gray-200"
-                          : "bg-teal-50 text-teal-700 border-teal-200"
-                      }`}
-                    >
-                      {r.status}
+          <div className="divide-y divide-border mt-3">
+            {requests
+              .filter((r) => (requestTab === "active" ? isRequestActive(r) : !isRequestActive(r)))
+              .map((r) => {
+                const claimed = r.slots.filter((s) => s.claimedByPatientId).length;
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => setView({ name: "detail", requestId: r.id })}
+                    className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 px-4 sm:px-5 py-3.5 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="min-w-0">
+                      <span
+                        className={`inline-block px-2 py-0.5 mr-2 rounded-full text-xs font-semibold capitalize border ${
+                          r.status === "cancelled"
+                            ? "bg-gray-100 text-gray-500 border-gray-200"
+                            : "bg-teal-50 text-teal-700 border-teal-200"
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                      <span className="text-sm font-medium text-gray-800">
+                        {r.slots.length} slot{r.slots.length !== 1 ? "s" : ""} · {r.patients.length} patient
+                        {r.patients.length !== 1 ? "s" : ""} · {claimed} claimed
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500 flex-shrink-0">
+                      Sent {new Date(r.sentAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                     </span>
-                    <span className="text-sm font-medium text-gray-800">
-                      {r.slots.length} slot{r.slots.length !== 1 ? "s" : ""} · {r.patients.length} patient
-                      {r.patients.length !== 1 ? "s" : ""} · {claimed} claimed
-                    </span>
-                  </div>
-                  <span className="text-xs text-gray-500 flex-shrink-0">
-                    Sent {new Date(r.sentAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                  </span>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
           </div>
         )}
       </div>
