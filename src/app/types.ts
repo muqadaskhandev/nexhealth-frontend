@@ -97,6 +97,7 @@ export type FormPacket = {
 };
 
 export type FormRequestBatchStatus = "active" | "expired" | "synced";
+export type FormRequestCompletedStatus = "sent" | "viewed" | "in_progress" | "complete";
 
 export type FormRequestBatch = {
   patientId: string;
@@ -107,6 +108,8 @@ export type FormRequestBatch = {
   expiresAt: string;
   forms: { id: string; name: string }[];
   status: FormRequestBatchStatus;
+  completedStatus: FormRequestCompletedStatus;
+  syncStatus: "sync-now" | "sync-failed" | null;
 };
 
 export type FormFieldType =

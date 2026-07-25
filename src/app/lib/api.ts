@@ -99,6 +99,7 @@ export type ApiLocation = {
   reserve_with_google?: boolean;
   form_expiration_amount?: number;
   form_expiration_unit?: string;
+  form_sync_mode?: string;
 };
 
 export type ApiUser = {
@@ -345,6 +346,7 @@ export const practiceApi = {
       reserve_with_google?: boolean;
       form_expiration_amount?: number;
       form_expiration_unit?: string;
+      form_sync_mode?: string;
     }
   ) => api.patch<ApiLocation>(`/api/practice/locations/${locationId}`, body),
   uploadLocationLogo: async (locationId: string, file: File) => {

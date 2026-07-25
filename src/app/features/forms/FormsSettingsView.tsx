@@ -20,6 +20,10 @@ export function FormsSettingsView({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [syncMode, setSyncMode] = useState(activeLocation?.form_sync_mode ?? "automatic");
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSubmitting, setSyncSubmitting] = useState(false);
+
   async function handleSave() {
     if (!isAdmin || !activeLocation || submitting) return;
     setError(null);
@@ -42,6 +46,24 @@ export function FormsSettingsView({ onBack }: { onBack: () => void }) {
       toastError(msg);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleSaveSync() {
+    if (!isAdmin || !activeLocation || syncSubmitting) return;
+    setSyncError(null);
+    setSyncSubmitting(true);
+    try {
+      await practiceApi.updateLocation(activeLocation.id, { form_sync_mode: syncMode });
+      await refreshSession();
+      toastSuccess("Sync preferences saved");
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      const msg = apiErr?.detail || "Could not save these settings — please try again.";
+      setSyncError(msg);
+      toastError(msg);
+    } finally {
+      setSyncSubmitting(false);
     }
   }
 
@@ -110,6 +132,64 @@ export function FormsSettingsView({ onBack }: { onBack: () => void }) {
             className="px-5 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
           >
             {submitting ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-border overflow-hidden max-w-2xl mt-5">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-border">
+          <p className="text-sm font-semibold text-gray-900">Sync Preferences</p>
+          <p className="text-xs text-gray-500 mt-0.5">Sync completed forms automatically or manually to your health record system.</p>
+        </div>
+
+        <IconButton
+          label="Not available in this demo yet"
+          onClick={() => {}}
+          disabled
+          className="w-full flex items-center justify-between gap-2 px-4 sm:px-5 py-3 border-b border-border text-sm text-gray-300 cursor-not-allowed"
+        >
+          <span className="flex items-center gap-1.5"><MapPinned size={14} /> Copy to other locations</span>
+          <span>Copy</span>
+        </IconButton>
+
+        <div className="px-4 sm:px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label
+            className={`flex flex-col gap-1 px-4 py-3 border rounded-xl cursor-pointer transition-colors ${syncMode === "automatic" ? "border-teal-400 ring-2 ring-teal-100 bg-teal-50/40" : "border-gray-200"} ${!isAdmin ? "cursor-not-allowed opacity-60" : ""}`}
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <input type="radio" name="sync-mode" checked={syncMode === "automatic"} onChange={() => setSyncMode("automatic")} disabled={!isAdmin} />
+              Automatic
+            </span>
+            <span className="text-xs text-gray-500">Completed forms are automatically synced to your health record system.</span>
+          </label>
+          <label
+            className={`flex flex-col gap-1 px-4 py-3 border rounded-xl cursor-pointer transition-colors ${syncMode === "manual" ? "border-teal-400 ring-2 ring-teal-100 bg-teal-50/40" : "border-gray-200"} ${!isAdmin ? "cursor-not-allowed opacity-60" : ""}`}
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <input type="radio" name="sync-mode" checked={syncMode === "manual"} onChange={() => setSyncMode("manual")} disabled={!isAdmin} />
+              Manual
+            </span>
+            <span className="text-xs text-gray-500">Completed forms need to be manually synced to your health record system.</span>
+          </label>
+        </div>
+
+        {syncMode === "manual" && (
+          <div className="mx-4 sm:mx-5 mb-4 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+            If you want to sync incomplete forms, you must use the <span className="font-semibold">Sync now</span> button manually.
+          </div>
+        )}
+
+        {syncError && (
+          <div className="mx-4 sm:mx-5 mb-4 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{syncError}</div>
+        )}
+
+        <div className="px-4 sm:px-5 pb-5">
+          <button
+            onClick={handleSaveSync}
+            disabled={!isAdmin || syncSubmitting}
+            className="px-5 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            {syncSubmitting ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

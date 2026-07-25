@@ -25,8 +25,64 @@ function StatusBadge({ status }: { status: "active" | "expired" }) {
   return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Active</span>;
 }
 
+const COMPLETED_STATUS_LABEL: Record<string, string> = {
+  sent: "Sent",
+  viewed: "Viewed",
+  in_progress: "In Progress",
+  complete: "Complete",
+};
+
 function fmtDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function openSubmissionPrintView(patientName: string, rows: { form_name: string; answers: Record<string, unknown>; submitted_at: string }[]) {
+  const win = window.open("", "_blank");
+  if (!win) return;
+  const sections = rows
+    .map(
+      (r) => `
+        <h2>${escapeHtml(r.form_name)}</h2>
+        <p class="meta">Submitted ${escapeHtml(new Date(r.submitted_at).toLocaleString())}</p>
+        <table>
+          ${Object.entries(r.answers)
+            .map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(Array.isArray(v) ? v.join(", ") : String(v))}</td></tr>`)
+            .join("")}
+        </table>
+      `
+    )
+    .join("<hr/>");
+  win.document.write(`
+    <html>
+      <head>
+        <title>${escapeHtml(patientName)} — Forms</title>
+        <style>
+          body { font-family: -apple-system, sans-serif; padding: 32px; color: #111; }
+          h1 { font-size: 20px; } h2 { font-size: 15px; margin-top: 24px; }
+          .meta { color: #666; font-size: 12px; margin-bottom: 8px; }
+          table { border-collapse: collapse; width: 100%; }
+          td { border: 1px solid #ddd; padding: 6px 10px; font-size: 13px; vertical-align: top; }
+          td:first-child { font-weight: 600; width: 35%; background: #fafafa; }
+          hr { margin: 24px 0; border: none; border-top: 1px solid #eee; }
+        </style>
+      </head>
+      <body>
+        <h1>${escapeHtml(patientName)}</h1>
+        ${sections || "<p>No submitted answers found.</p>"}
+        <script>window.onload = () => window.print();</script>
+      </body>
+    </html>
+  `);
+  win.document.close();
 }
 
 export function FormsListView({
@@ -56,6 +112,49 @@ export function FormsListView({
   const [pendingSubmissions, setPendingSubmissions] = useState<PublicPacketSubmission[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
   const [assigning, setAssigning] = useState<PublicPacketSubmission | null>(null);
+  const [syncBusyKey, setSyncBusyKey] = useState<string | null>(null);
+
+  function handleSyncNow(key: string, batch: FormRequestBatch) {
+    setSyncBusyKey(key);
+    staffApi.forms.requests
+      .sync(batch.requestIds)
+      .then(() => {
+        toastSuccess("Sync attempted");
+        refreshBatches();
+      })
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        toastError(apiErr?.detail || "Could not sync — please try again.");
+      })
+      .finally(() => setSyncBusyKey(null));
+  }
+
+  function handleMarkSynced(key: string, batch: FormRequestBatch) {
+    setEllipsisOpen(null);
+    setSyncBusyKey(key);
+    staffApi.forms.requests
+      .markSynced(batch.requestIds)
+      .then(() => {
+        toastSuccess("Marked as synced");
+        refreshBatches();
+      })
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        toastError(apiErr?.detail || "Could not update — please try again.");
+      })
+      .finally(() => setSyncBusyKey(null));
+  }
+
+  function handleDownloadPdf(batch: FormRequestBatch) {
+    setEllipsisOpen(null);
+    staffApi.forms.requests
+      .submissions(batch.requestIds)
+      .then((rows) => openSubmissionPrintView(batch.patientName, rows))
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        toastError(apiErr?.detail || "Could not load the submitted forms — please try again.");
+      });
+  }
 
   function refreshPending() {
     if (activeTab !== "pending") return;
@@ -249,7 +348,22 @@ export function FormsListView({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={b.status === "expired" ? "expired" : "active"} />
+                    {b.status === "expired" ? (
+                      <StatusBadge status="expired" />
+                    ) : (
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <span className="text-xs text-gray-500 font-medium">{COMPLETED_STATUS_LABEL[b.completedStatus]}</span>
+                        {b.completedStatus === "complete" && b.syncStatus && (
+                          <button
+                            onClick={() => handleSyncNow(key, b)}
+                            disabled={syncBusyKey === key}
+                            className="disabled:opacity-60"
+                          >
+                            <SyncBadge status={syncBusyKey === key ? "syncing" : b.syncStatus} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-3 relative">
                     <IconButton
@@ -260,7 +374,7 @@ export function FormsListView({
                       <MoreHorizontal size={15} />
                     </IconButton>
                     {ellipsisOpen === key && (
-                      <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
                         {b.status === "expired" && (
                           <button
                             onClick={() => { setEllipsisOpen(null); setReactivating(b); }}
@@ -268,6 +382,22 @@ export function FormsListView({
                           >
                             Move to active
                           </button>
+                        )}
+                        {b.completedStatus === "complete" && (
+                          <>
+                            <button
+                              onClick={() => handleMarkSynced(key, b)}
+                              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              Mark as synced
+                            </button>
+                            <button
+                              onClick={() => handleDownloadPdf(b)}
+                              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              Download PDF
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => { setEllipsisOpen(null); setArchiving(b); }}

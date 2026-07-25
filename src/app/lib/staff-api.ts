@@ -14,6 +14,7 @@ import type {
   FormPacket,
   FormRequestBatch,
   FormRequestBatchStatus,
+  FormRequestCompletedStatus,
   FormSubmission,
   FormTemplate,
   FormTemplateSource,
@@ -312,6 +313,8 @@ export type ApiFormRequestBatch = {
   expires_at: string;
   forms: { id: string; name: string }[];
   status: FormRequestBatchStatus;
+  completed_status: FormRequestCompletedStatus;
+  sync_status: "sync-now" | "sync-failed" | null;
 };
 
 export function mapFormRequestBatch(b: ApiFormRequestBatch): FormRequestBatch {
@@ -324,8 +327,16 @@ export function mapFormRequestBatch(b: ApiFormRequestBatch): FormRequestBatch {
     expiresAt: b.expires_at,
     forms: b.forms,
     status: b.status,
+    completedStatus: b.completed_status,
+    syncStatus: b.sync_status,
   };
 }
+
+export type ApiFormSubmissionDetail = {
+  form_name: string;
+  answers: Record<string, unknown>;
+  submitted_at: string;
+};
 
 export type ApiInsertionRule = { id: string; code_type: string; codes: string[] };
 
@@ -662,6 +673,18 @@ export const staffApi = {
         api.post<{ message: string }>("/api/forms/requests/archive", {
           request_ids: requestIds,
         }),
+      sync: (requestIds: string[]) =>
+        api.post<{ message: string }>("/api/forms/requests/sync", {
+          request_ids: requestIds,
+        }),
+      markSynced: (requestIds: string[]) =>
+        api.post<{ message: string }>("/api/forms/requests/mark-synced", {
+          request_ids: requestIds,
+        }),
+      submissions: (requestIds: string[]) =>
+        api.get<ApiFormSubmissionDetail[]>(
+          `/api/forms/requests/submissions?${requestIds.map((id) => `request_ids=${id}`).join("&")}`
+        ),
     },
   },
   messages: {
