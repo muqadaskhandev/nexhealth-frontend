@@ -6,7 +6,10 @@ import {
 import { IconButton } from "../../components/shared/IconButton";
 import { NewPacketModal } from "./NewPacketModal";
 import { PreviewFormModal } from "./PreviewFormModal";
+import { CopyToLocationsModal } from "./CopyToLocationsModal";
 import { useAuth } from "../../auth/AuthContext";
+import { staffApi } from "../../lib/staff-api";
+import { toastError, toastSuccess } from "../../lib/toast";
 import type { FormTemplate, Packet } from "../../types";
 
 export function ManageFormsView({
@@ -14,12 +17,14 @@ export function ManageFormsView({
   onBuild,
   onEdit,
   onDigitize,
+  onRefresh,
   templates,
 }: {
   onBack: () => void;
   onBuild: () => void;
   onEdit: (template: FormTemplate) => void;
   onDigitize: () => void;
+  onRefresh: () => void;
   templates: FormTemplate[];
 }) {
   const { user } = useAuth();
@@ -29,6 +34,7 @@ export function ManageFormsView({
   const [newFormOpen, setNewFormOpen] = useState(false);
   const [ellipsisOpen, setEllipsisOpen] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<FormTemplate | null>(null);
+  const [copying, setCopying] = useState<{ preselectedFormId?: string } | null>(null);
   const [packets, setPackets] = useState<Packet[]>([
     { id: "pkt1", name: "New Patient Paperwork", forms: ["Cancellation Policy", "Consent for Internet Communications", "Medical History Form", "Patient Information Form"] },
     { id: "pkt2", name: "Insurance Verification", forms: ["Dental Insurance Verification Form", "Credit Card Authorization Form"] },
@@ -47,6 +53,19 @@ export function ManageFormsView({
   const filtered = templates.filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()));
 
   const noop = () => {};
+
+  async function handleDuplicate(t: FormTemplate) {
+    if (!isAdmin) return;
+    setEllipsisOpen(null);
+    try {
+      await staffApi.forms.duplicateTemplate(t.id);
+      toastSuccess("Your duplicated form is ready!");
+      onRefresh();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not duplicate this form — please try again.");
+    }
+  }
 
   return (
     <>
@@ -84,10 +103,10 @@ export function ManageFormsView({
               <Archive size={14} /> Archived forms
             </IconButton>
             <IconButton
-              label="See the copying & duplicating forms article"
-              onClick={noop}
-              disabled
-              className="flex items-center gap-1.5 text-sm font-medium text-gray-300 cursor-not-allowed"
+              label={isAdmin ? "Copy forms to other locations" : "You need the Admin permission level for the Forms feature"}
+              onClick={() => isAdmin && templates.length > 0 && setCopying({})}
+              disabled={!isAdmin || templates.length === 0}
+              className="flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               <Copy size={14} /> Copy to locations
             </IconButton>
@@ -205,16 +224,24 @@ export function ManageFormsView({
                         >
                           <Edit size={14} />Edit details
                         </button>
-                        <IconButton label="See the copying & duplicating forms article" onClick={noop} disabled
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                        <IconButton
+                          label={isAdmin ? "Duplicate this form" : "You need the Admin permission level for the Forms feature"}
+                          onClick={() => handleDuplicate(t)}
+                          disabled={!isAdmin}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
                           <Copy size={14} />Duplicate
                         </IconButton>
                         <IconButton label="Not available in this demo yet" onClick={noop} disabled
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
                           <Download size={14} />Download
                         </IconButton>
-                        <IconButton label="See the copying & duplicating forms article" onClick={noop} disabled
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                        <IconButton
+                          label={isAdmin ? "Copy this form to other locations" : "You need the Admin permission level for the Forms feature"}
+                          onClick={() => { if (isAdmin) { setEllipsisOpen(null); setCopying({ preselectedFormId: t.id }); } }}
+                          disabled={!isAdmin}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
                           <MapPinned size={14} />Copy to locations
                         </IconButton>
                         <IconButton label="Not available in this demo yet" onClick={noop} disabled
@@ -299,6 +326,15 @@ export function ManageFormsView({
     )}
 
     {previewing && <PreviewFormModal template={previewing} onClose={() => setPreviewing(null)} />}
+
+    {copying && (
+      <CopyToLocationsModal
+        templates={templates}
+        preselectedFormId={copying.preselectedFormId}
+        onClose={() => setCopying(null)}
+        onCopied={onRefresh}
+      />
+    )}
     </>
   );
 }

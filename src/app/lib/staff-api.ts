@@ -523,6 +523,12 @@ export const staffApi = {
       }
       return (await res.json()) as ApiFormTemplate;
     },
+    duplicateTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/duplicate`),
+    copyTemplates: (templateIds: string[], locationIds: string[]) =>
+      api.post<{ copied: number }>("/api/forms/templates/copy", {
+        template_ids: templateIds,
+        location_ids: locationIds,
+      }),
     submissions: () => api.get<ApiFormSubmission[]>("/api/forms/submissions"),
     send: (patientId: string, formTemplateId: string) =>
       api.post("/api/forms/send", { patient_id: patientId, form_template_id: formTemplateId }),

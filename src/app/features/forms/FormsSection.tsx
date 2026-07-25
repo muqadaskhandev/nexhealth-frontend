@@ -61,6 +61,7 @@ export function FormsSection() {
           onBuild={openBuild}
           onEdit={openEdit}
           onDigitize={() => setView("digitize")}
+          onRefresh={refreshTemplates}
           templates={templates}
         />
       )}
@@ -71,6 +72,7 @@ export function FormsSection() {
             onBuild={openBuild}
             onEdit={openEdit}
             onDigitize={() => setView("digitize")}
+            onRefresh={refreshTemplates}
             templates={templates}
           />
           <DigitizeModal
