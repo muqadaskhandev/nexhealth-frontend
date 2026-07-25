@@ -95,6 +95,19 @@ export type FormPacket = {
   createdAt: string;
 };
 
+export type FormRequestBatchStatus = "active" | "expired" | "synced";
+
+export type FormRequestBatch = {
+  patientId: string;
+  patientName: string;
+  patientInitials: string;
+  requestIds: string[];
+  sentAt: string;
+  expiresAt: string;
+  forms: { id: string; name: string }[];
+  status: FormRequestBatchStatus;
+};
+
 export type FormFieldType =
   | "text" | "textarea" | "email" | "number" | "phone"
   | "checkbox" | "select_boxes" | "dropdown" | "radio"

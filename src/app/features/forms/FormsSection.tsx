@@ -3,11 +3,12 @@ import { FormBuilderView } from "./FormBuilderView";
 import { FormsListView } from "./FormsListView";
 import { ManageFormsView } from "./ManageFormsView";
 import { DigitizeModal } from "./DigitizeModal";
+import { FormsSettingsView } from "./FormsSettingsView";
 import { mapFormPacket, mapFormSubmission, mapFormTemplate, mapPatient, staffApi } from "../../lib/staff-api";
 import type { FormPacket, FormSubmission, FormTemplate, Patient } from "../../types";
 
 export function FormsSection() {
-  const [view, setView] = useState<"list" | "manage" | "builder" | "digitize">("list");
+  const [view, setView] = useState<"list" | "manage" | "builder" | "digitize" | "settings">("list");
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
@@ -57,12 +58,14 @@ export function FormsSection() {
       {view === "list" && (
         <FormsListView
           onManage={() => setView("manage")}
+          onSettings={() => setView("settings")}
           submissions={submissions}
           patients={patients}
           templates={templates}
           packets={packets}
         />
       )}
+      {view === "settings" && <FormsSettingsView onBack={() => setView("list")} />}
       {view === "manage" && (
         <ManageFormsView
           onBack={() => setView("list")}

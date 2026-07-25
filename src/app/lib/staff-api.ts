@@ -12,6 +12,8 @@ import type {
   FormField,
   FormFieldType,
   FormPacket,
+  FormRequestBatch,
+  FormRequestBatchStatus,
   FormSubmission,
   FormTemplate,
   FormTemplateSource,
@@ -254,6 +256,30 @@ export function mapFormPacket(p: ApiFormPacket): FormPacket {
     name: p.name,
     formTemplateIds: p.form_template_ids,
     createdAt: p.created_at,
+  };
+}
+
+export type ApiFormRequestBatch = {
+  patient_id: string;
+  patient_name: string;
+  patient_initials: string;
+  request_ids: string[];
+  sent_at: string;
+  expires_at: string;
+  forms: { id: string; name: string }[];
+  status: FormRequestBatchStatus;
+};
+
+export function mapFormRequestBatch(b: ApiFormRequestBatch): FormRequestBatch {
+  return {
+    patientId: b.patient_id,
+    patientName: b.patient_name,
+    patientInitials: b.patient_initials,
+    requestIds: b.request_ids,
+    sentAt: b.sent_at,
+    expiresAt: b.expires_at,
+    forms: b.forms,
+    status: b.status,
   };
 }
 
@@ -573,6 +599,15 @@ export const staffApi = {
       update: (id: string, body: { name: string; form_template_ids: string[] }) =>
         api.patch<ApiFormPacket>(`/api/forms/packets/${id}`, body),
       delete: (id: string) => api.delete(`/api/forms/packets/${id}`),
+    },
+    requests: {
+      list: (tab: "active" | "expired" | "synced" | "all" = "all") =>
+        api.get<ApiFormRequestBatch[]>(`/api/forms/requests?tab=${tab}`),
+      reactivate: (requestIds: string[], expiresAt: string) =>
+        api.post<{ message: string }>("/api/forms/requests/reactivate", {
+          request_ids: requestIds,
+          expires_at: expiresAt,
+        }),
     },
   },
   messages: {
