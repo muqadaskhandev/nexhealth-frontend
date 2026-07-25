@@ -11,6 +11,7 @@ import type {
   FormDisplayType,
   FormField,
   FormFieldType,
+  FormPacket,
   FormSubmission,
   FormTemplate,
   FormTemplateSource,
@@ -237,6 +238,22 @@ export function mapFormTemplate(t: ApiFormTemplate): FormTemplate {
     digitizeNotes: t.digitize_notes,
     archivedAt: t.archived_at,
     createdAt: t.created_at,
+  };
+}
+
+export type ApiFormPacket = {
+  id: string;
+  name: string;
+  form_template_ids: string[];
+  created_at: string;
+};
+
+export function mapFormPacket(p: ApiFormPacket): FormPacket {
+  return {
+    id: p.id,
+    name: p.name,
+    formTemplateIds: p.form_template_ids,
+    createdAt: p.created_at,
   };
 }
 
@@ -549,6 +566,14 @@ export const staffApi = {
         message: params.message,
         email_note: params.emailNote,
       }),
+    packets: {
+      list: () => api.get<ApiFormPacket[]>("/api/forms/packets"),
+      create: (body: { name: string; form_template_ids: string[] }) =>
+        api.post<ApiFormPacket>("/api/forms/packets", body),
+      update: (id: string, body: { name: string; form_template_ids: string[] }) =>
+        api.patch<ApiFormPacket>(`/api/forms/packets/${id}`, body),
+      delete: (id: string) => api.delete(`/api/forms/packets/${id}`),
+    },
   },
   messages: {
     list: (patientId?: string) =>

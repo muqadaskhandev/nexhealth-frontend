@@ -4,7 +4,7 @@ import { Toggle } from "../../components/shared/Toggle";
 import { IconButton } from "../../components/shared/IconButton";
 import { staffApi, mapFormTemplate } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
-import type { FormTemplate, Patient } from "../../types";
+import type { FormPacket, FormTemplate, Patient } from "../../types";
 
 function MiniCalendar({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
   const [viewDate, setViewDate] = useState(new Date(value));
@@ -58,11 +58,13 @@ export function RequestFormsModal({
   onSent,
   patients,
   templates,
+  packets,
 }: {
   onClose: () => void;
   onSent: () => void;
   patients: Patient[];
   templates: FormTemplate[];
+  packets: FormPacket[];
 }) {
   const [patientSearch, setPatientSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -109,6 +111,13 @@ export function RequestFormsModal({
 
   function removeForm(id: string) {
     setSelectedForms(prev => prev.filter(f => f.id !== id));
+  }
+
+  function addPacket(pkt: FormPacket) {
+    const forms = pkt.formTemplateIds
+      .map(id => templates.find(t => t.id === id))
+      .filter((t): t is FormTemplate => Boolean(t));
+    setSelectedForms(prev => [...prev, ...forms.filter(t => !prev.some(f => f.id === t.id))]);
   }
 
   async function handleSend() {
@@ -253,6 +262,21 @@ export function RequestFormsModal({
                     <span className="text-teal-500">+</span> {t.name}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Packets — add every form in a packet at once */}
+            {packets.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs font-semibold text-gray-500 mb-1.5">Packets</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {packets.map(pkt => (
+                    <button key={pkt.id} onClick={() => addPacket(pkt)}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-teal-200 bg-teal-50 rounded-full text-teal-700 hover:bg-teal-100 transition-colors">
+                      <span>+</span> {pkt.name}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

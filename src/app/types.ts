@@ -88,7 +88,12 @@ export type FormSubmission = {
   syncLabel?: string;
 };
 
-export type Packet = { id: string; name: string; forms: string[] };
+export type FormPacket = {
+  id: string;
+  name: string;
+  formTemplateIds: string[];
+  createdAt: string;
+};
 
 export type FormFieldType =
   | "text" | "textarea" | "email" | "number" | "phone"

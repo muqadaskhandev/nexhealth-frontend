@@ -8,10 +8,11 @@ import { NewPacketModal } from "./NewPacketModal";
 import { PreviewFormModal } from "./PreviewFormModal";
 import { CopyToLocationsModal } from "./CopyToLocationsModal";
 import { ArchivedFormsView } from "./ArchivedFormsView";
+import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { useAuth } from "../../auth/AuthContext";
 import { staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
-import type { FormTemplate, Packet } from "../../types";
+import type { FormPacket, FormTemplate } from "../../types";
 
 export function ManageFormsView({
   onBack,
@@ -20,6 +21,8 @@ export function ManageFormsView({
   onDigitize,
   onRefresh,
   templates,
+  packets,
+  onRefreshPackets,
 }: {
   onBack: () => void;
   onBuild: () => void;
@@ -27,6 +30,8 @@ export function ManageFormsView({
   onDigitize: () => void;
   onRefresh: () => void;
   templates: FormTemplate[];
+  packets: FormPacket[];
+  onRefreshPackets: () => void;
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -37,11 +42,9 @@ export function ManageFormsView({
   const [ellipsisOpen, setEllipsisOpen] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<FormTemplate | null>(null);
   const [copying, setCopying] = useState<{ preselectedFormId?: string } | null>(null);
-  const [packets, setPackets] = useState<Packet[]>([
-    { id: "pkt1", name: "New Patient Paperwork", forms: ["Cancellation Policy", "Consent for Internet Communications", "Medical History Form", "Patient Information Form"] },
-    { id: "pkt2", name: "Insurance Verification", forms: ["Dental Insurance Verification Form", "Credit Card Authorization Form"] },
-  ]);
-  const [showNewPacket, setShowNewPacket] = useState(false);
+  const [editingPacket, setEditingPacket] = useState<FormPacket | "new" | null>(null);
+  const [deletingPacket, setDeletingPacket] = useState<FormPacket | null>(null);
+  const [deletingPacketBusy, setDeletingPacketBusy] = useState(false);
   const newFormRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +82,28 @@ export function ManageFormsView({
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
       toastError(apiErr?.detail || "Could not archive this form — please try again.");
+    }
+  }
+
+  function formNamesFor(pkt: FormPacket): string[] {
+    return pkt.formTemplateIds
+      .map(id => templates.find(t => t.id === id)?.name)
+      .filter((n): n is string => Boolean(n));
+  }
+
+  async function handleDeletePacket() {
+    if (!deletingPacket) return;
+    setDeletingPacketBusy(true);
+    try {
+      await staffApi.forms.packets.delete(deletingPacket.id);
+      toastSuccess(`"${deletingPacket.name}" deleted`);
+      setDeletingPacket(null);
+      onRefreshPackets();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not delete this packet — please try again.");
+    } finally {
+      setDeletingPacketBusy(false);
     }
   }
 
@@ -172,9 +197,14 @@ export function ManageFormsView({
               )}
             </div>
           ) : (
-            <button onClick={() => setShowNewPacket(true)} className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
+            <IconButton
+              label={isAdmin ? "Create a new packet" : "You need the Admin permission level for the Forms feature"}
+              onClick={() => isAdmin && setEditingPacket("new")}
+              disabled={!isAdmin}
+              className="px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
+            >
               New packet
-            </button>
+            </IconButton>
           )}
         </div>
 
@@ -300,7 +330,9 @@ export function ManageFormsView({
                 <tbody>
                   {packets
                     .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
-                    .map(pkt => (
+                    .map(pkt => {
+                      const names = formNamesFor(pkt);
+                      return (
                       <tr key={pkt.id} className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors group">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
@@ -309,8 +341,8 @@ export function ManageFormsView({
                           </div>
                         </td>
                         <td className="px-5 py-3">
-                          <span className="text-xs text-gray-500">{pkt.forms.length} form{pkt.forms.length !== 1 ? "s" : ""}</span>
-                          <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{pkt.forms.slice(0, 3).join(", ")}{pkt.forms.length > 3 ? "…" : ""}</p>
+                          <span className="text-xs text-gray-500">{names.length} form{names.length !== 1 ? "s" : ""}</span>
+                          <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{names.slice(0, 3).join(", ")}{names.length > 3 ? "…" : ""}</p>
                         </td>
                         <td className="px-3 py-3 relative">
                           <IconButton
@@ -322,14 +354,32 @@ export function ManageFormsView({
                           </IconButton>
                           {ellipsisOpen === pkt.id && (
                             <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
-                              <button onClick={() => setEllipsisOpen(null)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><Edit size={14} />Edit</button>
-                              <button onClick={() => setEllipsisOpen(null)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><Copy size={14} />Duplicate</button>
-                              <button onClick={() => { setPackets(prev => prev.filter(p => p.id !== pkt.id)); setEllipsisOpen(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50"><Archive size={14} />Delete</button>
+                              <IconButton
+                                label={isAdmin ? "Edit this packet" : "You need the Admin permission level for the Forms feature"}
+                                onClick={() => { if (isAdmin) { setEllipsisOpen(null); setEditingPacket(pkt); } }}
+                                disabled={!isAdmin}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                              >
+                                <Edit size={14} />Edit
+                              </IconButton>
+                              <IconButton label="Not available in this demo yet" onClick={noop} disabled
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                                <Copy size={14} />Duplicate
+                              </IconButton>
+                              <IconButton
+                                label={isAdmin ? "Delete this packet" : "You need the Admin permission level for the Forms feature"}
+                                onClick={() => { if (isAdmin) { setEllipsisOpen(null); setDeletingPacket(pkt); } }}
+                                disabled={!isAdmin}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                              >
+                                <Archive size={14} />Delete
+                              </IconButton>
                             </div>
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                 </tbody>
               </table>
               </div>
@@ -339,11 +389,28 @@ export function ManageFormsView({
       </div>
     </div>
 
-    {/* New Packet modal */}
-    {showNewPacket && (
+    {/* New / Edit Packet modal */}
+    {editingPacket && (
       <NewPacketModal
-        onClose={() => setShowNewPacket(false)}
-        onSave={pkt => setPackets(prev => [...prev, pkt])}
+        initial={editingPacket === "new" ? undefined : editingPacket}
+        templates={templates}
+        onClose={() => setEditingPacket(null)}
+        onSaved={() => {
+          setEditingPacket(null);
+          onRefreshPackets();
+        }}
+      />
+    )}
+
+    {deletingPacket && (
+      <ConfirmModal
+        title="Delete this packet?"
+        message={`"${deletingPacket.name}" will be removed. The forms inside it won't be affected.`}
+        confirmLabel="Yes, delete packet"
+        danger
+        submitting={deletingPacketBusy}
+        onConfirm={handleDeletePacket}
+        onCancel={() => setDeletingPacket(null)}
       />
     )}
 
