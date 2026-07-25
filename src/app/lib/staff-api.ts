@@ -533,9 +533,22 @@ export const staffApi = {
       }),
     archiveTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/archive`),
     unarchiveTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/unarchive`),
+    frequentTemplates: () => api.get<ApiFormTemplate[]>("/api/forms/templates/frequent"),
     submissions: () => api.get<ApiFormSubmission[]>("/api/forms/submissions"),
-    send: (patientId: string, formTemplateId: string) =>
-      api.post("/api/forms/send", { patient_id: patientId, form_template_id: formTemplateId }),
+    send: (params: {
+      patientId: string;
+      formTemplateIds: string[];
+      expiresAt?: string;
+      message?: string;
+      emailNote?: string;
+    }) =>
+      api.post<{ message: string; count: number }>("/api/forms/send", {
+        patient_id: params.patientId,
+        form_template_ids: params.formTemplateIds,
+        expires_at: params.expiresAt,
+        message: params.message,
+        email_note: params.emailNote,
+      }),
   },
   messages: {
     list: (patientId?: string) =>

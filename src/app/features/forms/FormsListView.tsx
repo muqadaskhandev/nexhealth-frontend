@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Search, ChevronDown, Info, FileText, MoreHorizontal, RotateCcw, WifiOff } from "lucide-react";
 import { RequestFormsModal } from "./RequestFormsModal";
-import type { FormSyncStatus, FormSubmission } from "../../types";
+import type { FormSyncStatus, FormSubmission, FormTemplate } from "../../types";
 
 function SyncBadge({ status, label }: { status: FormSyncStatus; label?: string }) {
   if (status === "syncing")      return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200"><RotateCcw size={11} className="animate-spin" />Syncing</span>;
@@ -16,10 +16,12 @@ export function FormsListView({
   onManage,
   submissions = [],
   patients = [],
+  templates = [],
 }: {
   onManage: () => void;
   submissions?: FormSubmission[];
   patients?: import("../../types").Patient[];
+  templates?: FormTemplate[];
 }) {
   const [activeTab, setActiveTab] = useState<"active" | "synced" | "expired" | "all">("active");
   const [search, setSearch] = useState("");
@@ -133,7 +135,12 @@ export function FormsListView({
       </div>
     </div>
     {showRequestModal && (
-      <RequestFormsModal patients={patients} onClose={() => setShowRequestModal(false)} />
+      <RequestFormsModal
+        patients={patients}
+        templates={templates}
+        onClose={() => setShowRequestModal(false)}
+        onSent={() => {}}
+      />
     )}
     </>
   );

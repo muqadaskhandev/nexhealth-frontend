@@ -53,6 +53,7 @@ export function FormsSection() {
           onManage={() => setView("manage")}
           submissions={submissions}
           patients={patients}
+          templates={templates}
         />
       )}
       {view === "manage" && (
