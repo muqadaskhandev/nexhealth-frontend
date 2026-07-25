@@ -5,14 +5,30 @@ import {
 } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { NewPacketModal } from "./NewPacketModal";
-import { MANAGE_FORMS } from "./forms-data";
-import type { Packet } from "../../types";
+import { PreviewFormModal } from "./PreviewFormModal";
+import { useAuth } from "../../auth/AuthContext";
+import type { FormTemplate, Packet } from "../../types";
 
-export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () => void; onBuild: () => void; onDigitize: () => void }) {
+export function ManageFormsView({
+  onBack,
+  onBuild,
+  onEdit,
+  onDigitize,
+  templates,
+}: {
+  onBack: () => void;
+  onBuild: () => void;
+  onEdit: (template: FormTemplate) => void;
+  onDigitize: () => void;
+  templates: FormTemplate[];
+}) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [activeTab, setActiveTab] = useState<"forms" | "packets">("forms");
   const [search, setSearch] = useState("");
   const [newFormOpen, setNewFormOpen] = useState(false);
   const [ellipsisOpen, setEllipsisOpen] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState<FormTemplate | null>(null);
   const [packets, setPackets] = useState<Packet[]>([
     { id: "pkt1", name: "New Patient Paperwork", forms: ["Cancellation Policy", "Consent for Internet Communications", "Medical History Form", "Patient Information Form"] },
     { id: "pkt2", name: "Insurance Verification", forms: ["Dental Insurance Verification Form", "Credit Card Authorization Form"] },
@@ -28,30 +44,29 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const filtered = MANAGE_FORMS.filter(f => !search || f.toLowerCase().includes(search.toLowerCase()));
+  const filtered = templates.filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()));
 
-  const ELLIPSIS_ITEMS = [
-    { label: "Edit details",       icon: <Edit size={14} /> },
-    { label: "Preview",            icon: <Eye size={14} /> },
-    { label: "Duplicate",          icon: <Copy size={14} /> },
-    { label: "Download",           icon: <Download size={14} /> },
-    { label: "Copy to locations",  icon: <MapPinned size={14} /> },
-    { label: "Archive",            icon: <Archive size={14} />, danger: true },
-  ];
+  const noop = () => {};
 
   return (
     <>
-    <div className="w-full min-w-0 px-6 py-5">
+    <div className="w-full min-w-0 px-4 sm:px-6 py-5">
       {/* Back + heading */}
       <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors mb-2">
         <ArrowLeft size={14} /> Forms
       </button>
-      <h1 className="text-2xl font-bold text-gray-900 mb-5">Manage Forms</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-3">Manage Forms</h1>
+
+      {!isAdmin && (
+        <div className="mb-4 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+          You need the Admin permission level for the Forms feature to create, edit, or digitize forms.
+        </div>
+      )}
 
       {/* Card */}
       <div className="bg-white rounded-xl border border-border overflow-visible">
         {/* Tab bar */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-5 py-3 border-b border-border">
           <div className="flex items-center gap-1">
             {(["forms", "packets"] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${activeTab === tab ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
@@ -60,25 +75,39 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
             ))}
           </div>
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">
+            <IconButton
+              label="Not available in this demo yet"
+              onClick={noop}
+              disabled
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-300 cursor-not-allowed"
+            >
               <Archive size={14} /> Archived forms
-            </button>
-            <button className="flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">
+            </IconButton>
+            <IconButton
+              label="See the copying & duplicating forms article"
+              onClick={noop}
+              disabled
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-300 cursor-not-allowed"
+            >
               <Copy size={14} /> Copy to locations
-            </button>
+            </IconButton>
           </div>
         </div>
 
         {/* Search + action button — changes per tab */}
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-5 py-3 border-b border-border">
           <div className="flex items-center gap-2 flex-1 px-3 py-2 border border-gray-200 rounded-lg">
-            <Search size={14} className="text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={activeTab === "packets" ? "Search packets" : "Search forms"} className="flex-1 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent" />
+            <Search size={14} className="text-gray-400 flex-shrink-0" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={activeTab === "packets" ? "Search packets" : "Search forms"} className="flex-1 min-w-0 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent" />
           </div>
 
           {activeTab === "forms" ? (
             <div ref={newFormRef} className="relative">
-              <button onClick={() => setNewFormOpen(v => !v)} className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors">
+              <button
+                onClick={() => isAdmin && setNewFormOpen(v => !v)}
+                disabled={!isAdmin}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
+              >
                 New form <ChevronDown size={14} />
               </button>
               {newFormOpen && (
@@ -114,6 +143,7 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
 
         {/* Forms tab — table */}
         {activeTab === "forms" && (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -127,30 +157,70 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(form => (
-                <tr key={form} className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors group">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="py-10 text-center text-sm text-gray-400">
+                    No forms yet. Click "New form" to build or digitize one.
+                  </td>
+                </tr>
+              ) : filtered.map(t => (
+                <tr key={t.id} className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors group">
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <FileText size={15} className="text-gray-400 flex-shrink-0" />
-                      <span className="text-gray-800 font-medium">{form}</span>
+                      <span className="text-gray-800 font-medium truncate">{t.name}</span>
+                      {t.source === "digitize" && t.status === "digitizing" && (
+                        <IconButton
+                          label="Our team converts this outside of this demo environment"
+                          onClick={noop}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 flex-shrink-0"
+                        >
+                          <RefreshCw size={10} className="animate-spin" /> Digitizing…
+                        </IconButton>
+                      )}
                     </div>
                   </td>
                   <td className="px-5 py-3 text-gray-400 text-xs">—</td>
                   <td className="px-3 py-3 relative">
                     <IconButton
                       label="More"
-                      onClick={() => setEllipsisOpen(ellipsisOpen === form ? null : form)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === form ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
+                      onClick={() => setEllipsisOpen(ellipsisOpen === t.id ? null : t.id)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === t.id ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
                     >
                       <MoreHorizontal size={15} />
                     </IconButton>
-                    {ellipsisOpen === form && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
-                        {ELLIPSIS_ITEMS.map(item => (
-                          <button key={item.label} onClick={() => setEllipsisOpen(null)} className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${item.danger ? "text-red-500" : "text-gray-700"}`}>
-                            {item.icon}{item.label}
-                          </button>
-                        ))}
+                    {ellipsisOpen === t.id && (
+                      <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => { setEllipsisOpen(null); setPreviewing(t); }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Eye size={14} />Preview
+                        </button>
+                        <button
+                          onClick={() => { if (isAdmin && t.source === "build") { setEllipsisOpen(null); onEdit(t); } }}
+                          disabled={!isAdmin || t.source !== "build"}
+                          title={t.source !== "build" ? "Digitized forms don't have editable fields yet" : undefined}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
+                          <Edit size={14} />Edit details
+                        </button>
+                        <IconButton label="See the copying & duplicating forms article" onClick={noop} disabled
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                          <Copy size={14} />Duplicate
+                        </IconButton>
+                        <IconButton label="Not available in this demo yet" onClick={noop} disabled
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                          <Download size={14} />Download
+                        </IconButton>
+                        <IconButton label="See the copying & duplicating forms article" onClick={noop} disabled
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                          <MapPinned size={14} />Copy to locations
+                        </IconButton>
+                        <IconButton label="Not available in this demo yet" onClick={noop} disabled
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                          <Archive size={14} />Archive
+                        </IconButton>
                       </div>
                     )}
                   </td>
@@ -158,6 +228,7 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         {/* Packets tab */}
@@ -166,6 +237,7 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
             {packets.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase())).length === 0 ? (
               <div className="py-12 text-center text-sm text-gray-400">No packets yet. Click "New packet" to create one.</div>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
@@ -211,6 +283,7 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
                     ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
@@ -224,6 +297,8 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
         onSave={pkt => setPackets(prev => [...prev, pkt])}
       />
     )}
+
+    {previewing && <PreviewFormModal template={previewing} onClose={() => setPreviewing(null)} />}
     </>
   );
 }

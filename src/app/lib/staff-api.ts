@@ -8,7 +8,13 @@ import type {
   BookingFieldType,
   BookingFormField,
   BookingInsurance,
+  FormDisplayType,
+  FormField,
+  FormFieldType,
   FormSubmission,
+  FormTemplate,
+  FormTemplateSource,
+  FormTemplateStatus,
   InsertionRule,
   MappingCondition,
   MappingRule,
@@ -175,6 +181,52 @@ export function mapFormSubmission(s: ApiFormSubmission): FormSubmission {
     formName: s.form_name,
     completedStatus: "Complete",
     syncStatus: s.sync_status === "complete" ? "complete" : "sync-now",
+  };
+}
+
+export type ApiFormField = {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  required: boolean;
+  options: string[];
+  page: number;
+};
+
+export type ApiFormTemplate = {
+  id: string;
+  name: string;
+  form_type: string;
+  source: FormTemplateSource;
+  status: FormTemplateStatus;
+  display_type: FormDisplayType;
+  fields: ApiFormField[];
+  page_count: number;
+  uploaded_file_url: string | null;
+  digitize_notes: string;
+  created_at: string;
+};
+
+export function mapFormTemplate(t: ApiFormTemplate): FormTemplate {
+  return {
+    id: t.id,
+    name: t.name,
+    documentType: t.form_type,
+    source: t.source,
+    status: t.status,
+    displayType: t.display_type,
+    fields: t.fields.map((f): FormField => ({
+      id: f.id,
+      type: f.type,
+      label: f.label,
+      required: f.required,
+      options: f.options,
+      page: f.page,
+    })),
+    pageCount: t.page_count,
+    uploadedFileUrl: t.uploaded_file_url,
+    digitizeNotes: t.digitize_notes,
+    createdAt: t.created_at,
   };
 }
 
@@ -433,7 +485,36 @@ export const staffApi = {
   },
   waitlist: () => api.get<unknown[]>("/api/waitlist"),
   forms: {
-    templates: () => api.get<{ id: string; name: string; form_type: string }[]>("/api/forms/templates"),
+    templates: () => api.get<ApiFormTemplate[]>("/api/forms/templates"),
+    createTemplate: (body: Record<string, unknown>) =>
+      api.post<ApiFormTemplate>("/api/forms/templates", body),
+    updateTemplate: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiFormTemplate>(`/api/forms/templates/${id}`, body),
+    digitizeTemplate: async (file: File, name: string, notes: string) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("name", name);
+      form.append("notes", notes);
+      const res = await fetch("/api/forms/templates/digitize", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+        headers: {
+          "X-CSRF-Token":
+            document.cookie
+              .split("; ")
+              .find((c) => c.startsWith("csrf_token="))
+              ?.split("=")
+              .slice(1)
+              .join("=") || "",
+        },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+        throw err;
+      }
+      return (await res.json()) as ApiFormTemplate;
+    },
     submissions: () => api.get<ApiFormSubmission[]>("/api/forms/submissions"),
     send: (patientId: string, formTemplateId: string) =>
       api.post("/api/forms/send", { patient_id: patientId, form_template_id: formTemplateId }),

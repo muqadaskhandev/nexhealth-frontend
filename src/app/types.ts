@@ -90,6 +90,37 @@ export type FormSubmission = {
 
 export type Packet = { id: string; name: string; forms: string[] };
 
+export type FormFieldType =
+  | "text" | "textarea" | "email" | "number" | "phone"
+  | "checkbox" | "select_boxes" | "dropdown" | "signature" | "date";
+
+export type FormField = {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  required: boolean;
+  options: string[];
+  page: number;
+};
+
+export type FormTemplateSource = "build" | "digitize";
+export type FormTemplateStatus = "active" | "digitizing";
+export type FormDisplayType = "wizard" | "single_page";
+
+export type FormTemplate = {
+  id: string;
+  name: string;
+  documentType: string;
+  source: FormTemplateSource;
+  status: FormTemplateStatus;
+  displayType: FormDisplayType;
+  fields: FormField[];
+  pageCount: number;
+  uploadedFileUrl: string | null;
+  digitizeNotes: string;
+  createdAt: string;
+};
+
 // ── Scheduling: appointment types & mapping rules ─────────────────────────────────
 
 export type PatientTypeRule = "new" | "existing" | "all";
