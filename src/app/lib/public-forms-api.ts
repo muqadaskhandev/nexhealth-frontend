@@ -2,7 +2,7 @@
 // No cookies, no CSRF, no session — this is a separate trust boundary from
 // the staff app's cookie-authenticated API in lib/api.ts.
 
-import type { FormDisplayType, FormFieldType, PublicBranding, PublicForm, PublicVerifyResult } from "../types";
+import type { FormDisplayType, FormFieldType, PublicBranding, PublicForm, PublicPacketForm, PublicPacketInfo, PublicVerifyResult } from "../types";
 
 export type PublicApiError = { status: number; detail: string };
 
@@ -93,6 +93,64 @@ function mapForm(f: ApiForm): PublicForm {
     })),
   };
 }
+
+type ApiPacketForm = {
+  template_id: string;
+  name: string;
+  display_type: FormDisplayType;
+  page_count: number;
+  fields: ApiField[];
+};
+
+type ApiPacketInfo = ApiBranding & { packet_name: string; forms: ApiPacketForm[] };
+
+function mapPacketForm(f: ApiPacketForm): PublicPacketForm {
+  return {
+    templateId: f.template_id,
+    name: f.name,
+    displayType: f.display_type,
+    pageCount: f.page_count,
+    fields: f.fields.map((field) => ({
+      id: field.id,
+      type: field.type,
+      label: field.label,
+      required: field.required,
+      options: field.options,
+      page: field.page,
+      minLength: field.min_length,
+      maxLength: field.max_length,
+      conditionalFieldId: field.conditional_field_id,
+      conditionalValue: field.conditional_value,
+    })),
+  };
+}
+
+export const publicPacketsApi = {
+  info: (code: string) =>
+    request<ApiPacketInfo>("GET", `/api/public/packets/${code}`).then(
+      (r): PublicPacketInfo => ({ ...mapBranding(r), packetName: r.packet_name, forms: r.forms.map(mapPacketForm) })
+    ),
+
+  submit: (
+    code: string,
+    params: {
+      firstName: string;
+      lastName: string;
+      dob: string;
+      phone: string;
+      email: string;
+      submissions: { templateId: string; answers: Record<string, unknown> }[];
+    }
+  ) =>
+    request<{ submission_id: string }>("POST", `/api/public/packets/${code}/submit`, {
+      first_name: params.firstName,
+      last_name: params.lastName,
+      dob: params.dob,
+      phone: params.phone,
+      email: params.email,
+      submissions: params.submissions.map((s) => ({ template_id: s.templateId, answers: s.answers })),
+    }),
+};
 
 export const publicFormsApi = {
   tokenInfo: (token: string) =>

@@ -92,6 +92,7 @@ export type FormPacket = {
   id: string;
   name: string;
   formTemplateIds: string[];
+  publicCode: string | null;
   createdAt: string;
 };
 
@@ -323,4 +324,34 @@ export type PublicForm = {
 export type PublicVerifyResult = PublicBranding & {
   patientName: string;
   forms: PublicForm[];
+};
+
+// ── Public packet links (unauthenticated, no known patient) ────────────────────
+
+export type PublicPacketForm = {
+  templateId: string;
+  name: string;
+  displayType: FormDisplayType;
+  pageCount: number;
+  fields: PublicFormField[];
+};
+
+export type PublicPacketInfo = PublicBranding & {
+  packetName: string;
+  forms: PublicPacketForm[];
+};
+
+// ── Staff-side: pending public packet submissions (Assign & sync) ──────────────
+
+export type PublicPacketSubmission = {
+  id: string;
+  formPacketId: string;
+  packetName: string;
+  firstName: string;
+  lastName: string;
+  dob: string | null;
+  phone: string;
+  email: string;
+  formNames: string[];
+  createdAt: string;
 };

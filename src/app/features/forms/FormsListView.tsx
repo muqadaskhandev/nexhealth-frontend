@@ -4,9 +4,10 @@ import { IconButton } from "../../components/shared/IconButton";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { RequestFormsModal } from "./RequestFormsModal";
 import { ReactivateFormModal } from "./ReactivateFormModal";
-import { staffApi, mapFormRequestBatch } from "../../lib/staff-api";
+import { AssignPacketSubmissionModal } from "./AssignPacketSubmissionModal";
+import { staffApi, mapFormRequestBatch, mapPublicPacketSubmission } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
-import type { FormSyncStatus, FormSubmission, FormTemplate, FormPacket, FormRequestBatch } from "../../types";
+import type { FormSyncStatus, FormSubmission, FormTemplate, FormPacket, FormRequestBatch, PublicPacketSubmission } from "../../types";
 
 function SyncBadge({ status, label }: { status: FormSyncStatus; label?: string }) {
   if (status === "syncing")      return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200"><RotateCcw size={11} className="animate-spin" />Syncing</span>;
@@ -43,7 +44,7 @@ export function FormsListView({
   templates?: FormTemplate[];
   packets?: FormPacket[];
 }) {
-  const [activeTab, setActiveTab] = useState<"active" | "synced" | "expired" | "all">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "synced" | "expired" | "pending" | "all">("active");
   const [search, setSearch] = useState("");
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestBatches, setRequestBatches] = useState<FormRequestBatch[]>([]);
@@ -52,6 +53,20 @@ export function FormsListView({
   const [reactivating, setReactivating] = useState<FormRequestBatch | null>(null);
   const [archiving, setArchiving] = useState<FormRequestBatch | null>(null);
   const [archivingBusy, setArchivingBusy] = useState(false);
+  const [pendingSubmissions, setPendingSubmissions] = useState<PublicPacketSubmission[]>([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+  const [assigning, setAssigning] = useState<PublicPacketSubmission | null>(null);
+
+  function refreshPending() {
+    if (activeTab !== "pending") return;
+    setLoadingPending(true);
+    staffApi.forms.publicSubmissions
+      .list()
+      .then((rows) => setPendingSubmissions(rows.map(mapPublicPacketSubmission)))
+      .finally(() => setLoadingPending(false));
+  }
+
+  useEffect(refreshPending, [activeTab]);
 
   function handleArchive() {
     if (!archiving) return;
@@ -89,6 +104,9 @@ export function FormsListView({
   const filteredBatches = requestBatches.filter(b =>
     !search || b.patientName.toLowerCase().includes(search.toLowerCase())
   );
+  const filteredPending = pendingSubmissions.filter(s =>
+    !search || `${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <>
@@ -115,7 +133,7 @@ export function FormsListView({
       {/* Tab bar + filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-1 bg-white border border-border rounded-lg p-1 overflow-x-auto">
-          {(["active", "synced", "expired", "all"] as const).map(tab => (
+          {(["active", "synced", "expired", "pending", "all"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize flex-shrink-0 ${activeTab === tab ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
@@ -143,9 +161,9 @@ export function FormsListView({
                 <span className="flex items-center gap-1">Patients <ChevronDown size={11} className="opacity-50" /></span>
               </th>
               <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-700">
-                <span className="flex items-center gap-1">{usesBatches ? "Due date" : "Expiration date"} <ChevronDown size={11} className="opacity-50" /></span>
+                <span className="flex items-center gap-1">{usesBatches ? "Due date" : activeTab === "pending" ? "Contact" : "Expiration date"} <ChevronDown size={11} className="opacity-50" /></span>
               </th>
-              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-700">Forms</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-700">{activeTab === "pending" ? "Packet" : "Forms"}</th>
               <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-700">
                 <span className="flex items-center gap-1">Status <ChevronDown size={11} className="opacity-50" /></span>
               </th>
@@ -153,7 +171,49 @@ export function FormsListView({
             </tr>
           </thead>
           <tbody>
-            {usesBatches ? (
+            {activeTab === "pending" ? (
+              loadingPending ? (
+                <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">Loading…</td></tr>
+              ) : filteredPending.length === 0 ? (
+                <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">No public packet submissions waiting to be synced.</td></tr>
+              ) : filteredPending.map(s => (
+                <tr key={s.id} className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors group">
+                  <td className="px-4 py-3">
+                    <input type="checkbox" className="w-4 h-4 rounded accent-teal-500" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                        {(s.firstName.slice(0, 1) || "").toUpperCase()}{(s.lastName.slice(0, 1) || "").toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</p>
+                        <p className="text-xs text-gray-400">{fmtDateTime(s.createdAt)}</p>
+                        <p className="text-xs text-gray-400">Public packet link</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{s.phone || s.email || "—"}</td>
+                  <td className="px-4 py-3">
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-gray-700 font-medium">{s.packetName}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-xs">{s.formNames.join(", ")}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <SyncBadge status="assign-sync" />
+                  </td>
+                  <td className="px-3 py-3">
+                    <button
+                      onClick={() => setAssigning(s)}
+                      className="px-3 py-1.5 text-xs font-semibold bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      Assign &amp; sync
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : usesBatches ? (
               loadingBatches ? (
                 <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">Loading…</td></tr>
               ) : filteredBatches.length === 0 ? (
@@ -295,6 +355,17 @@ export function FormsListView({
         submitting={archivingBusy}
         onConfirm={handleArchive}
         onCancel={() => setArchiving(null)}
+      />
+    )}
+    {assigning && (
+      <AssignPacketSubmissionModal
+        submission={assigning}
+        patients={patients}
+        onClose={() => setAssigning(null)}
+        onAssigned={() => {
+          setAssigning(null);
+          refreshPending();
+        }}
       />
     )}
     </>

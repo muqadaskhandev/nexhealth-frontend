@@ -26,6 +26,7 @@ import type {
   PatientTypeRule,
   Provider,
   ProviderStatus,
+  PublicPacketSubmission,
   RepeatMode,
   RulePatientStatus,
   WaitlistPatientCandidate,
@@ -260,6 +261,7 @@ export type ApiFormPacket = {
   id: string;
   name: string;
   form_template_ids: string[];
+  public_code: string | null;
   created_at: string;
 };
 
@@ -268,7 +270,36 @@ export function mapFormPacket(p: ApiFormPacket): FormPacket {
     id: p.id,
     name: p.name,
     formTemplateIds: p.form_template_ids,
+    publicCode: p.public_code,
     createdAt: p.created_at,
+  };
+}
+
+export type ApiPublicPacketSubmission = {
+  id: string;
+  form_packet_id: string;
+  packet_name: string;
+  first_name: string;
+  last_name: string;
+  dob: string | null;
+  phone: string;
+  email: string;
+  form_names: string[];
+  created_at: string;
+};
+
+export function mapPublicPacketSubmission(s: ApiPublicPacketSubmission): PublicPacketSubmission {
+  return {
+    id: s.id,
+    formPacketId: s.form_packet_id,
+    packetName: s.packet_name,
+    firstName: s.first_name,
+    lastName: s.last_name,
+    dob: s.dob,
+    phone: s.phone,
+    email: s.email,
+    formNames: s.form_names,
+    createdAt: s.created_at,
   };
 }
 
@@ -612,6 +643,12 @@ export const staffApi = {
       update: (id: string, body: { name: string; form_template_ids: string[] }) =>
         api.patch<ApiFormPacket>(`/api/forms/packets/${id}`, body),
       delete: (id: string) => api.delete(`/api/forms/packets/${id}`),
+      publicAccess: (id: string) => api.post<ApiFormPacket>(`/api/forms/packets/${id}/public-access`),
+    },
+    publicSubmissions: {
+      list: () => api.get<ApiPublicPacketSubmission[]>("/api/forms/public-submissions"),
+      assign: (id: string, patientId: string) =>
+        api.post<{ message: string }>(`/api/forms/public-submissions/${id}/assign`, { patient_id: patientId }),
     },
     requests: {
       list: (tab: "active" | "expired" | "synced" | "all" = "all") =>

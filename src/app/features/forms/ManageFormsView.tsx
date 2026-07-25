@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ArrowLeft, Search, ChevronDown, Archive, Copy, RefreshCw, Wrench,
-  Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList, Zap,
+  Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList, Zap, Link2,
 } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { NewPacketModal } from "./NewPacketModal";
 import { PreviewFormModal } from "./PreviewFormModal";
+import { PublicPacketAccessModal } from "./PublicPacketAccessModal";
 import { CopyToLocationsModal } from "./CopyToLocationsModal";
 import { ArchivedFormsView } from "./ArchivedFormsView";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { useAuth } from "../../auth/AuthContext";
-import { staffApi } from "../../lib/staff-api";
+import { mapFormPacket, staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { FormPacket, FormTemplate } from "../../types";
 
@@ -45,7 +46,24 @@ export function ManageFormsView({
   const [editingPacket, setEditingPacket] = useState<FormPacket | "new" | null>(null);
   const [deletingPacket, setDeletingPacket] = useState<FormPacket | null>(null);
   const [deletingPacketBusy, setDeletingPacketBusy] = useState(false);
+  const [publicAccessPacket, setPublicAccessPacket] = useState<FormPacket | null>(null);
+  const [publicAccessBusy, setPublicAccessBusy] = useState<string | null>(null);
   const newFormRef = useRef<HTMLDivElement>(null);
+
+  function handlePublicAccess(pkt: FormPacket) {
+    setPublicAccessBusy(pkt.id);
+    staffApi.forms.packets
+      .publicAccess(pkt.id)
+      .then((updated) => {
+        onRefreshPackets();
+        setPublicAccessPacket(mapFormPacket(updated));
+      })
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        toastError(apiErr?.detail || "Could not create a public link — please try again.");
+      })
+      .finally(() => setPublicAccessBusy(null));
+  }
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -375,6 +393,14 @@ export function ManageFormsView({
                                 <Copy size={14} />Duplicate
                               </IconButton>
                               <IconButton
+                                label={isAdmin ? "Get a shareable public URL for this packet" : "You need the Admin permission level for the Forms feature"}
+                                onClick={() => { if (isAdmin) { setEllipsisOpen(null); handlePublicAccess(pkt); } }}
+                                disabled={!isAdmin || publicAccessBusy === pkt.id}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                              >
+                                <Link2 size={14} />{publicAccessBusy === pkt.id ? "Loading…" : "Public packet access"}
+                              </IconButton>
+                              <IconButton
                                 label={isAdmin ? "Delete this packet" : "You need the Admin permission level for the Forms feature"}
                                 onClick={() => { if (isAdmin) { setEllipsisOpen(null); setDeletingPacket(pkt); } }}
                                 disabled={!isAdmin}
@@ -423,6 +449,10 @@ export function ManageFormsView({
     )}
 
     {previewing && <PreviewFormModal template={previewing} onClose={() => setPreviewing(null)} />}
+
+    {publicAccessPacket && (
+      <PublicPacketAccessModal packet={publicAccessPacket} onClose={() => setPublicAccessPacket(null)} />
+    )}
 
     {copying && (
       <CopyToLocationsModal
