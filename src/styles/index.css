@@ -23,142 +23,272 @@ select:disabled {
   cursor: not-allowed;
 }
 
-/* Branded loading screen — soft teal rings + logo (matches platform accent) */
-.loading-brand-screen {
+/* ── Loading (wcr.is-style: rotate+translate arc, letter squash/stretch) ── */
+.loader-container,
+#loader-container {
+  --loader-bg: #f7f7f7;
+  --loader-fg: #0d9488;
+  --loader-accent: #2dd4bf;
+  font-family: "Roboto", ui-sans-serif, system-ui, sans-serif;
   display: flex;
-  height: 100vh;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  min-height: 100vh;
   width: 100vw;
-  align-items: center;
-  justify-content: center;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(45, 212, 191, 0.12), transparent 70%),
-    #f9fafb;
-}
-
-.loading-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.25rem;
-  user-select: none;
-}
-
-.loading-brand__mark {
+  background: var(--loader-bg);
+  overflow: hidden;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20rem;
-  height: 10.5rem;
 }
 
-.loading-brand__ring {
+.loader-container *,
+#loader-container *,
+.loader-container *::before,
+#loader-container *::before,
+.loader-container *::after,
+#loader-container *::after {
+  box-sizing: border-box;
+}
+
+/* Soft brand wash — stays clear of the word so letter masks stay seamless */
+.loader-ambient {
   position: absolute;
   inset: 0;
-  border-radius: 9999px;
-  border: 2.5px solid transparent;
-  border-top-color: #2dd4bf;
-  border-right-color: rgba(45, 212, 191, 0.35);
-  animation: loading-brand-spin 1.1s linear infinite;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 55% 40% at 18% 78%,
+      rgba(45, 212, 191, 0.14),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 50% 36% at 86% 22%,
+      rgba(13, 148, 136, 0.1),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 50% 100%,
+      rgba(234, 230, 225, 0.55),
+      transparent 65%
+    );
 }
 
-.loading-brand__ring--delayed {
-  inset: 0.75rem;
-  border-top-color: rgba(45, 212, 191, 0.55);
-  border-right-color: transparent;
-  border-bottom-color: rgba(20, 184, 166, 0.25);
-  animation-duration: 1.6s;
-  animation-direction: reverse;
-}
-
-.loading-brand__logo {
+.loader-stage {
   position: relative;
   z-index: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  width: 16.5rem;
-  height: 7rem;
-  border-radius: 1.25rem;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 12px 32px rgba(15, 118, 110, 0.1);
-  animation: loading-brand-pulse 1.8s ease-in-out infinite;
-  padding: 1rem 1.5rem;
 }
 
-.loading-brand__dots {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+.loader-divider {
+  position: absolute;
+  z-index: 2;
+  top: 65px;
+  left: 200px;
+  width: 50px;
+  height: 15px;
+  background: var(--loader-bg);
 }
 
-.loading-brand__dots span {
-  width: 0.4rem;
-  height: 0.4rem;
-  border-radius: 9999px;
-  background: #14b8a6;
-  opacity: 0.35;
-  animation: loading-brand-dot 1.05s ease-in-out infinite;
-}
-
-.loading-brand__dots span:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.loading-brand__dots span:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-.loading-brand__label {
+.loader-text {
+  --loader-bg: #f7f7f7;
+  --loader-fg: #0d9488;
+  position: relative;
+  font-size: 60px;
+  font-weight: 300;
   margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #9ca3af;
+  white-space: nowrap;
+  color: var(--loader-fg);
+  font-family: "Roboto", ui-sans-serif, system-ui, sans-serif;
 }
 
-@keyframes loading-brand-spin {
-  to {
-    transform: rotate(360deg);
+/* Moving dot — smooth semicircle via rotate + translate (only 2 keyframes)
+ * Pivot + radius tuned so endpoints land on L and i (not past i toward g). */
+.loader-text::before {
+  position: absolute;
+  content: "";
+  z-index: 1;
+  top: 40px;
+  left: 88px;
+  width: 6px;
+  height: 6px;
+  background: var(--loader-fg);
+  border-radius: 50%;
+  animation: dotMoveBig 1800ms cubic-bezier(0.25, 0.25, 0.75, 0.75) infinite;
+}
+
+.loader-letter {
+  display: inline-block;
+  position: relative;
+  color: var(--loader-fg);
+  letter-spacing: 8px;
+}
+
+/* L — taller stem + background mask that syncs with the ball */
+.loader-letter:nth-child(1) {
+  transform-origin: 100% 70%;
+  transform: scale(1, 1.275);
+}
+
+.loader-letter:nth-child(1)::before {
+  position: absolute;
+  content: "";
+  top: 18px;
+  left: 0;
+  width: 14px;
+  height: 36px;
+  background: var(--loader-bg);
+  transform-origin: 100% 0;
+  animation: lineStretch 1800ms cubic-bezier(0.25, 0.25, 0.75, 0.75) infinite;
+}
+
+/* i — squash → stretch → settle; hide real tittle with bg mask */
+.loader-letter:nth-child(5) {
+  transform-origin: 100% 70%;
+  animation: letterStretch 1800ms cubic-bezier(0.25, 0.23, 0.73, 0.75) infinite;
+}
+
+.loader-letter:nth-child(5)::before {
+  position: absolute;
+  content: "";
+  top: 15px;
+  left: 2px;
+  width: 9px;
+  height: 15px;
+  background: var(--loader-bg);
+}
+
+/* Thin teal pulse — matches ball timing, clinical not flashy */
+.loader-pulse {
+  display: block;
+  width: 140px;
+  height: 2px;
+  margin-top: 28px;
+  border-radius: 9999px;
+  background: var(--loader-accent);
+  transform-origin: center;
+  animation: loaderPulse 1800ms ease-in-out infinite;
+}
+
+@keyframes dotMoveBig {
+  0%,
+  100% {
+    transform: rotate(180deg) translate(-82px, -8px) rotate(-180deg);
+  }
+  50% {
+    transform: rotate(0deg) translate(-84px, 4px) rotate(0deg);
   }
 }
 
-@keyframes loading-brand-pulse {
+@keyframes dotMoveSmall {
   0%,
   100% {
+    transform: rotate(180deg) translate(-68px, 2px) rotate(-180deg);
+  }
+  50% {
+    transform: rotate(0deg) translate(-70px, 7px) rotate(0deg);
+  }
+}
+
+@keyframes letterStretch {
+  0%,
+  100% {
+    transform: scale(1, 0.35);
+    transform-origin: 100% 75%;
+  }
+  8%,
+  28% {
+    transform: scale(1, 2.125);
+    transform-origin: 100% 73%;
+  }
+  37% {
+    transform: scale(1, 0.875);
+    transform-origin: 100% 75%;
+  }
+  46% {
+    transform: scale(1, 1.03);
+    transform-origin: 100% 75%;
+  }
+  50%,
+  97% {
     transform: scale(1);
-    box-shadow: 0 8px 24px rgba(15, 118, 110, 0.08);
-  }
-  50% {
-    transform: scale(1.03);
-    box-shadow: 0 10px 28px rgba(20, 184, 166, 0.16);
+    transform-origin: 100% 75%;
   }
 }
 
-@keyframes loading-brand-dot {
+@keyframes lineStretch {
   0%,
+  45%,
+  70%,
   100% {
-    opacity: 0.3;
-    transform: translateY(0);
+    transform: scaleY(0.125);
+  }
+  49% {
+    transform: scaleY(0.75);
   }
   50% {
-    opacity: 1;
-    transform: translateY(-3px);
+    transform: scaleY(0.875);
+  }
+  53% {
+    transform: scaleY(0.5);
+  }
+  60% {
+    transform: scaleY(0);
+  }
+  68% {
+    transform: scaleY(0.18);
+  }
+}
+
+@keyframes loaderPulse {
+  0%,
+  100% {
+    transform: scaleX(0.45);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 0.9;
+  }
+}
+
+@media (max-width: 768px) {
+  .loader-text {
+    font-size: 50px;
+  }
+
+  .loader-text::before {
+    left: 76px;
+    width: 4px;
+    height: 4px;
+    animation: dotMoveSmall 1800ms cubic-bezier(0.25, 0.25, 0.75, 0.75) infinite;
+  }
+
+  .loader-pulse {
+    width: 110px;
+    margin-top: 22px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loading-brand__ring,
-  .loading-brand__ring--delayed,
-  .loading-brand__logo,
-  .loading-brand__dots span {
+  .loader-text::before,
+  .loader-letter:nth-child(1)::before,
+  .loader-letter:nth-child(5),
+  .loader-pulse {
     animation: none;
   }
 
-  .loading-brand__dots span {
+  .loader-letter:nth-child(5) {
+    transform: scale(1);
+  }
+
+  .loader-text::before {
+    transform: rotate(0deg) translate(-112px, 4px) rotate(0deg);
+  }
+
+  .loader-pulse {
+    transform: scaleX(1);
     opacity: 0.7;
   }
 }
-

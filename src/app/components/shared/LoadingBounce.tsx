@@ -1,7 +1,6 @@
-import { BrandLogo } from "../branding/BrandLogo";
-
 /**
- * Branded loading screen — logo + soft teal pulse, matching platform accents.
+ * Loading — L ↔ i play catch (wcr.is-style pure CSS loop).
+ * Ball swings on a rotate+translate arc; i squashes/stretches; L stem syncs via mask.
  */
 export function LoadingScreen({
   fullScreen = false,
@@ -10,35 +9,35 @@ export function LoadingScreen({
   fullScreen?: boolean;
   className?: string;
 }) {
+  const letters = ["L", "o", "a", "d", "i", "n", "g"];
+
   const mark = (
-    <div
-      className={`loading-brand ${className}`.trim()}
+    <p
+      className={`loader-text ${className}`.trim()}
       role="status"
       aria-live="polite"
       aria-label="Loading"
     >
-      <div className="loading-brand__mark">
-        <span className="loading-brand__ring" aria-hidden="true" />
-        <span className="loading-brand__ring loading-brand__ring--delayed" aria-hidden="true" />
-        <div className="loading-brand__logo">
-          <BrandLogo
-            alt="VaraSync"
-            className="h-16 sm:h-20 w-auto max-w-[280px] object-contain"
-          />
-        </div>
-      </div>
-      <div className="loading-brand__dots" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
-      <p className="loading-brand__label">Loading</p>
-    </div>
+      {letters.map((ch, i) => (
+        <span key={`${ch}-${i}`} className="loader-letter" aria-hidden="true">
+          {ch}
+        </span>
+      ))}
+    </p>
   );
 
   if (!fullScreen) return mark;
 
-  return <div className="loading-brand-screen">{mark}</div>;
+  return (
+    <div id="loader-container" className="loader-container">
+      <div className="loader-ambient" aria-hidden="true" />
+      <div className="loader-divider" aria-hidden="true" />
+      <div className="loader-stage">
+        {mark}
+        <span className="loader-pulse" aria-hidden="true" />
+      </div>
+    </div>
+  );
 }
 
 /** @deprecated Use LoadingScreen */

@@ -21,14 +21,23 @@ import { useStaffData } from "./hooks/useStaffData";
 import { LoadingScreen } from "./components/shared/LoadingBounce";
 import type { AppointmentStatus, Patient } from "./types";
 
+/** Keep the splash visible long enough to review the bounce animation (dev preview). */
+const MIN_LOADER_MS = 3500;
+
 export default function App() {
   const { status, user, activeLocation } = useAuth();
   const [activeNav, setActiveNav] = useState("home");
   const [settingsTab, setSettingsTab] = useState<"account" | "logo" | "users" | "synchronizer" | "locations" | undefined>();
   const [panelPatient, setPanelPatient] = useState<Patient | null>(null);
+  const [minLoaderDone, setMinLoaderDone] = useState(false);
 
   const isPracticeUser = status === "authenticated" && user?.account_type === "practice";
   const staff = useStaffData(isPracticeUser);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setMinLoaderDone(true), MIN_LOADER_MS);
+    return () => window.clearTimeout(t);
+  }, []);
 
   // Patient panels are location-scoped — close them when the user switches.
   useEffect(() => {
@@ -75,7 +84,11 @@ export default function App() {
     ? staff.patients.find((p) => p.id === panelPatient.id) ?? panelPatient
     : null;
 
-  if (status === "loading" || (isPracticeUser && staff.loading)) {
+  if (
+    !minLoaderDone ||
+    status === "loading" ||
+    (isPracticeUser && staff.loading)
+  ) {
     return <LoadingScreen fullScreen />;
   }
 
