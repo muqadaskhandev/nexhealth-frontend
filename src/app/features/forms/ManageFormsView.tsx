@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ArrowLeft, Search, ChevronDown, Archive, Copy, RefreshCw, Wrench,
-  Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList,
+  Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList, Zap,
 } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { NewPacketModal } from "./NewPacketModal";
@@ -247,7 +247,15 @@ export function ManageFormsView({
                       )}
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-gray-400 text-xs">—</td>
+                  <td className="px-5 py-3">
+                    {t.sendAutomatically ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-100">
+                        <Zap size={10} /> Yes
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">No</span>
+                    )}
+                  </td>
                   <td className="px-3 py-3 relative">
                     <IconButton
                       label="More"

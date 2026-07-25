@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Search, ChevronDown, Info, FileText, MoreHorizontal, RotateCcw, WifiOff } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { RequestFormsModal } from "./RequestFormsModal";
 import { ReactivateFormModal } from "./ReactivateFormModal";
 import { staffApi, mapFormRequestBatch } from "../../lib/staff-api";
+import { toastError, toastSuccess } from "../../lib/toast";
 import type { FormSyncStatus, FormSubmission, FormTemplate, FormPacket, FormRequestBatch } from "../../types";
 
 function SyncBadge({ status, label }: { status: FormSyncStatus; label?: string }) {
@@ -48,6 +50,25 @@ export function FormsListView({
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [ellipsisOpen, setEllipsisOpen] = useState<string | null>(null);
   const [reactivating, setReactivating] = useState<FormRequestBatch | null>(null);
+  const [archiving, setArchiving] = useState<FormRequestBatch | null>(null);
+  const [archivingBusy, setArchivingBusy] = useState(false);
+
+  function handleArchive() {
+    if (!archiving) return;
+    setArchivingBusy(true);
+    staffApi.forms.requests
+      .archive(archiving.requestIds)
+      .then(() => {
+        toastSuccess("Form request archived");
+        setArchiving(null);
+        refreshBatches();
+      })
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        toastError(apiErr?.detail || "Could not archive this form request — please try again.");
+      })
+      .finally(() => setArchivingBusy(false));
+  }
 
   const usesBatches = activeTab === "active" || activeTab === "expired";
 
@@ -171,26 +192,30 @@ export function FormsListView({
                     <StatusBadge status={b.status === "expired" ? "expired" : "active"} />
                   </td>
                   <td className="px-3 py-3 relative">
-                    {b.status === "expired" && (
-                      <>
-                        <IconButton
-                          label="More"
-                          onClick={() => setEllipsisOpen(ellipsisOpen === key ? null : key)}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === key ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
-                        >
-                          <MoreHorizontal size={15} />
-                        </IconButton>
-                        {ellipsisOpen === key && (
-                          <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
-                            <button
-                              onClick={() => { setEllipsisOpen(null); setReactivating(b); }}
-                              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              Move to active
-                            </button>
-                          </div>
+                    <IconButton
+                      label="More"
+                      onClick={() => setEllipsisOpen(ellipsisOpen === key ? null : key)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === key ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
+                    >
+                      <MoreHorizontal size={15} />
+                    </IconButton>
+                    {ellipsisOpen === key && (
+                      <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
+                        {b.status === "expired" && (
+                          <button
+                            onClick={() => { setEllipsisOpen(null); setReactivating(b); }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            Move to active
+                          </button>
                         )}
-                      </>
+                        <button
+                          onClick={() => { setEllipsisOpen(null); setArchiving(b); }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Archive
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -259,6 +284,17 @@ export function FormsListView({
           setReactivating(null);
           refreshBatches();
         }}
+      />
+    )}
+    {archiving && (
+      <ConfirmModal
+        title="Archive this form request?"
+        message={`The form request for ${archiving.patientName} will be removed from this list — use this if the patient filled out paper forms instead.`}
+        confirmLabel="Yes, archive"
+        danger
+        submitting={archivingBusy}
+        onConfirm={handleArchive}
+        onCancel={() => setArchiving(null)}
       />
     )}
     </>

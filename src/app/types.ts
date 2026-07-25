@@ -131,6 +131,7 @@ export type FormField = {
 export type FormTemplateSource = "build" | "digitize";
 export type FormTemplateStatus = "active" | "digitizing";
 export type FormDisplayType = "wizard" | "single_page";
+export type RulePatientStatus = "any" | "new" | "existing";
 
 export type FormTemplate = {
   id: string;
@@ -144,6 +145,12 @@ export type FormTemplate = {
   uploadedFileUrl: string | null;
   digitizeNotes: string;
   archivedAt: string | null;
+  sendAutomatically: boolean;
+  rulePatientStatus: RulePatientStatus;
+  ruleFrequencyMonths: number | null;
+  ruleMinAge: number | null;
+  ruleMaxAge: number | null;
+  ruleAppointmentTypeIds: string[];
   createdAt: string;
 };
 

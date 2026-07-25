@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Copy, Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronDown, ChevronUp, Copy, Plus, X, Zap } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
-import { staffApi } from "../../lib/staff-api";
+import { mapAppointmentType, staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
-import type { FormField, FormFieldType, FormTemplate } from "../../types";
+import type { AppointmentType, FormField, FormFieldType, FormTemplate, RulePatientStatus } from "../../types";
 
 const QUESTIONS: { type: FormFieldType; icon: string; label: string }[] = [
   { type: "text", icon: ">_", label: "Text Field" },
@@ -142,6 +142,25 @@ export function FormBuilderView({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [sendAutomatically, setSendAutomatically] = useState(initial?.sendAutomatically ?? false);
+  const [rulePatientStatus, setRulePatientStatus] = useState<RulePatientStatus>(initial?.rulePatientStatus ?? "any");
+  const [ruleFrequencyMonths, setRuleFrequencyMonths] = useState<number | null>(initial?.ruleFrequencyMonths ?? null);
+  const [ruleMinAge, setRuleMinAge] = useState<number | null>(initial?.ruleMinAge ?? null);
+  const [ruleMaxAge, setRuleMaxAge] = useState<number | null>(initial?.ruleMaxAge ?? null);
+  const [ruleAppointmentTypeIds, setRuleAppointmentTypeIds] = useState<string[]>(initial?.ruleAppointmentTypeIds ?? []);
+  const [appointmentTypes, setAppointmentTypes] = useState<AppointmentType[]>([]);
+
+  useEffect(() => {
+    staffApi.appointmentTypes
+      .list()
+      .then((rows) => setAppointmentTypes(rows.map(mapAppointmentType)))
+      .catch(() => setAppointmentTypes([]));
+  }, []);
+
+  function toggleRuleAppointmentType(id: string) {
+    setRuleAppointmentTypeIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+  }
+
   const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
 
   function applyTemplate(name: string) {
@@ -249,6 +268,16 @@ export function FormBuilderView({
         return;
       }
     }
+    if (sendAutomatically) {
+      if (ruleFrequencyMonths !== null && ruleFrequencyMonths < 1) {
+        setError("Frequency must be at least 1 month.");
+        return;
+      }
+      if (ruleMinAge !== null && ruleMaxAge !== null && ruleMinAge > ruleMaxAge) {
+        setError("Minimum age can't be greater than maximum age.");
+        return;
+      }
+    }
 
     setSubmitting(true);
     const body = {
@@ -261,6 +290,12 @@ export function FormBuilderView({
         min_length: f.minLength, max_length: f.maxLength,
         conditional_field_id: f.conditionalFieldId, conditional_value: f.conditionalValue,
       })),
+      send_automatically: sendAutomatically,
+      rule_patient_status: rulePatientStatus,
+      rule_frequency_months: sendAutomatically ? ruleFrequencyMonths : null,
+      rule_min_age: sendAutomatically ? ruleMinAge : null,
+      rule_max_age: sendAutomatically ? ruleMaxAge : null,
+      rule_appointment_type_ids: sendAutomatically ? ruleAppointmentTypeIds : [],
     };
     const request = initial
       ? staffApi.forms.updateTemplate(initial.id, body)
@@ -329,6 +364,83 @@ export function FormBuilderView({
           <span className="text-xs text-gray-500 font-medium">Title</span>
           <input value={title} onChange={e => setTitle(e.target.value)} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 bg-white min-w-[160px]" />
         </div>
+      </div>
+
+      {/* Automation */}
+      <div className="px-4 sm:px-6 py-3 border-b border-border bg-white flex-shrink-0">
+        <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 cursor-pointer w-fit">
+          <input type="checkbox" checked={sendAutomatically} onChange={e => setSendAutomatically(e.target.checked)} className="accent-teal-500" />
+          <Zap size={14} className="text-teal-500" />
+          Send automatically
+        </label>
+        {sendAutomatically && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Patient status</label>
+              <select
+                value={rulePatientStatus}
+                onChange={e => setRulePatientStatus(e.target.value as RulePatientStatus)}
+                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm bg-white outline-none focus:border-teal-400"
+              >
+                <option value="any">Any</option>
+                <option value="new">New patients</option>
+                <option value="existing">Existing patients</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Frequency (months)</label>
+              <input
+                type="number"
+                min={1}
+                value={ruleFrequencyMonths ?? ""}
+                onChange={e => setRuleFrequencyMonths(e.target.value === "" ? null : Number(e.target.value))}
+                placeholder="Every time"
+                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Min age</label>
+              <input
+                type="number"
+                min={0}
+                value={ruleMinAge ?? ""}
+                onChange={e => setRuleMinAge(e.target.value === "" ? null : Number(e.target.value))}
+                placeholder="No minimum"
+                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Max age</label>
+              <input
+                type="number"
+                min={0}
+                value={ruleMaxAge ?? ""}
+                onChange={e => setRuleMaxAge(e.target.value === "" ? null : Number(e.target.value))}
+                placeholder="No maximum"
+                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400"
+              />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-4">
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Appointment types</label>
+              {appointmentTypes.length === 0 ? (
+                <p className="text-xs text-gray-400">No appointment types configured — this rule will match any appointment type.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {appointmentTypes.map(at => (
+                    <button
+                      key={at.id}
+                      type="button"
+                      onClick={() => toggleRuleAppointmentType(at.id)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${ruleAppointmentTypeIds.includes(at.id) ? "bg-teal-500 border-teal-500 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-teal-300"}`}
+                    >
+                      {at.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Body */}

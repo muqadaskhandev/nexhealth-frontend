@@ -27,6 +27,7 @@ import type {
   Provider,
   ProviderStatus,
   RepeatMode,
+  RulePatientStatus,
   WaitlistPatientCandidate,
   WaitlistRequest,
   WaitlistRequestPatient,
@@ -212,6 +213,12 @@ export type ApiFormTemplate = {
   uploaded_file_url: string | null;
   digitize_notes: string;
   archived_at: string | null;
+  send_automatically: boolean;
+  rule_patient_status: RulePatientStatus;
+  rule_frequency_months: number | null;
+  rule_min_age: number | null;
+  rule_max_age: number | null;
+  rule_appointment_type_ids: string[];
   created_at: string;
 };
 
@@ -239,6 +246,12 @@ export function mapFormTemplate(t: ApiFormTemplate): FormTemplate {
     uploadedFileUrl: t.uploaded_file_url,
     digitizeNotes: t.digitize_notes,
     archivedAt: t.archived_at,
+    sendAutomatically: t.send_automatically,
+    rulePatientStatus: t.rule_patient_status,
+    ruleFrequencyMonths: t.rule_frequency_months,
+    ruleMinAge: t.rule_min_age,
+    ruleMaxAge: t.rule_max_age,
+    ruleAppointmentTypeIds: t.rule_appointment_type_ids,
     createdAt: t.created_at,
   };
 }
@@ -607,6 +620,10 @@ export const staffApi = {
         api.post<{ message: string }>("/api/forms/requests/reactivate", {
           request_ids: requestIds,
           expires_at: expiresAt,
+        }),
+      archive: (requestIds: string[]) =>
+        api.post<{ message: string }>("/api/forms/requests/archive", {
+          request_ids: requestIds,
         }),
     },
   },
