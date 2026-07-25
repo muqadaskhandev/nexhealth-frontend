@@ -96,6 +96,27 @@ const STARTER_TEMPLATES: StarterTemplate[] = [
       { type: "date", label: "Date completed", required: true, options: [] },
     ],
   },
+  {
+    name: "Credit Card Authorization Form",
+    documentType: "Payment",
+    fields: [
+      { type: "text", label: "Cardholder name", required: true, options: [] },
+      { type: "text", label: "Billing address", required: false, options: [] },
+      { type: "payment", label: "Payment method", required: true, options: [] },
+      { type: "signature", label: "Authorization signature", required: true, options: [] },
+      { type: "date", label: "Date", required: true, options: [] },
+    ],
+  },
+  {
+    name: "Stored Payment Methods Agreement",
+    documentType: "Payment",
+    fields: [
+      { type: "content", label: "This form explains how our practice securely stores your payment method on file for future charges.", required: false, options: [] },
+      { type: "checkbox", label: "I authorize this practice to store my payment method on file", required: true, options: [] },
+      { type: "signature", label: "Patient signature", required: true, options: [] },
+      { type: "date", label: "Date", required: true, options: [] },
+    ],
+  },
 ];
 
 function makeFieldId(): string {
@@ -291,7 +312,7 @@ export function FormBuilderView({
         <div className="relative">
           <select value={documentType} onChange={e => setDocumentType(e.target.value)} className="pl-3 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none bg-white appearance-none min-w-[150px] focus:border-teal-400">
             <option value="">Document Type</option>
-            <option>Medical</option><option>Dental</option><option>Insurance</option><option>Consent</option>
+            <option>Medical</option><option>Dental</option><option>Insurance</option><option>Consent</option><option>Payment</option>
           </select>
           <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
