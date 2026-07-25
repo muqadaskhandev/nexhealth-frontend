@@ -130,7 +130,7 @@ export const PERMISSION_MATRIX: PermissionRow[] = [
   },
   {
     area: "Staff & users",
-    description: "Invite staff, change roles, reset passwords",
+    description: "Invite staff, change roles, deactivate or delete accounts, reset passwords",
     access: {
       admin: "manage",
       provider: null,

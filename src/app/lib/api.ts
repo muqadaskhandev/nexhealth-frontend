@@ -211,6 +211,8 @@ export const usersApi = {
     api.patch<UserDetail>(`/api/users/${id}`, body),
   sendReset: (id: string) =>
     api.post<{ message: string }>(`/api/users/${id}/send-reset`),
+  remove: (id: string) =>
+    api.delete<{ message: string }>(`/api/users/${id}`),
 };
 
 // The SSO login endpoints are full-page navigations (not fetch), so the browser
