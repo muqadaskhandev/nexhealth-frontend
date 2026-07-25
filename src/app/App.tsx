@@ -18,6 +18,7 @@ import { PaymentsSection } from "./features/payments/PaymentsSection";
 import { VerificationSection } from "./features/verification/VerificationSection";
 import { WaitlistSection } from "./features/scheduling/WaitlistSection";
 import { OnlineBookingSection } from "./features/scheduling/OnlineBookingSection";
+import { PublicFormsPage } from "./public/PublicFormsPage";
 import { useStaffData } from "./hooks/useStaffData";
 import type { AppointmentStatus, Patient } from "./types";
 
@@ -56,6 +57,9 @@ export default function App() {
     window.location.pathname === "/sso-2fa" ||
     window.location.pathname.endsWith("/sso-2fa");
 
+  const publicFormsMatch = window.location.pathname.match(/\/forms\/([^/]+)\/?$/);
+
+  if (publicFormsMatch) return <PublicFormsPage token={publicFormsMatch[1]} />;
   if (isTotp2fa) return <Totp2faPage />;
   if (isSso2fa) return <Sso2faPage />;
   if (isAcceptInvite) return <AcceptInvitePage />;

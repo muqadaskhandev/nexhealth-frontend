@@ -285,3 +285,42 @@ export type WaitlistPatientCandidate = {
   reason: "missed" | "cancelled";
   appointmentAt: string | null;
 };
+
+// ── Public patient forms portal (unauthenticated) ──────────────────────────────
+
+export type PublicBranding = {
+  practiceName: string;
+  practiceLogoUrl: string | null;
+  locationName: string;
+  locationAddress: string;
+  locationPhone: string;
+};
+
+export type PublicFormField = {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  required: boolean;
+  options: string[];
+  page: number;
+  minLength: number | null;
+  maxLength: number | null;
+  conditionalFieldId: string | null;
+  conditionalValue: string;
+};
+
+export type PublicForm = {
+  requestId: string;
+  templateId: string;
+  name: string;
+  displayType: FormDisplayType;
+  pageCount: number;
+  fields: PublicFormField[];
+  completed: boolean;
+  expiresAt: string;
+};
+
+export type PublicVerifyResult = PublicBranding & {
+  patientName: string;
+  forms: PublicForm[];
+};
