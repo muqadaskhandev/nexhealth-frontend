@@ -133,3 +133,24 @@ export function emailError(
   if (!isValidEmail(t)) return "Enter a valid email address.";
   return null;
 }
+
+// ── ZIP / postal code ────────────────────────────────────────────────────────
+
+/** Digits only — no letters, spaces, or decimals. Max 10 digits. */
+export function formatZipInput(raw: string): string {
+  return digitsOnly(raw, 10);
+}
+
+export function zipError(
+  value: string,
+  opts: { required?: boolean } = {}
+): string | null {
+  const t = value.trim();
+  if (!t) return opts.required ? "ZIP code is required." : null;
+  if (!/^\d+$/.test(t)) {
+    return "ZIP code must contain numbers only.";
+  }
+  if (t.length < 4) return "Enter a valid ZIP code.";
+  if (t.length > 10) return "ZIP code is too long.";
+  return null;
+}

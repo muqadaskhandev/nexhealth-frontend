@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { practiceApi, Practice } from "../lib/api";
 import { BrandLogo } from "../components/branding/BrandLogo";
 import { toastError, toastSuccess } from "../lib/toast";
-import { formatPhoneInput, phoneError } from "../lib/fieldFormat";
+import { formatPhoneInput, formatZipInput, phoneError, zipError } from "../lib/fieldFormat";
 import { SynchronizerPanel } from "./SynchronizerPanel";
 
 const inputCls =
@@ -36,8 +36,9 @@ export function PracticeSettingsPanel() {
     e.preventDefault();
     if (!practice) return;
     const phoneErr = phoneError(practice.phone || "");
-    if (phoneErr) {
-      setError(phoneErr);
+    const zipErr = zipError(practice.zip_code || "");
+    if (phoneErr || zipErr) {
+      setError(phoneErr || zipErr);
       return;
     }
     setSaving(true);
@@ -140,8 +141,13 @@ export function PracticeSettingsPanel() {
             <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
             <input
               value={practice.zip_code}
-              onChange={(e) => setPractice({ ...practice, zip_code: e.target.value })}
+              onChange={(e) =>
+                setPractice({ ...practice, zip_code: formatZipInput(e.target.value) })
+              }
               className={inputCls}
+              inputMode="numeric"
+              autoComplete="postal-code"
+              placeholder="94114"
             />
           </div>
           <div>

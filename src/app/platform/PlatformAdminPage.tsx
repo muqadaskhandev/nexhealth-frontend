@@ -43,7 +43,9 @@ import { UserMenu } from "../components/layout/UserMenu";
 import {
   emailError,
   formatNationalPhoneInput,
+  formatZipInput,
   nationalPhoneError,
+  zipError,
 } from "../lib/fieldFormat";
 
 const inputCls =
@@ -57,12 +59,209 @@ const DEFAULT_PRODUCTS: EnabledProducts = {
   verification: false,
 };
 
-type LocationDraft = LocationFormValues & { key: string };
+type LocationDraft = LocationFormValues & {
+  key: string;
+  linkedFromId?: string;
+  linkedFromLabel?: string;
+};
 
 type PlatformLocationOption = ApiLocation & {
   practice_id: string;
   practice_name: string;
 };
+
+function toLocationFormValues(
+  loc: Pick<
+    ApiLocation,
+    | "name"
+    | "address"
+    | "address_line2"
+    | "city"
+    | "state"
+    | "zip_code"
+    | "phone"
+    | "email"
+  >
+): LocationFormValues {
+  return {
+    name: loc.name || "",
+    address: loc.address || "",
+    address_line2: loc.address_line2 || "",
+    city: loc.city || "",
+    state: loc.state || "",
+    zip_code: formatZipInput(loc.zip_code || ""),
+    phone: loc.phone || "",
+    email: loc.email || "",
+  };
+}
+
+function LocationAddMethodChooser({
+  onCreateNew,
+  onChooseExisting,
+  onCancel,
+  existingDisabled = false,
+}: {
+  onCreateNew: () => void;
+  onChooseExisting: () => void;
+  onCancel: () => void;
+  existingDisabled?: boolean;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-sm font-medium text-gray-800">Add a location</p>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Create a brand-new office, or link one that already exists on the platform.
+        </p>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={onCreateNew}
+          className="text-left rounded-xl border border-gray-200 bg-white p-4 hover:border-teal-300 hover:bg-teal-50/40 transition-colors"
+        >
+          <p className="text-sm font-semibold text-gray-900">Create new</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Enter a new office name, address, and contact details.
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={onChooseExisting}
+          disabled={existingDisabled}
+          className="text-left rounded-xl border border-gray-200 bg-white p-4 hover:border-teal-300 hover:bg-teal-50/40 transition-colors disabled:opacity-50 disabled:hover:border-gray-200 disabled:hover:bg-white"
+        >
+          <p className="text-sm font-semibold text-gray-900">Choose existing</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {existingDisabled
+              ? "No other locations are available to link yet."
+              : "Copy an existing office onto this practice."}
+          </p>
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="text-sm font-medium text-gray-500 hover:text-gray-700"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function ExistingLocationPicker({
+  options,
+  excludeIds,
+  onConfirm,
+  onCancel,
+  confirming = false,
+}: {
+  options: PlatformLocationOption[];
+  excludeIds?: Set<string>;
+  onConfirm: (selected: PlatformLocationOption[]) => void | Promise<void>;
+  onCancel: () => void;
+  confirming?: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const available = useMemo(() => {
+    const blocked = excludeIds || new Set<string>();
+    const q = query.trim().toLowerCase();
+    return options.filter((loc) => {
+      if (blocked.has(loc.id)) return false;
+      if (!q) return true;
+      return (
+        loc.name.toLowerCase().includes(q) ||
+        loc.practice_name.toLowerCase().includes(q) ||
+        (loc.city || "").toLowerCase().includes(q) ||
+        (loc.address || "").toLowerCase().includes(q)
+      );
+    });
+  }, [options, excludeIds, query]);
+
+  function toggle(id: string, on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function handleConfirm() {
+    const rows = options.filter((loc) => selected.has(loc.id));
+    if (rows.length === 0) return;
+    await onConfirm(rows);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-sm font-medium text-gray-800">Choose existing locations</p>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Selected offices are linked onto this practice (details are copied; the original stays
+          with its practice).
+        </p>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg">
+        <Search size={14} className="text-gray-400 shrink-0" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name, practice, or city…"
+          className="flex-1 outline-none text-sm bg-transparent placeholder:text-gray-400"
+        />
+      </div>
+      <div className="rounded-xl border border-gray-200 max-h-64 overflow-y-auto divide-y divide-gray-100 bg-white">
+        {available.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-gray-500 text-center">No matching locations.</p>
+        ) : (
+          available.map((loc) => (
+            <label
+              key={loc.id}
+              className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(loc.id)}
+                onChange={(e) => toggle(loc.id, e.target.checked)}
+                className="mt-1 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span className="min-w-0">
+                <span className="text-sm font-semibold text-gray-900 block">{loc.name}</span>
+                <span className="text-xs text-teal-700 font-medium">{loc.practice_name}</span>
+                <span className="text-xs text-gray-500 block mt-0.5">
+                  {formatLocationAddress(loc)}
+                </span>
+              </span>
+            </label>
+          ))
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled={selected.size === 0 || confirming}
+          onClick={() => void handleConfirm()}
+          className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600 disabled:opacity-60"
+        >
+          {confirming
+            ? "Linking…"
+            : `Link ${selected.size || ""} location${selected.size === 1 ? "" : "s"}`.trim()}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-sm font-medium text-gray-500 hover:text-gray-700"
+        >
+          Back
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function PlatformAdminPage() {
   const [practices, setPractices] = useState<Practice[]>([]);
@@ -260,6 +459,7 @@ export function PlatformAdminPage() {
             {settingsTab === "manage_practices" && (
               <PlatformPracticesPanel
                 practices={visiblePractices}
+                allLocations={allLocations}
                 loading={loading}
                 error={error}
                 selectedLocation={selectedLocation}
@@ -339,6 +539,7 @@ export function PlatformAdminPage() {
                 {settingsLocationsPractice ? (
                   <PlatformLocationsManager
                     practice={settingsLocationsPractice}
+                    existingLocations={allLocations}
                     startCreating={settingsStartCreating}
                     activeLocationId={filteredLocationId}
                     onSwitchLocation={(locId) => setFilteredLocationId(locId)}
@@ -395,6 +596,7 @@ export function PlatformAdminPage() {
       <main className="max-w-5xl mx-auto px-8 py-8 space-y-6">
         <PlatformPracticesPanel
           practices={visiblePractices}
+          allLocations={allLocations}
           loading={loading}
           error={error}
           selectedLocation={selectedLocation}
@@ -513,6 +715,7 @@ function PlatformSettingsMenu({
 
 function PlatformPracticesPanel({
   practices,
+  allLocations,
   loading,
   error,
   selectedLocation,
@@ -530,6 +733,7 @@ function PlatformPracticesPanel({
   onDelete,
 }: {
   practices: Practice[];
+  allLocations: PlatformLocationOption[];
   loading: boolean;
   error: string | null;
   selectedLocation: PlatformLocationOption | null;
@@ -583,12 +787,17 @@ function PlatformPracticesPanel({
       </div>
 
       {showForm && !editingPractice && (
-        <OnboardPracticeForm onCancel={onCancelOnboard} onSuccess={onOnboardSuccess} />
+        <OnboardPracticeForm
+          existingLocations={allLocations}
+          onCancel={onCancelOnboard}
+          onSuccess={onOnboardSuccess}
+        />
       )}
 
       {editingPractice && (
         <EditPracticeForm
           practice={editingPractice}
+          existingLocations={allLocations}
           onCancel={onCancelEdit}
           onSuccess={onEditSuccess}
         />
@@ -875,6 +1084,7 @@ function PlatformLocationFilter({
 
 function PlatformLocationsManager({
   practice,
+  existingLocations = [],
   onPracticeUpdated,
   startCreating = false,
   onExitCreate,
@@ -883,6 +1093,7 @@ function PlatformLocationsManager({
   onDeleted,
 }: {
   practice: Practice;
+  existingLocations?: PlatformLocationOption[];
   onPracticeUpdated: (practice: Practice) => void;
   startCreating?: boolean;
   onExitCreate?: () => void;
@@ -893,16 +1104,28 @@ function PlatformLocationsManager({
   const [locations, setLocations] = useState<ApiLocation[]>(
     () => [...(practice.locations || [])].sort((a, b) => a.name.localeCompare(b.name))
   );
-  const [creating, setCreating] = useState(startCreating);
+  const [locationStep, setLocationStep] = useState<
+    null | "chooser" | "new" | "existing" | "edit"
+  >(startCreating ? "chooser" : null);
   const [editing, setEditing] = useState<ApiLocation | null>(null);
+  const [linking, setLinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const pool = useMemo(
+    () => existingLocations.filter((loc) => loc.practice_id !== practice.id),
+    [existingLocations, practice.id]
+  );
+  const excludeIds = useMemo(
+    () => new Set(locations.map((loc) => loc.id)),
+    [locations]
+  );
 
   useEffect(() => {
     setLocations([...(practice.locations || [])].sort((a, b) => a.name.localeCompare(b.name)));
     setEditing(null);
     setError(null);
-    if (!startCreating) setCreating(false);
+    if (!startCreating) setLocationStep(null);
   }, [practice.id]);
 
   useEffect(() => {
@@ -910,11 +1133,12 @@ function PlatformLocationsManager({
   }, [practice.locations]);
 
   useEffect(() => {
-    if (startCreating) setCreating(true);
+    if (startCreating) setLocationStep("chooser");
   }, [startCreating, practice.id]);
 
   function stopCreating() {
-    setCreating(false);
+    setLocationStep(null);
+    setEditing(null);
     onExitCreate?.();
   }
 
@@ -940,14 +1164,39 @@ function PlatformLocationsManager({
         syncPractice([...locations, created]);
         toastSuccess(`Created ${created.name}.`);
       }
-      setCreating(false);
-      setEditing(null);
-      onExitCreate?.();
+      stopCreating();
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
       const msg = apiErr?.detail || "Could not save location.";
       setError(msg);
       toastError(msg);
+    }
+  }
+
+  async function linkExisting(selected: PlatformLocationOption[]) {
+    setLinking(true);
+    setError(null);
+    try {
+      const created: ApiLocation[] = [];
+      for (const loc of selected) {
+        created.push(
+          await platformApi.addPracticeLocation(practice.id, toLocationFormValues(loc))
+        );
+      }
+      syncPractice([...locations, ...created]);
+      toastSuccess(
+        created.length === 1
+          ? `Linked ${created[0].name}.`
+          : `Linked ${created.length} locations.`
+      );
+      stopCreating();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      const msg = apiErr?.detail || "Could not link locations.";
+      setError(msg);
+      toastError(msg);
+    } finally {
+      setLinking(false);
     }
   }
 
@@ -970,43 +1219,70 @@ function PlatformLocationsManager({
     }
   }
 
-  if (creating || editing) {
+  if (locationStep) {
     return (
       <div className="max-w-2xl space-y-4">
         <div>
           <h2 className="text-lg font-bold text-gray-900">
-            {creating ? "Add location" : "Edit location"}
+            {locationStep === "chooser"
+              ? "Add location"
+              : locationStep === "existing"
+                ? "Choose existing location"
+                : locationStep === "new"
+                  ? "Create new location"
+                  : "Edit location"}
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            {creating
-              ? `Create a new office for ${practice.name}. Practice admins get access automatically.`
-              : "Update name, address, phone, or email for this office."}
+            {locationStep === "chooser"
+              ? `Add an office to ${practice.name} — create new or link an existing one.`
+              : locationStep === "existing"
+                ? "Select offices from other practices to copy onto this one."
+                : locationStep === "new"
+                  ? `Create a new office for ${practice.name}. Practice admins get access automatically.`
+                  : "Update name, address, phone, or email for this office."}
           </p>
         </div>
         {error && (
           <div className="px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>
         )}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <LocationEditForm
-            persist={false}
-            location={editing}
-            initialValues={
-              editing || {
-                address: practice.address || "",
-                city: practice.city || "",
-                state: practice.state || "",
-                zip_code: practice.zip_code || "",
-                phone: practice.phone || "",
+          {locationStep === "chooser" ? (
+            <LocationAddMethodChooser
+              existingDisabled={pool.length === 0}
+              onCreateNew={() => setLocationStep("new")}
+              onChooseExisting={() => setLocationStep("existing")}
+              onCancel={stopCreating}
+            />
+          ) : locationStep === "existing" ? (
+            <ExistingLocationPicker
+              options={pool}
+              excludeIds={excludeIds}
+              confirming={linking}
+              onCancel={() => setLocationStep("chooser")}
+              onConfirm={(rows) => linkExisting(rows)}
+            />
+          ) : (
+            <LocationEditForm
+              persist={false}
+              location={editing}
+              initialValues={
+                editing || {
+                  address: practice.address || "",
+                  city: practice.city || "",
+                  state: practice.state || "",
+                  zip_code: practice.zip_code || "",
+                  phone: practice.phone || "",
+                }
               }
-            }
-            submitLabel={creating ? "Create location" : "Save"}
-            onCancel={() => {
-              stopCreating();
-              setEditing(null);
-              setError(null);
-            }}
-            onSaved={(values) => saveLocation(values as LocationFormValues)}
-          />
+              submitLabel={locationStep === "new" ? "Create location" : "Save"}
+              onCancel={() => {
+                if (locationStep === "new") setLocationStep("chooser");
+                else stopCreating();
+                setError(null);
+              }}
+              onSaved={(values) => saveLocation(values as LocationFormValues)}
+            />
+          )}
         </div>
       </div>
     );
@@ -1024,7 +1300,10 @@ function PlatformLocationsManager({
         </div>
         <button
           type="button"
-          onClick={() => setCreating(true)}
+          onClick={() => {
+            setEditing(null);
+            setLocationStep("chooser");
+          }}
           className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600 whitespace-nowrap shrink-0"
         >
           <Plus size={16} className="shrink-0" />
@@ -1042,7 +1321,10 @@ function PlatformLocationsManager({
           <p className="text-sm text-gray-600">No locations yet.</p>
           <button
             type="button"
-            onClick={() => setCreating(true)}
+            onClick={() => {
+              setEditing(null);
+              setLocationStep("chooser");
+            }}
             className="mt-3 text-sm font-semibold text-teal-600 hover:text-teal-700"
           >
             Add your first location
@@ -1092,7 +1374,10 @@ function PlatformLocationsManager({
                   )}
                   <button
                     type="button"
-                    onClick={() => setEditing(loc)}
+                    onClick={() => {
+                      setEditing(loc);
+                      setLocationStep("edit");
+                    }}
                     className="w-9 h-9 rounded-lg bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600 flex-shrink-0"
                     aria-label={`Edit ${loc.name}`}
                   >
@@ -1118,9 +1403,11 @@ function PlatformLocationsManager({
 }
 
 function OnboardPracticeForm({
+  existingLocations,
   onCancel,
   onSuccess,
 }: {
+  existingLocations: PlatformLocationOption[];
   onCancel: () => void;
   onSuccess: () => void;
 }) {
@@ -1138,7 +1425,10 @@ function OnboardPracticeForm({
     admin_last_name: "",
   });
   const [locations, setLocations] = useState<LocationDraft[]>([]);
-  const [creatingLocation, setCreatingLocation] = useState(false);
+  /** null | chooser | new form | pick existing | edit draft */
+  const [locationStep, setLocationStep] = useState<
+    null | "chooser" | "new" | "existing" | "edit"
+  >(null);
   const [editingLocationKey, setEditingLocationKey] = useState<string | null>(null);
   const [dial, setDial] = useState("1");
   const [nationalPhone, setNationalPhone] = useState("");
@@ -1158,14 +1448,17 @@ function OnboardPracticeForm({
     [locations, editingLocationKey]
   );
 
-  const locationFormOpen = creatingLocation || !!editingLocation;
+  const linkedExcludeIds = useMemo(
+    () => new Set(locations.map((loc) => loc.linkedFromId).filter(Boolean) as string[]),
+    [locations]
+  );
 
   function set<K extends keyof PracticeCreatePayload>(key: K, value: PracticeCreatePayload[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function closeLocationForm() {
-    setCreatingLocation(false);
+  function closeLocationPanel() {
+    setLocationStep(null);
     setEditingLocationKey(null);
   }
 
@@ -1177,7 +1470,25 @@ function OnboardPracticeForm({
     } else {
       setLocations((rows) => [...rows, { ...values, key: crypto.randomUUID() }]);
     }
-    closeLocationForm();
+    closeLocationPanel();
+  }
+
+  function linkExisting(selected: PlatformLocationOption[]) {
+    setLocations((rows) => {
+      const already = new Set(rows.map((r) => r.linkedFromId).filter(Boolean));
+      const additions: LocationDraft[] = [];
+      for (const loc of selected) {
+        if (already.has(loc.id)) continue;
+        additions.push({
+          ...toLocationFormValues(loc),
+          key: crypto.randomUUID(),
+          linkedFromId: loc.id,
+          linkedFromLabel: loc.practice_name,
+        });
+      }
+      return [...rows, ...additions];
+    });
+    closeLocationPanel();
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -1189,6 +1500,7 @@ function OnboardPracticeForm({
       return;
     }
     const fieldError =
+      zipError(form.zip_code || "") ||
       nationalPhoneError(nationalPhone, dial || "1", { required: true }) ||
       emailError(form.admin_email, { required: true });
     if (fieldError) {
@@ -1229,14 +1541,34 @@ function OnboardPracticeForm({
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
       <h3 className="font-semibold text-gray-900">
-        {locationFormOpen
-          ? creatingLocation
-            ? "Add location"
-            : "Edit location"
-          : "New practice"}
+        {locationStep === "chooser"
+          ? "Add location"
+          : locationStep === "existing"
+            ? "Choose existing location"
+            : locationStep === "new"
+              ? "Create new location"
+              : locationStep === "edit"
+                ? "Edit location"
+                : "New practice"}
       </h3>
 
-      {locationFormOpen ? (
+      {locationStep === "chooser" ? (
+        <LocationAddMethodChooser
+          existingDisabled={existingLocations.length === 0}
+          onCreateNew={() => setLocationStep("new")}
+          onChooseExisting={() => setLocationStep("existing")}
+          onCancel={closeLocationPanel}
+        />
+      ) : locationStep === "existing" ? (
+        <ExistingLocationPicker
+          options={existingLocations}
+          excludeIds={linkedExcludeIds}
+          onCancel={() => setLocationStep("chooser")}
+          onConfirm={(rows) => {
+            linkExisting(rows);
+          }}
+        />
+      ) : locationStep === "new" || locationStep === "edit" ? (
         <LocationEditForm
           persist={false}
           initialValues={
@@ -1248,8 +1580,10 @@ function OnboardPracticeForm({
               phone: formatPhoneWithDial(dial, nationalPhone),
             }
           }
-          submitLabel={creatingLocation ? "Add location" : "Save location"}
-          onCancel={closeLocationForm}
+          submitLabel={locationStep === "new" ? "Add location" : "Save location"}
+          onCancel={
+            locationStep === "new" ? () => setLocationStep("chooser") : closeLocationPanel
+          }
           onSaved={(values) => saveLocationDraft(values as LocationFormValues)}
         />
       ) : (
@@ -1364,9 +1698,11 @@ function OnboardPracticeForm({
               <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
               <input
                 value={form.zip_code}
-                onChange={(e) => set("zip_code", e.target.value)}
+                onChange={(e) => set("zip_code", formatZipInput(e.target.value))}
                 className={inputCls}
                 placeholder="94114"
+                inputMode="numeric"
+                autoComplete="postal-code"
               />
             </div>
 
@@ -1442,14 +1778,14 @@ function OnboardPracticeForm({
             <div>
               <p className="text-sm font-medium text-gray-800">Locations</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Add and manage practice offices the same way as in practice settings.
+                Create a new office or link an existing location from another practice.
               </p>
             </div>
             <button
               type="button"
               onClick={() => {
                 setEditingLocationKey(null);
-                setCreatingLocation(true);
+                setLocationStep("chooser");
               }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600"
             >
@@ -1466,7 +1802,7 @@ function OnboardPracticeForm({
                 type="button"
                 onClick={() => {
                   setEditingLocationKey(null);
-                  setCreatingLocation(true);
+                  setLocationStep("chooser");
                 }}
                 className="mt-3 text-sm font-semibold text-teal-600 hover:text-teal-700"
               >
@@ -1483,7 +1819,14 @@ function OnboardPracticeForm({
                   <div className="min-w-0 flex items-start gap-3">
                     <MapPin size={16} className="text-teal-500 flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">{loc.name}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-gray-900">{loc.name}</p>
+                        {loc.linkedFromLabel && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">
+                            From {loc.linkedFromLabel}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
                         {formatLocationAddress(loc)}
                       </p>
@@ -1498,8 +1841,8 @@ function OnboardPracticeForm({
                     <button
                       type="button"
                       onClick={() => {
-                        setCreatingLocation(false);
                         setEditingLocationKey(loc.key);
+                        setLocationStep("edit");
                       }}
                       className="w-9 h-9 rounded-lg bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600"
                       aria-label={`Edit ${loc.name}`}
@@ -1575,10 +1918,12 @@ function OnboardPracticeForm({
 
 function EditPracticeForm({
   practice,
+  existingLocations,
   onCancel,
   onSuccess,
 }: {
   practice: Practice;
+  existingLocations: PlatformLocationOption[];
   onCancel: () => void;
   onSuccess: () => void;
 }) {
@@ -1608,8 +1953,11 @@ function EditPracticeForm({
     is_active: practice.is_active,
   });
   const [locations, setLocations] = useState<ApiLocation[]>(practice.locations || []);
-  const [creatingLocation, setCreatingLocation] = useState(false);
+  const [locationStep, setLocationStep] = useState<
+    null | "chooser" | "new" | "existing" | "edit"
+  >(null);
   const [editingLocation, setEditingLocation] = useState<ApiLocation | null>(null);
+  const [linking, setLinking] = useState(false);
   const [dial, setDial] = useState(parsed.dial || "1");
   const [nationalPhone, setNationalPhone] = useState(formatNationalPhoneInput(parsed.national, parsed.dial || "1"));
   const [customDial, setCustomDial] = useState(initialCustomDial);
@@ -1623,14 +1971,22 @@ function EditPracticeForm({
     [form.state, customState]
   );
 
-  const locationFormOpen = creatingLocation || !!editingLocation;
+  const pool = useMemo(
+    () => existingLocations.filter((loc) => loc.practice_id !== practice.id),
+    [existingLocations, practice.id]
+  );
+
+  const excludeIds = useMemo(
+    () => new Set(locations.map((loc) => loc.id)),
+    [locations]
+  );
 
   function set<K extends keyof PracticeUpdatePayload>(key: K, value: PracticeUpdatePayload[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function closeLocationForm() {
-    setCreatingLocation(false);
+  function closeLocationPanel() {
+    setLocationStep(null);
     setEditingLocation(null);
   }
 
@@ -1649,16 +2005,44 @@ function EditPracticeForm({
         setLocations((rows) => [...rows, created]);
         toastSuccess(`Created ${created.name}.`);
       }
-      closeLocationForm();
+      closeLocationPanel();
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
       toastError(apiErr?.detail || "Could not save location.");
     }
   }
 
+  async function linkExisting(selected: PlatformLocationOption[]) {
+    setLinking(true);
+    try {
+      const created: ApiLocation[] = [];
+      for (const loc of selected) {
+        const row = await platformApi.addPracticeLocation(
+          practice.id,
+          toLocationFormValues(loc)
+        );
+        created.push(row);
+      }
+      setLocations((rows) => [...rows, ...created]);
+      toastSuccess(
+        created.length === 1
+          ? `Linked ${created[0].name}.`
+          : `Linked ${created.length} locations.`
+      );
+      closeLocationPanel();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not link locations.");
+    } finally {
+      setLinking(false);
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const fieldError = nationalPhoneError(nationalPhone, dial || "1", { required: true });
+    const fieldError =
+      zipError(form.zip_code || "") ||
+      nationalPhoneError(nationalPhone, dial || "1", { required: true });
     if (fieldError) {
       setError(fieldError);
       toastError(fieldError);
@@ -1685,14 +2069,33 @@ function EditPracticeForm({
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
       <h3 className="font-semibold text-gray-900">
-        {locationFormOpen
-          ? creatingLocation
-            ? "Add location"
-            : "Edit location"
-          : "Edit practice"}
+        {locationStep === "chooser"
+          ? "Add location"
+          : locationStep === "existing"
+            ? "Choose existing location"
+            : locationStep === "new"
+              ? "Create new location"
+              : locationStep === "edit"
+                ? "Edit location"
+                : "Edit practice"}
       </h3>
 
-      {locationFormOpen ? (
+      {locationStep === "chooser" ? (
+        <LocationAddMethodChooser
+          existingDisabled={pool.length === 0}
+          onCreateNew={() => setLocationStep("new")}
+          onChooseExisting={() => setLocationStep("existing")}
+          onCancel={closeLocationPanel}
+        />
+      ) : locationStep === "existing" ? (
+        <ExistingLocationPicker
+          options={pool}
+          excludeIds={excludeIds}
+          confirming={linking}
+          onCancel={() => setLocationStep("chooser")}
+          onConfirm={(rows) => linkExisting(rows)}
+        />
+      ) : locationStep === "new" || locationStep === "edit" ? (
         <LocationEditForm
           persist={false}
           location={editingLocation}
@@ -1705,8 +2108,10 @@ function EditPracticeForm({
               phone: formatPhoneWithDial(dial, nationalPhone),
             }
           }
-          submitLabel={creatingLocation ? "Add location" : "Save location"}
-          onCancel={closeLocationForm}
+          submitLabel={locationStep === "new" ? "Add location" : "Save location"}
+          onCancel={
+            locationStep === "new" ? () => setLocationStep("chooser") : closeLocationPanel
+          }
           onSaved={(values) => saveLocation(values as LocationFormValues)}
         />
       ) : (
@@ -1821,9 +2226,11 @@ function EditPracticeForm({
               <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
               <input
                 value={form.zip_code || ""}
-                onChange={(e) => set("zip_code", e.target.value)}
+                onChange={(e) => set("zip_code", formatZipInput(e.target.value))}
                 className={inputCls}
                 placeholder="94114"
+                inputMode="numeric"
+                autoComplete="postal-code"
               />
             </div>
 
@@ -1911,14 +2318,14 @@ function EditPracticeForm({
             <div>
               <p className="text-sm font-medium text-gray-800">Locations</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Add and manage offices for this practice. Practice admins can switch between them.
+                Create a new office or link an existing location from another practice.
               </p>
             </div>
             <button
               type="button"
               onClick={() => {
                 setEditingLocation(null);
-                setCreatingLocation(true);
+                setLocationStep("chooser");
               }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600"
             >
@@ -1935,7 +2342,7 @@ function EditPracticeForm({
                 type="button"
                 onClick={() => {
                   setEditingLocation(null);
-                  setCreatingLocation(true);
+                  setLocationStep("chooser");
                 }}
                 className="mt-3 text-sm font-semibold text-teal-600 hover:text-teal-700"
               >
@@ -1966,8 +2373,8 @@ function EditPracticeForm({
                   <button
                     type="button"
                     onClick={() => {
-                      setCreatingLocation(false);
                       setEditingLocation(loc);
+                      setLocationStep("edit");
                     }}
                     className="w-9 h-9 rounded-lg bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600"
                     aria-label={`Edit ${loc.name}`}

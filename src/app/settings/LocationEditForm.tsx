@@ -3,7 +3,9 @@ import { practiceApi, type ApiLocation } from "../lib/api";
 import {
   emailError,
   formatNationalPhoneInput,
+  formatZipInput,
   nationalPhoneError,
+  zipError,
 } from "../lib/fieldFormat";
 import {
   COUNTRY_DIAL_CODES,
@@ -109,6 +111,7 @@ export function LocationEditForm({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const fieldError =
+      zipError(form.zip_code) ||
       nationalPhoneError(nationalPhone, dial || "1") ||
       emailError(form.email);
     if (fieldError) {
@@ -267,9 +270,13 @@ export function LocationEditForm({
         <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
         <input
           value={form.zip_code}
-          onChange={(e) => setForm({ ...form, zip_code: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, zip_code: formatZipInput(e.target.value) })
+          }
           className={inputCls}
           placeholder="94114"
+          inputMode="numeric"
+          autoComplete="postal-code"
         />
       </div>
 
