@@ -92,7 +92,10 @@ export type Packet = { id: string; name: string; forms: string[] };
 
 export type FormFieldType =
   | "text" | "textarea" | "email" | "number" | "phone"
-  | "checkbox" | "select_boxes" | "dropdown" | "signature" | "date";
+  | "checkbox" | "select_boxes" | "dropdown" | "radio"
+  | "date" | "date_entry" | "address" | "file" | "signature"
+  | "insurance" | "preferred_language" | "payment"
+  | "content" | "location_logo";
 
 export type FormField = {
   id: string;
@@ -101,6 +104,10 @@ export type FormField = {
   required: boolean;
   options: string[];
   page: number;
+  minLength: number | null;
+  maxLength: number | null;
+  conditionalFieldId: string | null;
+  conditionalValue: string;
 };
 
 export type FormTemplateSource = "build" | "digitize";

@@ -191,6 +191,10 @@ export type ApiFormField = {
   required: boolean;
   options: string[];
   page: number;
+  min_length: number | null;
+  max_length: number | null;
+  conditional_field_id: string | null;
+  conditional_value: string;
 };
 
 export type ApiFormTemplate = {
@@ -222,6 +226,10 @@ export function mapFormTemplate(t: ApiFormTemplate): FormTemplate {
       required: f.required,
       options: f.options,
       page: f.page,
+      minLength: f.min_length,
+      maxLength: f.max_length,
+      conditionalFieldId: f.conditional_field_id,
+      conditionalValue: f.conditional_value,
     })),
     pageCount: t.page_count,
     uploadedFileUrl: t.uploaded_file_url,

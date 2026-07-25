@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Plus, X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
@@ -14,15 +14,29 @@ const QUESTIONS: { type: FormFieldType; icon: string; label: string }[] = [
   { type: "checkbox", icon: "☑", label: "Checkbox" },
   { type: "select_boxes", icon: "⊞", label: "Select Boxes" },
   { type: "dropdown", icon: "▾", label: "Dropdown" },
-  { type: "signature", icon: "✎", label: "Signature" },
+  { type: "radio", icon: "◉", label: "Radio" },
   { type: "date", icon: "📅", label: "Date" },
+  { type: "date_entry", icon: "📆", label: "Date Entry" },
+  { type: "address", icon: "📍", label: "Address" },
+  { type: "file", icon: "📎", label: "File" },
+  { type: "signature", icon: "✎", label: "Signature" },
+  { type: "insurance", icon: "🛡", label: "Insurance" },
+  { type: "preferred_language", icon: "🌐", label: "Preferred Language" },
+  { type: "payment", icon: "💳", label: "Payment Method" },
 ];
 
-const QUESTION_LABEL: Record<FormFieldType, string> = Object.fromEntries(
-  QUESTIONS.map((q) => [q.type, q.label])
+const LAYOUT: { type: FormFieldType; icon: string; label: string }[] = [
+  { type: "content", icon: "¶", label: "Content" },
+  { type: "location_logo", icon: "🖼", label: "Location Logo" },
+];
+
+const FIELD_LABEL: Record<FormFieldType, string> = Object.fromEntries(
+  [...QUESTIONS, ...LAYOUT].map((q) => [q.type, q.label])
 ) as Record<FormFieldType, string>;
 
-const OPTIONS_TYPES: FormFieldType[] = ["select_boxes", "dropdown"];
+const OPTIONS_TYPES: FormFieldType[] = ["select_boxes", "dropdown", "radio"];
+const VALIDATION_TYPES: FormFieldType[] = ["text", "textarea", "email", "number", "phone"];
+const LAYOUT_TYPES: FormFieldType[] = ["content", "location_logo"];
 
 type StarterField = { type: FormFieldType; label: string; required: boolean; options: string[] };
 type StarterTemplate = { name: string; documentType: string; fields: StarterField[] };
@@ -115,7 +129,10 @@ export function FormBuilderView({
     if (!tpl) return;
     setTitle(tpl.name);
     setDocumentType(tpl.documentType);
-    setFields(tpl.fields.map((f) => ({ ...f, id: makeFieldId(), page: 1 })));
+    setFields(tpl.fields.map((f) => ({
+      ...f, id: makeFieldId(), page: 1,
+      minLength: null, maxLength: null, conditionalFieldId: null, conditionalValue: "",
+    })));
     setPageCount(1);
     setActivePage(1);
   }
@@ -124,12 +141,27 @@ export function FormBuilderView({
     const field: FormField = {
       id: makeFieldId(),
       type,
-      label: QUESTION_LABEL[type],
+      label: FIELD_LABEL[type],
       required: false,
       options: OPTIONS_TYPES.includes(type) ? ["Option 1"] : [],
       page: activePage,
+      minLength: null,
+      maxLength: null,
+      conditionalFieldId: null,
+      conditionalValue: "",
     };
     setFields((prev) => [...prev, field]);
+  }
+
+  function duplicateField(id: string) {
+    setFields((prev) => {
+      const idx = prev.findIndex((f) => f.id === id);
+      if (idx === -1) return prev;
+      const copy: FormField = { ...prev[idx], id: makeFieldId() };
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
   }
 
   function updateField(id: string, patch: Partial<FormField>) {
@@ -137,7 +169,9 @@ export function FormBuilderView({
   }
 
   function removeField(id: string) {
-    setFields((prev) => prev.filter((f) => f.id !== id));
+    setFields((prev) =>
+      prev.filter((f) => f.id !== id).map((f) => (f.conditionalFieldId === id ? { ...f, conditionalFieldId: null, conditionalValue: "" } : f))
+    );
   }
 
   function moveField(id: string, dir: -1 | 1) {
@@ -189,6 +223,10 @@ export function FormBuilderView({
         setError("Every question needs a label.");
         return;
       }
+      if (f.minLength !== null && f.maxLength !== null && f.minLength > f.maxLength) {
+        setError(`"${f.label}" has a minimum length greater than its maximum length.`);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -199,6 +237,8 @@ export function FormBuilderView({
       page_count: pageCount,
       fields: fields.map((f) => ({
         id: f.id, type: f.type, label: f.label.trim(), required: f.required, options: f.options, page: f.page,
+        min_length: f.minLength, max_length: f.maxLength,
+        conditional_field_id: f.conditionalFieldId, conditional_value: f.conditionalValue,
       })),
     };
     const request = initial
@@ -272,15 +312,26 @@ export function FormBuilderView({
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden flex-col sm:flex-row">
-        {/* Questions sidebar */}
-        <div className="w-full sm:w-48 border-b sm:border-b-0 sm:border-r border-border bg-white flex-shrink-0 overflow-x-auto sm:overflow-y-auto flex sm:block">
-          <p className="hidden sm:block px-4 py-3 text-sm font-bold text-gray-900 border-b border-border">Questions</p>
-          {QUESTIONS.map(q => (
-            <button key={q.label} onClick={() => addField(q.type)} className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap">
-              <span className="text-gray-400 w-5 text-center font-mono text-xs">{q.icon}</span>
-              {q.label}
-            </button>
-          ))}
+        {/* Questions + Layout sidebar */}
+        <div className="w-full sm:w-48 border-b sm:border-b-0 sm:border-r border-border bg-white flex-shrink-0 overflow-x-auto sm:overflow-y-auto sm:max-h-full">
+          <div className="flex sm:block">
+            <p className="hidden sm:block px-4 py-3 text-sm font-bold text-gray-900 border-b border-border">Questions</p>
+            {QUESTIONS.map(q => (
+              <button key={q.label} onClick={() => addField(q.type)} className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap">
+                <span className="text-gray-400 w-5 text-center font-mono text-xs">{q.icon}</span>
+                {q.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex sm:block">
+            <p className="hidden sm:block px-4 py-3 text-sm font-bold text-gray-900 border-b border-t border-border">Layout</p>
+            {LAYOUT.map(q => (
+              <button key={q.label} onClick={() => addField(q.type)} className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap">
+                <span className="text-gray-400 w-5 text-center font-mono text-xs">{q.icon}</span>
+                {q.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Canvas */}
@@ -313,7 +364,7 @@ export function FormBuilderView({
                 activeFields.map((f, i) => (
                   <div key={f.id} className="border border-gray-200 rounded-lg p-3 space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-gray-400 flex-shrink-0 w-24 truncate">{QUESTION_LABEL[f.type]}</span>
+                      <span className="text-xs font-medium text-gray-400 flex-shrink-0 w-24 truncate">{FIELD_LABEL[f.type]}</span>
                       <input
                         value={f.label}
                         onChange={e => updateField(f.id, { label: e.target.value })}
@@ -323,13 +374,18 @@ export function FormBuilderView({
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <IconButton label="Move up" onClick={() => moveField(f.id, -1)} disabled={i === 0} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronUp size={14} /></IconButton>
                         <IconButton label="Move down" onClick={() => moveField(f.id, 1)} disabled={i === activeFields.length - 1} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronDown size={14} /></IconButton>
+                        <IconButton label="Duplicate question" onClick={() => duplicateField(f.id)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700"><Copy size={13} /></IconButton>
                         <IconButton label="Remove question" onClick={() => removeField(f.id)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600"><X size={14} /></IconButton>
                       </div>
                     </div>
-                    <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
-                      <input type="checkbox" checked={f.required} onChange={e => updateField(f.id, { required: e.target.checked })} />
-                      Required
-                    </label>
+
+                    {!LAYOUT_TYPES.includes(f.type) && (
+                      <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                        <input type="checkbox" checked={f.required} onChange={e => updateField(f.id, { required: e.target.checked })} />
+                        Required
+                      </label>
+                    )}
+
                     {OPTIONS_TYPES.includes(f.type) && (
                       <div className="pl-1 space-y-1.5">
                         {f.options.map((opt, oi) => (
@@ -345,6 +401,56 @@ export function FormBuilderView({
                         <button onClick={() => addOption(f.id)} className="flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors">
                           <Plus size={12} /> Add option
                         </button>
+                      </div>
+                    )}
+
+                    {VALIDATION_TYPES.includes(f.type) && (
+                      <div className="pl-1 pt-1 border-t border-gray-50">
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Validation</p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={f.minLength ?? ""}
+                            onChange={e => updateField(f.id, { minLength: e.target.value === "" ? null : Number(e.target.value) })}
+                            placeholder="Min length"
+                            className="w-24 px-2.5 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={f.maxLength ?? ""}
+                            onChange={e => updateField(f.id, { maxLength: e.target.value === "" ? null : Number(e.target.value) })}
+                            placeholder="Max length"
+                            className="w-24 px-2.5 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {fields.length > 1 && (
+                      <div className="pl-1 pt-1 border-t border-gray-50">
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Conditional</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <select
+                            value={f.conditionalFieldId ?? ""}
+                            onChange={e => updateField(f.id, { conditionalFieldId: e.target.value || null, conditionalValue: e.target.value ? f.conditionalValue : "" })}
+                            className="px-2.5 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400 bg-white max-w-[180px]"
+                          >
+                            <option value="">Always show</option>
+                            {fields.filter(other => other.id !== f.id).map(other => (
+                              <option key={other.id} value={other.id}>Show only if "{other.label || FIELD_LABEL[other.type]}"…</option>
+                            ))}
+                          </select>
+                          {f.conditionalFieldId && (
+                            <input
+                              value={f.conditionalValue}
+                              onChange={e => updateField(f.id, { conditionalValue: e.target.value })}
+                              placeholder="…equals this value"
+                              className="flex-1 min-w-[120px] px-2.5 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400"
+                            />
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

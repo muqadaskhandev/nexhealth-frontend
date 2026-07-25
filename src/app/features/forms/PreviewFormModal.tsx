@@ -1,27 +1,43 @@
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Paperclip, X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import { useAuth } from "../../auth/AuthContext";
 import type { FormField, FormTemplate } from "../../types";
 
-function FieldPreview({ field }: { field: FormField }) {
+type FieldValue = string | boolean | string[];
+type Values = Record<string, FieldValue>;
+
+const LANGUAGES = ["English", "Spanish", "French", "Mandarin", "Other"];
+
+function FieldPreview({ field, value, onChange }: { field: FormField; value: FieldValue | undefined; onChange: (v: FieldValue) => void }) {
   const label = (
     <label className="block text-sm font-medium text-gray-800 mb-1.5">
       {field.label} {field.required && <span className="text-red-500">*</span>}
     </label>
   );
-  const inputCls = "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50";
+  const inputCls = "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400";
+  const hint = (field.minLength !== null || field.maxLength !== null) && (
+    <p className="text-xs text-gray-400 mt-1">
+      {field.minLength !== null && field.maxLength !== null
+        ? `${field.minLength}–${field.maxLength} characters`
+        : field.minLength !== null
+        ? `At least ${field.minLength} characters`
+        : `Up to ${field.maxLength} characters`}
+    </p>
+  );
 
   switch (field.type) {
     case "textarea":
-      return <div>{label}<textarea disabled rows={3} className={`${inputCls} resize-none`} /></div>;
+      return <div>{label}<textarea rows={3} value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={`${inputCls} resize-none`} />{hint}</div>;
     case "checkbox":
       return (
-        <label className="flex items-center gap-2 text-sm text-gray-800 cursor-not-allowed">
-          <input type="checkbox" disabled />
+        <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+          <input type="checkbox" checked={(value as boolean) ?? false} onChange={e => onChange(e.target.checked)} />
           {field.label} {field.required && <span className="text-red-500">*</span>}
         </label>
       );
-    case "select_boxes":
+    case "select_boxes": {
+      const selected = (value as string[]) ?? [];
       return (
         <div>
           {label}
@@ -29,8 +45,30 @@ function FieldPreview({ field }: { field: FormField }) {
             {field.options.length === 0 ? (
               <p className="text-xs text-gray-400">No options added</p>
             ) : field.options.map((opt, i) => (
-              <label key={i} className="flex items-center gap-2 text-sm text-gray-700 cursor-not-allowed">
-                <input type="checkbox" disabled /> {opt}
+              <label key={i} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(opt)}
+                  onChange={e => onChange(e.target.checked ? [...selected, opt] : selected.filter(o => o !== opt))}
+                />
+                {opt}
+              </label>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case "radio":
+      return (
+        <div>
+          {label}
+          <div className="space-y-1.5">
+            {field.options.length === 0 ? (
+              <p className="text-xs text-gray-400">No options added</p>
+            ) : field.options.map((opt, i) => (
+              <label key={i} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="radio" name={field.id} checked={value === opt} onChange={() => onChange(opt)} />
+                {opt}
               </label>
             ))}
           </div>
@@ -40,9 +78,19 @@ function FieldPreview({ field }: { field: FormField }) {
       return (
         <div>
           {label}
-          <select disabled className={inputCls}>
-            <option>{field.options[0] ?? "—"}</option>
-            {field.options.slice(1).map((opt, i) => <option key={i}>{opt}</option>)}
+          <select value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls}>
+            <option value="">Select…</option>
+            {field.options.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+          </select>
+        </div>
+      );
+    case "preferred_language":
+      return (
+        <div>
+          {label}
+          <select value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls}>
+            <option value="">Select…</option>
+            {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
       );
@@ -55,25 +103,89 @@ function FieldPreview({ field }: { field: FormField }) {
           </div>
         </div>
       );
+    case "file":
+      return (
+        <div>
+          {label}
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 bg-gray-50">
+            <Paperclip size={14} /> Choose file to attach
+          </div>
+        </div>
+      );
+    case "payment":
+      return (
+        <div>
+          {label}
+          <div className="border border-gray-200 rounded-lg px-3.5 py-3 text-xs text-gray-500 bg-gray-50">
+            Payment details collected securely at checkout — not shown here in preview.
+          </div>
+        </div>
+      );
+    case "date_entry":
+      return (
+        <div>
+          {label}
+          <div className="grid grid-cols-3 gap-2">
+            <input placeholder="Month" className={inputCls} />
+            <input placeholder="Day" className={inputCls} />
+            <input placeholder="Year" className={inputCls} />
+          </div>
+        </div>
+      );
+    case "address":
+      return <div>{label}<input value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} placeholder="Start typing an address…" className={inputCls} /></div>;
     case "date":
-      return <div>{label}<input disabled type="date" className={inputCls} /></div>;
+      return <div>{label}<input type="date" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} /></div>;
     case "email":
-      return <div>{label}<input disabled type="email" className={inputCls} /></div>;
+      return <div>{label}<input type="email" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} />{hint}</div>;
     case "number":
-      return <div>{label}<input disabled type="number" className={inputCls} /></div>;
+      return <div>{label}<input type="number" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} />{hint}</div>;
     case "phone":
-      return <div>{label}<input disabled type="tel" className={inputCls} /></div>;
+      return <div>{label}<input type="tel" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} />{hint}</div>;
+    case "insurance":
+      return <div>{label}<input value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} placeholder="Insurance provider / member ID" className={inputCls} /></div>;
     default:
-      return <div>{label}<input disabled type="text" className={inputCls} /></div>;
+      return <div>{label}<input type="text" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} />{hint}</div>;
   }
+}
+
+function LayoutPreview({ field }: { field: FormField }) {
+  const { activeLocation } = useAuth();
+  if (field.type === "location_logo") {
+    return activeLocation?.logo_url ? (
+      <img src={activeLocation.logo_url} alt={activeLocation.name} className="h-12 object-contain" />
+    ) : (
+      <div className="h-12 w-32 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-xs text-gray-400">
+        Location logo
+      </div>
+    );
+  }
+  return <p className="text-sm text-gray-700 whitespace-pre-wrap">{field.label}</p>;
+}
+
+function fieldValueMatches(actual: FieldValue | undefined, expected: string): boolean {
+  if (actual === undefined) return false;
+  if (Array.isArray(actual)) return actual.includes(expected);
+  if (typeof actual === "boolean") return actual === (expected.toLowerCase() === "true");
+  return actual === expected;
 }
 
 export function PreviewFormModal({ template, onClose }: { template: FormTemplate; onClose: () => void }) {
   const [page, setPage] = useState(1);
+  const [values, setValues] = useState<Values>({});
   const isWizard = template.displayType === "wizard" && template.pageCount > 1;
   const pages = isWizard
     ? [page]
     : Array.from({ length: template.pageCount }, (_, i) => i + 1);
+
+  function setValue(id: string, v: FieldValue) {
+    setValues((prev) => ({ ...prev, [id]: v }));
+  }
+
+  function isVisible(field: FormField): boolean {
+    if (!field.conditionalFieldId) return true;
+    return fieldValueMatches(values[field.conditionalFieldId], field.conditionalValue);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={onClose}>
@@ -106,8 +218,12 @@ export function PreviewFormModal({ template, onClose }: { template: FormTemplate
                 {template.pageCount > 1 && !isWizard && (
                   <p className="text-xs font-semibold text-gray-500 pt-2 first:pt-0">Page {p}</p>
                 )}
-                {template.fields.filter((f) => f.page === p).map((f) => (
-                  <FieldPreview key={f.id} field={f} />
+                {template.fields.filter((f) => f.page === p && isVisible(f)).map((f) => (
+                  f.type === "content" || f.type === "location_logo" ? (
+                    <LayoutPreview key={f.id} field={f} />
+                  ) : (
+                    <FieldPreview key={f.id} field={f} value={values[f.id]} onChange={(v) => setValue(f.id, v)} />
+                  )
                 ))}
               </div>
             ))
