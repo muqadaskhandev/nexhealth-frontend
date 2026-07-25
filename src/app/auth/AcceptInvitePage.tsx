@@ -1,6 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { invitesApi } from "../lib/api";
 import { toastError, toastSuccess } from "../lib/toast";
+import {
+  passwordStrengthError,
+  passwordsMatchError,
+} from "../lib/fieldFormat";
 
 export function AcceptInvitePage() {
   const params = new URLSearchParams(window.location.search);
@@ -12,6 +17,8 @@ export function AcceptInvitePage() {
   } | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -35,12 +42,12 @@ export function AcceptInvitePage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-    if (password !== confirm) {
-      setError("Passwords do not match.");
+    const fieldError =
+      passwordStrengthError(password, { required: true }) ||
+      passwordsMatchError(password, confirm);
+    if (fieldError) {
+      setError(fieldError);
+      toastError(fieldError);
       return;
     }
     setSubmitting(true);
@@ -59,6 +66,9 @@ export function AcceptInvitePage() {
       setSubmitting(false);
     }
   }
+
+  const inputCls =
+    "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 pr-11";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -97,27 +107,52 @@ export function AcceptInvitePage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={inputCls}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1.5">
+                At least 6 characters, with 1 uppercase letter, 1 number, and 1 @.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Confirm password
               </label>
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  className={inputCls}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showConfirm ? "Hide password" : "Show password"}
+                >
+                  {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
             </div>
             <button
               type="submit"

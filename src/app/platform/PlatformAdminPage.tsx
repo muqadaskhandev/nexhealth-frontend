@@ -40,6 +40,7 @@ import {
   type LocationFormValues,
 } from "../settings/LocationEditForm";
 import { UserMenu } from "../components/layout/UserMenu";
+import { ConfirmModal } from "../components/shared/ConfirmModal";
 import {
   emailError,
   formatNationalPhoneInput,
@@ -274,6 +275,8 @@ export function PlatformAdminPage() {
   const [settingsLocationsPracticeId, setSettingsLocationsPracticeId] = useState<string | null>(null);
   const [settingsStartCreating, setSettingsStartCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletePracticeTarget, setDeletePracticeTarget] = useState<Practice | null>(null);
+  const [deletingPractice, setDeletingPractice] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -324,6 +327,27 @@ export function PlatformAdminPage() {
     setSettingsOpen(true);
   }
 
+  async function confirmDeletePractice() {
+    const p = deletePracticeTarget;
+    if (!p) return;
+    setDeletingPractice(true);
+    try {
+      await platformApi.deletePractice(p.id);
+      toastSuccess(`Deleted ${p.name}.`);
+      if (settingsLocationsPracticeId === p.id) {
+        setSettingsLocationsPracticeId(null);
+      }
+      if (editingPractice?.id === p.id) setEditingPractice(null);
+      setDeletePracticeTarget(null);
+      await load();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not delete practice.");
+    } finally {
+      setDeletingPractice(false);
+    }
+  }
+
   function openSettings(tab: "profile" | "manage_practices" | "locations" = "manage_practices") {
     setShowForm(false);
     setEditingPractice(null);
@@ -344,6 +368,22 @@ export function PlatformAdminPage() {
 
   if (settingsOpen) {
     return (
+      <>
+      <ConfirmModal
+        open={!!deletePracticeTarget}
+        title="Delete practice?"
+        description={
+          deletePracticeTarget
+            ? `Delete practice "${deletePracticeTarget.name}"? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete practice"
+        busy={deletingPractice}
+        onCancel={() => {
+          if (!deletingPractice) setDeletePracticeTarget(null);
+        }}
+        onConfirm={confirmDeletePractice}
+      />
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
@@ -497,21 +537,7 @@ export function PlatformAdminPage() {
                     toastError(apiErr?.detail || "Could not update practice status.");
                   }
                 }}
-                onDelete={async (p) => {
-                  if (!window.confirm(`Delete practice "${p.name}"? This cannot be undone.`)) return;
-                  try {
-                    await platformApi.deletePractice(p.id);
-                    toastSuccess(`Deleted ${p.name}.`);
-                    if (settingsLocationsPracticeId === p.id) {
-                      setSettingsLocationsPracticeId(null);
-                    }
-                    if (editingPractice?.id === p.id) setEditingPractice(null);
-                    await load();
-                  } catch (err: unknown) {
-                    const apiErr = err as { detail?: string };
-                    toastError(apiErr?.detail || "Could not delete practice.");
-                  }
-                }}
+                onDelete={(p) => setDeletePracticeTarget(p)}
               />
             )}
             {settingsTab === "locations" && (
@@ -564,10 +590,27 @@ export function PlatformAdminPage() {
           </main>
         </div>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+    <ConfirmModal
+      open={!!deletePracticeTarget}
+      title="Delete practice?"
+      description={
+        deletePracticeTarget
+          ? `Delete practice "${deletePracticeTarget.name}"? This cannot be undone.`
+          : ""
+      }
+      confirmLabel="Delete practice"
+      busy={deletingPractice}
+      onCancel={() => {
+        if (!deletingPractice) setDeletePracticeTarget(null);
+      }}
+      onConfirm={confirmDeletePractice}
+    />
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 min-w-0">
@@ -634,22 +677,11 @@ export function PlatformAdminPage() {
               toastError(apiErr?.detail || "Could not update practice status.");
             }
           }}
-          onDelete={async (p) => {
-            if (!window.confirm(`Delete practice "${p.name}"? This cannot be undone.`)) return;
-            try {
-              await platformApi.deletePractice(p.id);
-              toastSuccess(`Deleted ${p.name}.`);
-              if (settingsLocationsPracticeId === p.id) setSettingsLocationsPracticeId(null);
-              if (editingPractice?.id === p.id) setEditingPractice(null);
-              await load();
-            } catch (err: unknown) {
-              const apiErr = err as { detail?: string };
-              toastError(apiErr?.detail || "Could not delete practice.");
-            }
-          }}
+          onDelete={(p) => setDeletePracticeTarget(p)}
         />
       </main>
     </div>
+    </>
   );
 }
 
@@ -1111,6 +1143,7 @@ function PlatformLocationsManager({
   const [linking, setLinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteLocationTarget, setDeleteLocationTarget] = useState<ApiLocation | null>(null);
 
   const pool = useMemo(
     () => existingLocations.filter((loc) => loc.practice_id !== practice.id),
@@ -1201,13 +1234,19 @@ function PlatformLocationsManager({
   }
 
   async function deleteLocation(loc: ApiLocation) {
-    if (!window.confirm(`Delete location "${loc.name}"?`)) return;
+    setDeleteLocationTarget(loc);
+  }
+
+  async function confirmDeleteLocation() {
+    const loc = deleteLocationTarget;
+    if (!loc) return;
     setDeletingId(loc.id);
     setError(null);
     try {
       await platformApi.deletePracticeLocation(practice.id, loc.id);
       syncPractice(locations.filter((row) => row.id !== loc.id));
       toastSuccess(`Deleted ${loc.name}.`);
+      setDeleteLocationTarget(null);
       onDeleted?.();
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
@@ -1290,6 +1329,21 @@ function PlatformLocationsManager({
 
   return (
     <div className="space-y-5 max-w-3xl">
+      <ConfirmModal
+        open={!!deleteLocationTarget}
+        title="Delete location?"
+        description={
+          deleteLocationTarget
+            ? `Delete location "${deleteLocationTarget.name}"? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete location"
+        busy={!!deletingId}
+        onCancel={() => {
+          if (!deletingId) setDeleteLocationTarget(null);
+        }}
+        onConfirm={confirmDeleteLocation}
+      />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold text-gray-900">Locations</h2>

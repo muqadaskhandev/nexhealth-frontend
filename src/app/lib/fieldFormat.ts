@@ -134,6 +134,35 @@ export function emailError(
   return null;
 }
 
+// ── Password strength ────────────────────────────────────────────────────────
+
+/** At least 6 chars, 1 uppercase, 1 number, and 1 "@". */
+export function passwordStrengthError(
+  password: string,
+  opts: { required?: boolean } = {}
+): string | null {
+  if (!password) return opts.required ? "Password is required." : null;
+  if (password.length < 6) return "Password must be at least 6 characters.";
+  if (!/[A-Z]/.test(password)) {
+    return "Password must include at least one uppercase letter.";
+  }
+  if (!/[0-9]/.test(password)) {
+    return "Password must include at least one number.";
+  }
+  if (!password.includes("@")) {
+    return 'Password must include at least one "@" symbol.';
+  }
+  return null;
+}
+
+export function passwordsMatchError(
+  password: string,
+  confirm: string
+): string | null {
+  if (password !== confirm) return "Passwords do not match.";
+  return null;
+}
+
 // ── ZIP / postal code ────────────────────────────────────────────────────────
 
 /** Digits only — no letters, spaces, or decimals. Max 10 digits. */
