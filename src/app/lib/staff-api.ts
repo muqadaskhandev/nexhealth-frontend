@@ -208,6 +208,7 @@ export type ApiFormTemplate = {
   page_count: number;
   uploaded_file_url: string | null;
   digitize_notes: string;
+  archived_at: string | null;
   created_at: string;
 };
 
@@ -234,6 +235,7 @@ export function mapFormTemplate(t: ApiFormTemplate): FormTemplate {
     pageCount: t.page_count,
     uploadedFileUrl: t.uploaded_file_url,
     digitizeNotes: t.digitize_notes,
+    archivedAt: t.archived_at,
     createdAt: t.created_at,
   };
 }
@@ -493,7 +495,7 @@ export const staffApi = {
   },
   waitlist: () => api.get<unknown[]>("/api/waitlist"),
   forms: {
-    templates: () => api.get<ApiFormTemplate[]>("/api/forms/templates"),
+    templates: (archived = false) => api.get<ApiFormTemplate[]>(`/api/forms/templates?archived=${archived}`),
     createTemplate: (body: Record<string, unknown>) =>
       api.post<ApiFormTemplate>("/api/forms/templates", body),
     updateTemplate: (id: string, body: Record<string, unknown>) =>
@@ -529,6 +531,8 @@ export const staffApi = {
         template_ids: templateIds,
         location_ids: locationIds,
       }),
+    archiveTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/archive`),
+    unarchiveTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/unarchive`),
     submissions: () => api.get<ApiFormSubmission[]>("/api/forms/submissions"),
     send: (patientId: string, formTemplateId: string) =>
       api.post("/api/forms/send", { patient_id: patientId, form_template_id: formTemplateId }),

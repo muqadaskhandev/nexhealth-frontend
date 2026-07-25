@@ -125,6 +125,7 @@ export type FormTemplate = {
   pageCount: number;
   uploadedFileUrl: string | null;
   digitizeNotes: string;
+  archivedAt: string | null;
   createdAt: string;
 };
 

@@ -7,6 +7,7 @@ import { IconButton } from "../../components/shared/IconButton";
 import { NewPacketModal } from "./NewPacketModal";
 import { PreviewFormModal } from "./PreviewFormModal";
 import { CopyToLocationsModal } from "./CopyToLocationsModal";
+import { ArchivedFormsView } from "./ArchivedFormsView";
 import { useAuth } from "../../auth/AuthContext";
 import { staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
@@ -29,6 +30,7 @@ export function ManageFormsView({
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const [showArchived, setShowArchived] = useState(false);
   const [activeTab, setActiveTab] = useState<"forms" | "packets">("forms");
   const [search, setSearch] = useState("");
   const [newFormOpen, setNewFormOpen] = useState(false);
@@ -67,6 +69,23 @@ export function ManageFormsView({
     }
   }
 
+  async function handleArchive(t: FormTemplate) {
+    if (!isAdmin) return;
+    setEllipsisOpen(null);
+    try {
+      await staffApi.forms.archiveTemplate(t.id);
+      toastSuccess(`"${t.name}" archived`);
+      onRefresh();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not archive this form — please try again.");
+    }
+  }
+
+  if (showArchived) {
+    return <ArchivedFormsView onBack={() => setShowArchived(false)} onChanged={onRefresh} />;
+  }
+
   return (
     <>
     <div className="w-full min-w-0 px-4 sm:px-6 py-5">
@@ -95,10 +114,9 @@ export function ManageFormsView({
           </div>
           <div className="flex items-center gap-4">
             <IconButton
-              label="Not available in this demo yet"
-              onClick={noop}
-              disabled
-              className="flex items-center gap-1.5 text-sm font-medium text-gray-300 cursor-not-allowed"
+              label="View archived forms"
+              onClick={() => setShowArchived(true)}
+              className="flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
             >
               <Archive size={14} /> Archived forms
             </IconButton>
@@ -244,8 +262,12 @@ export function ManageFormsView({
                         >
                           <MapPinned size={14} />Copy to locations
                         </IconButton>
-                        <IconButton label="Not available in this demo yet" onClick={noop} disabled
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                        <IconButton
+                          label={isAdmin ? "Archive this form" : "You need the Admin permission level for the Forms feature"}
+                          onClick={() => handleArchive(t)}
+                          disabled={!isAdmin}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
                           <Archive size={14} />Archive
                         </IconButton>
                       </div>
