@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Edit, Plus, Trash2, X, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit, EyeOff, Plus, Trash2, X, Zap } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { staffApi, mapMedicalAlert } from "../../lib/staff-api";
@@ -12,6 +12,11 @@ const CATEGORY_LABELS: Record<MedicalAlertCategory, string> = {
   medication: "Medications",
 };
 const CATEGORIES: MedicalAlertCategory[] = ["condition", "allergy", "medication"];
+
+function isQuotedLabel(label: string): boolean {
+  const trimmed = label.trim();
+  return trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"');
+}
 
 export function MedicalAlertsModal({ onClose }: { onClose: () => void }) {
   const [alerts, setAlerts] = useState<MedicalAlert[]>([]);
@@ -203,6 +208,15 @@ export function MedicalAlertsModal({ onClose }: { onClose: () => void }) {
                                 {alert.label}
                                 {alert.flash && <Zap size={11} className="text-amber-500 flex-shrink-0" />}
                                 {alert.snomedCode && <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{alert.snomedCode}</span>}
+                                {isQuotedLabel(alert.label) && (
+                                  <IconButton
+                                    label="Quoted alerts are treated as internal notes — they won't appear on patient forms"
+                                    onClick={() => {}}
+                                    className="text-gray-300 flex-shrink-0"
+                                  >
+                                    <EyeOff size={11} />
+                                  </IconButton>
+                                )}
                               </span>
                               <IconButton label="Rename" onClick={() => startEditing(alert)} className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 flex-shrink-0 opacity-0 group-hover:opacity-100">
                                 <Edit size={13} />
