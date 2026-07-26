@@ -196,10 +196,12 @@ export type ApiMedicalAlert = {
   category: "condition" | "allergy" | "medication";
   label: string;
   active: boolean;
+  flash: boolean;
+  sort_order: number;
 };
 
 export function mapMedicalAlert(a: ApiMedicalAlert): MedicalAlert {
-  return { id: a.id, category: a.category, label: a.label, active: a.active };
+  return { id: a.id, category: a.category, label: a.label, active: a.active, flash: a.flash, sortOrder: a.sort_order };
 }
 
 export type ApiFormField = {
@@ -743,10 +745,13 @@ export const staffApi = {
     }>("/api/dashboard/stats"),
   medicalAlerts: {
     list: () => api.get<ApiMedicalAlert[]>("/api/medical-alerts"),
-    create: (body: { category: string; label: string }) =>
+    create: (body: { category: string; label: string; flash?: boolean }) =>
       api.post<ApiMedicalAlert>("/api/medical-alerts", body),
-    update: (id: string, body: { label?: string; active?: boolean }) =>
+    update: (id: string, body: { label?: string; active?: boolean; flash?: boolean }) =>
       api.patch<ApiMedicalAlert>(`/api/medical-alerts/${id}`, body),
+    delete: (id: string) => api.delete(`/api/medical-alerts/${id}`),
+    move: (id: string, direction: "up" | "down") =>
+      api.post<{ message: string }>(`/api/medical-alerts/${id}/move`, { direction }),
   },
   appointmentTypes: {
     list: () => api.get<ApiAppointmentType[]>("/api/appointment-types"),
