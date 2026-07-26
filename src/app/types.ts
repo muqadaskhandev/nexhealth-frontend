@@ -129,6 +129,7 @@ export type MedicalAlert = {
   active: boolean;
   flash: boolean;
   sortOrder: number;
+  snomedCode: string | null;
 };
 
 export type MedicalAlertCatalog = Record<MedicalAlertCategory, { id: string; label: string }[]>;

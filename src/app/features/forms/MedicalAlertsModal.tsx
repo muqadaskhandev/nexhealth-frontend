@@ -18,10 +18,12 @@ export function MedicalAlertsModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<MedicalAlertCategory, string>>({ condition: "", allergy: "", medication: "" });
   const [draftFlash, setDraftFlash] = useState<Record<MedicalAlertCategory, boolean>>({ condition: false, allergy: false, medication: false });
+  const [draftSnomed, setDraftSnomed] = useState<Record<MedicalAlertCategory, string>>({ condition: "", allergy: "", medication: "" });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [addingCategory, setAddingCategory] = useState<MedicalAlertCategory | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
+  const [editingSnomed, setEditingSnomed] = useState("");
   const [deleting, setDeleting] = useState<MedicalAlert | null>(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
 
@@ -40,11 +42,12 @@ export function MedicalAlertsModal({ onClose }: { onClose: () => void }) {
     if (!label) return;
     setAddingCategory(category);
     staffApi.medicalAlerts
-      .create({ category, label, flash: draftFlash[category] })
+      .create({ category, label, flash: draftFlash[category], snomed_code: draftSnomed[category].trim() || null })
       .then((created) => {
         setAlerts((prev) => [...prev, mapMedicalAlert(created)]);
         setDrafts((prev) => ({ ...prev, [category]: "" }));
         setDraftFlash((prev) => ({ ...prev, [category]: false }));
+        setDraftSnomed((prev) => ({ ...prev, [category]: "" }));
         toastSuccess(`Added "${label}"`);
       })
       .catch((err: unknown) => {
@@ -71,6 +74,7 @@ export function MedicalAlertsModal({ onClose }: { onClose: () => void }) {
   function startEditing(alert: MedicalAlert) {
     setEditingId(alert.id);
     setEditingLabel(alert.label);
+    setEditingSnomed(alert.snomedCode ?? "");
   }
 
   function saveEditing(alert: MedicalAlert) {
@@ -81,15 +85,15 @@ export function MedicalAlertsModal({ onClose }: { onClose: () => void }) {
     }
     setBusyId(alert.id);
     staffApi.medicalAlerts
-      .update(alert.id, { label })
+      .update(alert.id, { label, snomed_code: editingSnomed.trim() || null })
       .then((updated) => {
         setAlerts((prev) => prev.map((a) => (a.id === alert.id ? mapMedicalAlert(updated) : a)));
         setEditingId(null);
-        toastSuccess("Alert renamed");
+        toastSuccess("Alert updated");
       })
       .catch((err: unknown) => {
         const apiErr = err as { detail?: string };
-        toastError(apiErr?.detail || "Could not rename this alert — please try again.");
+        toastError(apiErr?.detail || "Could not update this alert — please try again.");
       })
       .finally(() => setBusyId(null));
   }
@@ -183,14 +187,22 @@ export function MedicalAlertsModal({ onClose }: { onClose: () => void }) {
                                 autoFocus
                                 className="flex-1 min-w-0 px-2 py-1 border border-teal-400 rounded-md text-sm text-gray-800 outline-none"
                               />
+                              <input
+                                value={editingSnomed}
+                                onChange={(e) => setEditingSnomed(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") saveEditing(alert); if (e.key === "Escape") setEditingId(null); }}
+                                placeholder="SNOMED CT code"
+                                className="w-28 flex-shrink-0 px-2 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400"
+                              />
                               <button onClick={() => saveEditing(alert)} className="text-xs font-semibold text-teal-600 hover:text-teal-700 px-1.5 flex-shrink-0">Save</button>
                               <button onClick={() => setEditingId(null)} className="text-xs text-gray-400 hover:text-gray-600 px-1 flex-shrink-0">Cancel</button>
                             </>
                           ) : (
                             <>
-                              <span className={`flex-1 min-w-0 truncate text-sm flex items-center gap-1 ${alert.active ? "text-gray-800" : "text-gray-400 line-through"}`}>
+                              <span className={`flex-1 min-w-0 truncate text-sm flex items-center gap-1.5 ${alert.active ? "text-gray-800" : "text-gray-400 line-through"}`}>
                                 {alert.label}
                                 {alert.flash && <Zap size={11} className="text-amber-500 flex-shrink-0" />}
+                                {alert.snomedCode && <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{alert.snomedCode}</span>}
                               </span>
                               <IconButton label="Rename" onClick={() => startEditing(alert)} className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 flex-shrink-0 opacity-0 group-hover:opacity-100">
                                 <Edit size={13} />
@@ -218,6 +230,13 @@ export function MedicalAlertsModal({ onClose }: { onClose: () => void }) {
                       onKeyDown={(e) => { if (e.key === "Enter") handleAdd(category); }}
                       placeholder={`Add a new ${CATEGORY_LABELS[category].toLowerCase().slice(0, -1)}…`}
                       className="flex-1 min-w-[120px] px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400"
+                    />
+                    <input
+                      value={draftSnomed[category]}
+                      onChange={(e) => setDraftSnomed((prev) => ({ ...prev, [category]: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleAdd(category); }}
+                      placeholder="SNOMED CT code (optional)"
+                      className="w-40 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-700 outline-none focus:border-teal-400"
                     />
                     <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer whitespace-nowrap">
                       <input
