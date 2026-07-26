@@ -117,7 +117,19 @@ export type FormFieldType =
   | "checkbox" | "select_boxes" | "dropdown" | "radio"
   | "date" | "date_entry" | "address" | "file" | "signature"
   | "insurance" | "preferred_language" | "payment"
-  | "content" | "location_logo";
+  | "content" | "location_logo"
+  | "medical_alerts_dropdown" | "medical_alerts_radio";
+
+export type MedicalAlertCategory = "condition" | "allergy" | "medication";
+
+export type MedicalAlert = {
+  id: string;
+  category: MedicalAlertCategory;
+  label: string;
+  active: boolean;
+};
+
+export type MedicalAlertCatalog = Record<MedicalAlertCategory, { id: string; label: string }[]>;
 
 export type FormField = {
   id: string;
@@ -322,6 +334,8 @@ export type PublicForm = {
   fields: PublicFormField[];
   completed: boolean;
   expiresAt: string;
+  medicalAlerts: MedicalAlertCatalog | null;
+  prefillAnswers: Record<string, unknown>;
 };
 
 export type PublicVerifyResult = PublicBranding & {
@@ -337,6 +351,7 @@ export type PublicPacketForm = {
   displayType: FormDisplayType;
   pageCount: number;
   fields: PublicFormField[];
+  medicalAlerts: MedicalAlertCatalog | null;
 };
 
 export type PublicPacketInfo = PublicBranding & {

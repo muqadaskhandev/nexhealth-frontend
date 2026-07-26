@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Copy, Plus, X, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Plus, Stethoscope, X, Zap } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import { MedicalAlertsModal } from "./MedicalAlertsModal";
 import { mapAppointmentType, staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { AppointmentType, FormField, FormFieldType, FormTemplate, RulePatientStatus } from "../../types";
@@ -30,9 +31,16 @@ const LAYOUT: { type: FormFieldType; icon: string; label: string }[] = [
   { type: "location_logo", icon: "🖼", label: "Location Logo" },
 ];
 
+const MEDICAL_HISTORY_FIELDS: { type: FormFieldType; icon: string; label: string }[] = [
+  { type: "medical_alerts_dropdown", icon: "🩺", label: "Medical Alerts (Dropdown)" },
+  { type: "medical_alerts_radio", icon: "🩹", label: "Medical Alerts (Radio)" },
+];
+
 const FIELD_LABEL: Record<FormFieldType, string> = Object.fromEntries(
-  [...QUESTIONS, ...LAYOUT].map((q) => [q.type, q.label])
+  [...QUESTIONS, ...LAYOUT, ...MEDICAL_HISTORY_FIELDS].map((q) => [q.type, q.label])
 ) as Record<FormFieldType, string>;
+
+const MEDICAL_ALERTS_TYPES: FormFieldType[] = ["medical_alerts_dropdown", "medical_alerts_radio"];
 
 const OPTIONS_TYPES: FormFieldType[] = ["select_boxes", "dropdown", "radio"];
 const VALIDATION_TYPES: FormFieldType[] = ["text", "textarea", "email", "number", "phone"];
@@ -53,12 +61,11 @@ const STARTER_TEMPLATES: StarterTemplate[] = [
     ],
   },
   {
-    name: "Medical History",
+    name: "Integrated Medical History Form",
     documentType: "Medical",
     fields: [
-      { type: "textarea", label: "List any current medications", required: false, options: [] },
-      { type: "select_boxes", label: "Do you have any of the following conditions?", required: false, options: ["Diabetes", "Heart disease", "High blood pressure", "Asthma"] },
-      { type: "checkbox", label: "I have had surgery in the past 5 years", required: false, options: [] },
+      { type: "medical_alerts_radio", label: "Please mark your response to indicate if you have or have had any of the following", required: true, options: [] },
+      { type: "textarea", label: "Anything else we should know?", required: false, options: [] },
     ],
   },
   {
@@ -149,6 +156,7 @@ export function FormBuilderView({
   const [ruleMaxAge, setRuleMaxAge] = useState<number | null>(initial?.ruleMaxAge ?? null);
   const [ruleAppointmentTypeIds, setRuleAppointmentTypeIds] = useState<string[]>(initial?.ruleAppointmentTypeIds ?? []);
   const [appointmentTypes, setAppointmentTypes] = useState<AppointmentType[]>([]);
+  const [showMedicalAlerts, setShowMedicalAlerts] = useState(false);
 
   useEffect(() => {
     staffApi.appointmentTypes
@@ -364,6 +372,14 @@ export function FormBuilderView({
           <span className="text-xs text-gray-500 font-medium">Title</span>
           <input value={title} onChange={e => setTitle(e.target.value)} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 bg-white min-w-[160px]" />
         </div>
+        {fields.some(f => MEDICAL_ALERTS_TYPES.includes(f.type)) && (
+          <button
+            onClick={() => setShowMedicalAlerts(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors text-gray-700 ml-auto"
+          >
+            <Stethoscope size={14} /> Manage medical alerts
+          </button>
+        )}
       </div>
 
       {/* Automation */}
@@ -459,6 +475,15 @@ export function FormBuilderView({
           <div className="flex sm:block">
             <p className="hidden sm:block px-4 py-3 text-sm font-bold text-gray-900 border-b border-t border-border">Layout</p>
             {LAYOUT.map(q => (
+              <button key={q.label} onClick={() => addField(q.type)} className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap">
+                <span className="text-gray-400 w-5 text-center font-mono text-xs">{q.icon}</span>
+                {q.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex sm:block">
+            <p className="hidden sm:block px-4 py-3 text-sm font-bold text-gray-900 border-b border-t border-border">Medical History</p>
+            {MEDICAL_HISTORY_FIELDS.map(q => (
               <button key={q.label} onClick={() => addField(q.type)} className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap">
                 <span className="text-gray-400 w-5 text-center font-mono text-xs">{q.icon}</span>
                 {q.label}
@@ -593,6 +618,8 @@ export function FormBuilderView({
           </div>
         </div>
       </div>
+
+      {showMedicalAlerts && <MedicalAlertsModal onClose={() => setShowMedicalAlerts(false)} />}
     </div>
   );
 }

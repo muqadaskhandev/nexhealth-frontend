@@ -22,6 +22,7 @@ import type {
   InsertionRule,
   MappingCondition,
   MappingRule,
+  MedicalAlert,
   Operatory,
   Patient,
   PatientTypeRule,
@@ -188,6 +189,17 @@ export function mapFormSubmission(s: ApiFormSubmission): FormSubmission {
     completedStatus: "Complete",
     syncStatus: s.sync_status === "complete" ? "complete" : "sync-now",
   };
+}
+
+export type ApiMedicalAlert = {
+  id: string;
+  category: "condition" | "allergy" | "medication";
+  label: string;
+  active: boolean;
+};
+
+export function mapMedicalAlert(a: ApiMedicalAlert): MedicalAlert {
+  return { id: a.id, category: a.category, label: a.label, active: a.active };
 }
 
 export type ApiFormField = {
@@ -729,6 +741,13 @@ export const staffApi = {
       pending_forms: number;
       pending_payments: number;
     }>("/api/dashboard/stats"),
+  medicalAlerts: {
+    list: () => api.get<ApiMedicalAlert[]>("/api/medical-alerts"),
+    create: (body: { category: string; label: string }) =>
+      api.post<ApiMedicalAlert>("/api/medical-alerts", body),
+    update: (id: string, body: { label?: string; active?: boolean }) =>
+      api.patch<ApiMedicalAlert>(`/api/medical-alerts/${id}`, body),
+  },
   appointmentTypes: {
     list: () => api.get<ApiAppointmentType[]>("/api/appointment-types"),
     create: (body: Record<string, unknown>) =>

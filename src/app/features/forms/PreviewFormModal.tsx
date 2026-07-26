@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Paperclip, X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { useAuth } from "../../auth/AuthContext";
-import type { FormField, FormTemplate } from "../../types";
+import { staffApi } from "../../lib/staff-api";
+import { PublicFieldInput, type FieldValue as SharedFieldValue } from "../../public/sharedPublicUi";
+import type { FormField, FormTemplate, MedicalAlertCatalog } from "../../types";
 
-type FieldValue = string | boolean | string[];
+type FieldValue = SharedFieldValue;
 type Values = Record<string, FieldValue>;
+
+const MEDICAL_ALERTS_TYPES: FormField["type"][] = ["medical_alerts_dropdown", "medical_alerts_radio"];
 
 const LANGUAGES = ["English", "Spanish", "French", "Mandarin", "Other"];
 
@@ -173,10 +177,23 @@ function fieldValueMatches(actual: FieldValue | undefined, expected: string): bo
 export function PreviewFormModal({ template, onClose }: { template: FormTemplate; onClose: () => void }) {
   const [page, setPage] = useState(1);
   const [values, setValues] = useState<Values>({});
+  const [medicalAlerts, setMedicalAlerts] = useState<MedicalAlertCatalog | null>(null);
   const isWizard = template.displayType === "wizard" && template.pageCount > 1;
   const pages = isWizard
     ? [page]
     : Array.from({ length: template.pageCount }, (_, i) => i + 1);
+
+  const hasMedicalAlerts = template.fields.some((f) => MEDICAL_ALERTS_TYPES.includes(f.type));
+  useEffect(() => {
+    if (!hasMedicalAlerts) return;
+    staffApi.medicalAlerts.list().then((rows) => {
+      const catalog: MedicalAlertCatalog = { condition: [], allergy: [], medication: [] };
+      for (const r of rows) {
+        if (r.active) catalog[r.category].push({ id: r.id, label: r.label });
+      }
+      setMedicalAlerts(catalog);
+    });
+  }, [hasMedicalAlerts]);
 
   function setValue(id: string, v: FieldValue) {
     setValues((prev) => ({ ...prev, [id]: v }));
@@ -221,6 +238,8 @@ export function PreviewFormModal({ template, onClose }: { template: FormTemplate
                 {template.fields.filter((f) => f.page === p && isVisible(f)).map((f) => (
                   f.type === "content" || f.type === "location_logo" ? (
                     <LayoutPreview key={f.id} field={f} />
+                  ) : MEDICAL_ALERTS_TYPES.includes(f.type) ? (
+                    <PublicFieldInput key={f.id} field={f} value={values[f.id]} medicalAlerts={medicalAlerts} onChange={(v) => setValue(f.id, v)} />
                   ) : (
                     <FieldPreview key={f.id} field={f} value={values[f.id]} onChange={(v) => setValue(f.id, v)} />
                   )

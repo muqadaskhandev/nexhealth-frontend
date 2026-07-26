@@ -2,7 +2,18 @@
 // No cookies, no CSRF, no session — this is a separate trust boundary from
 // the staff app's cookie-authenticated API in lib/api.ts.
 
-import type { FormDisplayType, FormFieldType, PublicBranding, PublicForm, PublicPacketForm, PublicPacketInfo, PublicVerifyResult } from "../types";
+import type { FormDisplayType, FormFieldType, MedicalAlertCatalog, PublicBranding, PublicForm, PublicPacketForm, PublicPacketInfo, PublicVerifyResult } from "../types";
+
+type ApiMedicalAlertCatalog = Record<string, { id: string; label: string }[]>;
+
+function mapMedicalAlertCatalog(c: ApiMedicalAlertCatalog | null | undefined): MedicalAlertCatalog | null {
+  if (!c) return null;
+  return {
+    condition: c.condition ?? [],
+    allergy: c.allergy ?? [],
+    medication: c.medication ?? [],
+  };
+}
 
 export type PublicApiError = { status: number; detail: string };
 
@@ -56,6 +67,8 @@ type ApiForm = {
   fields: ApiField[];
   completed: boolean;
   expires_at: string;
+  medical_alerts?: ApiMedicalAlertCatalog | null;
+  prefill_answers?: Record<string, unknown>;
 };
 
 type ApiVerifyOut = ApiBranding & { patient_name: string; forms: ApiForm[] };
@@ -79,6 +92,8 @@ function mapForm(f: ApiForm): PublicForm {
     pageCount: f.page_count,
     completed: f.completed,
     expiresAt: f.expires_at,
+    medicalAlerts: mapMedicalAlertCatalog(f.medical_alerts),
+    prefillAnswers: f.prefill_answers ?? {},
     fields: f.fields.map((field) => ({
       id: field.id,
       type: field.type,
@@ -100,6 +115,7 @@ type ApiPacketForm = {
   display_type: FormDisplayType;
   page_count: number;
   fields: ApiField[];
+  medical_alerts?: ApiMedicalAlertCatalog | null;
 };
 
 type ApiPacketInfo = ApiBranding & { packet_name: string; forms: ApiPacketForm[] };
@@ -110,6 +126,7 @@ function mapPacketForm(f: ApiPacketForm): PublicPacketForm {
     name: f.name,
     displayType: f.display_type,
     pageCount: f.page_count,
+    medicalAlerts: mapMedicalAlertCatalog(f.medical_alerts),
     fields: f.fields.map((field) => ({
       id: field.id,
       type: field.type,

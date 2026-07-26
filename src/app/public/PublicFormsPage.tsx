@@ -69,6 +69,10 @@ export function PublicFormsPage({ token }: { token: string }) {
     return idx === -1 ? null : idx;
   }
 
+  function ensurePrefilled(form: PublicForm) {
+    setAnswers((prev) => (prev[form.requestId] ? prev : { ...prev, [form.requestId]: form.prefillAnswers as Answers }));
+  }
+
   function startFilling() {
     if (!result) return;
     const idx = firstIncompleteIndex(result.forms);
@@ -76,6 +80,7 @@ export function PublicFormsPage({ token }: { token: string }) {
       setStep("done");
       return;
     }
+    ensurePrefilled(result.forms[idx]);
     setActiveFormIdx(idx);
     setPage(1);
     setFillError(null);
@@ -91,7 +96,7 @@ export function PublicFormsPage({ token }: { token: string }) {
 
   function handleFillNext() {
     if (!activeForm) return;
-    const err = validateFormPage(activeForm.fields, activeAnswers, page);
+    const err = validateFormPage(activeForm.fields, activeAnswers, page, activeForm.medicalAlerts);
     if (err) {
       setFillError(err);
       return;
@@ -127,6 +132,7 @@ export function PublicFormsPage({ token }: { token: string }) {
         if (nextIdx === null) {
           setStep("done");
         } else {
+          ensurePrefilled(updatedForms[nextIdx]);
           setActiveFormIdx(nextIdx);
           setPage(1);
         }
@@ -259,6 +265,7 @@ export function PublicFormsPage({ token }: { token: string }) {
                 key={f.id}
                 field={f}
                 value={activeAnswers[f.id]}
+                medicalAlerts={activeForm.medicalAlerts}
                 onChange={(v) => setFieldValue(activeForm.requestId, f.id, v)}
               />
             ))

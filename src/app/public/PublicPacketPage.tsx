@@ -75,7 +75,7 @@ export function PublicPacketPage({ code }: { code: string }) {
 
   function handleFillNext() {
     if (!activeForm) return;
-    const err = validateFormPage(activeForm.fields, activeAnswers, page);
+    const err = validateFormPage(activeForm.fields, activeAnswers, page, activeForm.medicalAlerts);
     if (err) {
       setFillError(err);
       return;
@@ -246,6 +246,7 @@ export function PublicPacketPage({ code }: { code: string }) {
                 key={f.id}
                 field={f}
                 value={activeAnswers[f.id]}
+                medicalAlerts={activeForm.medicalAlerts}
                 onChange={(v) => setFieldValue(activeForm.templateId, f.id, v)}
               />
             ))
