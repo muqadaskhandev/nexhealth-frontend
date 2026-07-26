@@ -244,6 +244,8 @@ export type ApiFormTemplate = {
   rule_min_age: number | null;
   rule_max_age: number | null;
   rule_appointment_type_ids: string[];
+  is_default: boolean;
+  is_locked: boolean;
   created_at: string;
 };
 
@@ -277,6 +279,8 @@ export function mapFormTemplate(t: ApiFormTemplate): FormTemplate {
     ruleMinAge: t.rule_min_age,
     ruleMaxAge: t.rule_max_age,
     ruleAppointmentTypeIds: t.rule_appointment_type_ids,
+    isDefault: t.is_default,
+    isLocked: t.is_locked,
     createdAt: t.created_at,
   };
 }
@@ -654,6 +658,7 @@ export const staffApi = {
       }),
     archiveTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/archive`),
     unarchiveTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/unarchive`),
+    setDefaultTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/set-default`),
     frequentTemplates: () => api.get<ApiFormTemplate[]>("/api/forms/templates/frequent"),
     submissions: () => api.get<ApiFormSubmission[]>("/api/forms/submissions"),
     send: (params: {

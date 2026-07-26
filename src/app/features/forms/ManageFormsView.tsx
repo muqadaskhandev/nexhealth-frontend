@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ArrowLeft, Search, ChevronDown, Archive, Copy, RefreshCw, Wrench,
-  Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList, Zap, Link2,
+  Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList, Zap, Link2, Lock, Star,
 } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { NewPacketModal } from "./NewPacketModal";
@@ -100,6 +100,23 @@ export function ManageFormsView({
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
       toastError(apiErr?.detail || "Could not archive this form — please try again.");
+    }
+  }
+
+  function hasMedicalAlerts(t: FormTemplate): boolean {
+    return t.fields.some((f) => f.type === "medical_alerts_dropdown" || f.type === "medical_alerts_radio");
+  }
+
+  async function handleSetDefault(t: FormTemplate) {
+    if (!isAdmin) return;
+    setEllipsisOpen(null);
+    try {
+      await staffApi.forms.setDefaultTemplate(t.id);
+      toastSuccess(`"${t.name}" is now the default Medical History form`);
+      onRefresh();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not set this form as default — please try again.");
     }
   }
 
@@ -263,6 +280,20 @@ export function ManageFormsView({
                           <RefreshCw size={10} className="animate-spin" /> Digitizing…
                         </IconButton>
                       )}
+                      {hasMedicalAlerts(t) && t.isDefault && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 flex-shrink-0">
+                          Default
+                        </span>
+                      )}
+                      {t.isLocked && (
+                        <IconButton
+                          label="Has real patient submissions — duplicate to make changes"
+                          onClick={noop}
+                          className="text-gray-400 flex-shrink-0"
+                        >
+                          <Lock size={12} />
+                        </IconButton>
+                      )}
                     </div>
                   </td>
                   <td className="px-5 py-3">
@@ -306,6 +337,16 @@ export function ManageFormsView({
                         >
                           <Copy size={14} />Duplicate
                         </IconButton>
+                        {hasMedicalAlerts(t) && !t.isDefault && (
+                          <IconButton
+                            label={isAdmin ? "Make this the default Medical History form" : "You need the Admin permission level for the Forms feature"}
+                            onClick={() => handleSetDefault(t)}
+                            disabled={!isAdmin}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          >
+                            <Star size={14} />Mark as default
+                          </IconButton>
+                        )}
                         <IconButton label="Not available in this demo yet" onClick={noop} disabled
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
                           <Download size={14} />Download

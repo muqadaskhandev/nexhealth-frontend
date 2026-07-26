@@ -170,6 +170,8 @@ export type FormTemplate = {
   ruleMinAge: number | null;
   ruleMaxAge: number | null;
   ruleAppointmentTypeIds: string[];
+  isDefault: boolean;
+  isLocked: boolean;
   createdAt: string;
 };
 

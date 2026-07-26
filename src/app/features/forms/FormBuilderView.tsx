@@ -255,8 +255,10 @@ export function FormBuilderView({
     );
   }
 
+  const isLocked = initial?.isLocked ?? false;
+
   function handleSave() {
-    if (submitting) return;
+    if (submitting || isLocked) return;
     setError(null);
     if (!title.trim()) {
       setError("Give this form a title.");
@@ -330,12 +332,24 @@ export function FormBuilderView({
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 border-b border-border flex-shrink-0">
         <h2 className="text-base font-bold text-gray-900">Form Builder</h2>
         <div className="flex items-center gap-2">
-          <button onClick={handleSave} disabled={submitting} className="px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors">
+          <IconButton
+            label={isLocked ? "This form has real patient submissions and can't be edited — duplicate it to make changes." : "Save and exit"}
+            onClick={handleSave}
+            disabled={submitting || isLocked}
+            className="px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
             {submitting ? "Saving…" : "Save and exit"}
-          </button>
+          </IconButton>
           <IconButton label="Close" onClick={onExit} className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"><X size={15} /></IconButton>
         </div>
       </div>
+
+      {isLocked && (
+        <div className="mx-4 sm:mx-6 mt-3 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900 flex-shrink-0">
+          This Medical History form has real patient submissions and can no longer be edited — use <strong>Duplicate</strong> from
+          the forms list to make changes.
+        </div>
+      )}
 
       {error && (
         <div className="mx-4 sm:mx-6 mt-3 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex-shrink-0">{error}</div>
