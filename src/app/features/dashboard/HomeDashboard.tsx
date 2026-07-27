@@ -4,20 +4,33 @@ import { StatCards } from "./StatCards";
 import { AppointmentsTable } from "./AppointmentsTable";
 import { IconButton } from "../../components/shared/IconButton";
 import type { Appointment, Patient, AppointmentStatus } from "../../types";
-import { staffApi } from "../../lib/staff-api";
+import { useAuth } from "../../auth/AuthContext";
+import { staffApi, mapAppointment } from "../../lib/staff-api";
 
 export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPanel }: {
   appointments: Appointment[]; patients: Patient[];
   onStatusChange: (id: string, status: AppointmentStatus) => void;
   onOpenPanel: (p: Patient) => void;
 }) {
+  const { activeLocation } = useAuth();
   const [dateOffset, setDateOffset] = useState(0);
   const [waitlistCount, setWaitlistCount] = useState(0);
+  const [dayAppointments, setDayAppointments] = useState<Appointment[]>(appointments);
   const displayDate = dateOffset === 0 ? "Today" : dateOffset === 1 ? "Tomorrow" : dateOffset === -1 ? "Yesterday" : dateOffset > 0 ? `+${dateOffset} days` : `${dateOffset} days`;
 
   useEffect(() => {
     staffApi.dashboard().then((s) => setWaitlistCount(s.waitlist_count)).catch(() => setWaitlistCount(0));
   }, []);
+
+  useEffect(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + dateOffset);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    staffApi.appointments
+      .list(dateStr)
+      .then((rows) => setDayAppointments(rows.map(mapAppointment)))
+      .catch(() => setDayAppointments([]));
+  }, [dateOffset, activeLocation?.id]);
 
   return (
     <div className="w-full min-w-0 px-6 py-5 space-y-5">
@@ -37,7 +50,7 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
           </p>
         </div>
       )}
-      <AppointmentsTable appointments={appointments} patients={patients} onStatusChange={onStatusChange} onOpenPanel={onOpenPanel} />
+      <AppointmentsTable appointments={dayAppointments} patients={patients} onStatusChange={onStatusChange} onOpenPanel={onOpenPanel} />
     </div>
   );
 }

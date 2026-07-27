@@ -26,6 +26,7 @@ export function BookingFormFieldModal({ initial, onClose, onSaved }: {
   const [noteText, setNoteText] = useState(initial?.noteText ?? "");
   const [options, setOptions] = useState<string[]>(initial?.options ?? []);
   const [optionInput, setOptionInput] = useState("");
+  const [addToAllLocations, setAddToAllLocations] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [labelTouched, setLabelTouched] = useState(false);
@@ -70,6 +71,7 @@ export function BookingFormFieldModal({ initial, onClose, onSaved }: {
       required,
       note_text: fieldType === "note" ? noteText.trim() : "",
       options: isSelectType ? options : [],
+      add_to_all_locations: addToAllLocations,
     };
     try {
       if (initial) await staffApi.bookingFormFields.update(initial.id, body);
@@ -149,6 +151,13 @@ export function BookingFormFieldModal({ initial, onClose, onSaved }: {
             <span className="text-sm text-gray-700">Required?</span>
             <Toggle on={required} onChange={setRequired} />
           </label>
+
+          {!initial && (
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm text-gray-700">Add to all locations</span>
+              <Toggle on={addToAllLocations} onChange={setAddToAllLocations} />
+            </label>
+          )}
 
           {fieldType === "note" && (
             <div>

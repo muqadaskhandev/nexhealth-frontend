@@ -7,9 +7,7 @@ import type { AppointmentType, AvailabilityBlock, AvailabilitySlot, Provider } f
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function practiceSlug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, "") || "practice";
-}
+import { buildBookingLink } from "../../lib/public-booking-api";
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -121,11 +119,10 @@ export function OneClickBookingView({ types, onBack }: { types: AppointmentType[
     : [];
 
   function buildLink(): string {
-    const slug = practiceSlug(practice?.name ?? "practice");
-    const lid = practice?.id.slice(0, 8) ?? "000000";
-    const params = new URLSearchParams({ lid });
-    if (appointmentType) params.set("appointment_type_ids", appointmentType.id);
-    return `https://app.nexhealth.com/appt/${slug}?${params.toString()}`;
+    if (!practice?.name || !appointmentType) return window.location.origin;
+    return buildBookingLink(practice.name, practice.id, {
+      appointment_type_ids: appointmentType.id,
+    });
   }
 
   function copySnippet() {

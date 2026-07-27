@@ -22,6 +22,7 @@ import type {
   InsertionRule,
   MappingCondition,
   MappingRule,
+  AsapEntry,
   MedicalAlert,
   Operatory,
   Patient,
@@ -31,6 +32,7 @@ import type {
   PublicPacketSubmission,
   RepeatMode,
   RulePatientStatus,
+  WaitlistEntry,
   WaitlistPatientCandidate,
   WaitlistRequest,
   WaitlistRequestPatient,
@@ -374,6 +376,7 @@ export type ApiAppointmentType = {
   available_online: boolean;
   patient_type: PatientTypeRule;
   allow_patient_cancel: boolean;
+  position: number;
   insertion_rules: ApiInsertionRule[];
   created_at: string;
 };
@@ -386,6 +389,7 @@ export function mapAppointmentType(t: ApiAppointmentType): AppointmentType {
     availableOnline: t.available_online,
     patientType: t.patient_type,
     allowPatientCancel: t.allow_patient_cancel,
+    position: t.position,
     insertionRules: t.insertion_rules.map((r) => ({ id: r.id, codeType: r.code_type, codes: r.codes })),
   };
 }
@@ -525,6 +529,8 @@ export type ApiWaitlistRequestSlot = {
   id: string;
   provider_id: string;
   operatory_id: string | null;
+  provider_name?: string;
+  operatory_name?: string | null;
   starts_at: string;
   ends_at: string;
   claimed_by_patient_id: string | null;
@@ -538,6 +544,8 @@ export function mapWaitlistRequestSlot(s: ApiWaitlistRequestSlot): WaitlistReque
     id: s.id,
     providerId: s.provider_id,
     operatoryId: s.operatory_id,
+    providerName: s.provider_name ?? "",
+    operatoryName: s.operatory_name ?? null,
     startsAt: s.starts_at,
     endsAt: s.ends_at,
     claimedByPatientId: s.claimed_by_patient_id,
@@ -581,12 +589,73 @@ export function mapWaitlistRequest(r: ApiWaitlistRequest): WaitlistRequest {
 export type ApiWaitlistPatientCandidate = {
   id: string;
   name: string;
-  reason: "missed" | "cancelled";
+  reason: string;
   appointment_at: string | null;
+  recall_type?: string | null;
+  recall_due_date?: string | null;
+  appointment_notes?: string | null;
 };
 
 export function mapWaitlistPatientCandidate(c: ApiWaitlistPatientCandidate): WaitlistPatientCandidate {
-  return { id: c.id, name: c.name, reason: c.reason, appointmentAt: c.appointment_at };
+  return {
+    id: c.id,
+    name: c.name,
+    reason: c.reason as WaitlistPatientCandidate["reason"],
+    appointmentAt: c.appointment_at,
+    recallType: c.recall_type,
+    recallDueDate: c.recall_due_date,
+    appointmentNotes: c.appointment_notes,
+  };
+}
+
+export type ApiWaitlistEntry = {
+  id: string;
+  patient_id: string;
+  provider_name: string;
+  appointment_type: string;
+  notes: string;
+  status: string;
+  patient_name: string;
+  created_at: string;
+};
+
+export function mapWaitlistEntry(e: ApiWaitlistEntry): WaitlistEntry {
+  return {
+    id: e.id,
+    patientId: e.patient_id,
+    patientName: e.patient_name,
+    providerName: e.provider_name,
+    appointmentType: e.appointment_type,
+    notes: e.notes,
+    status: e.status,
+    createdAt: e.created_at,
+  };
+}
+
+export type ApiAsapEntry = {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  provider_name: string;
+  appointment_type: string;
+  starts_at: string;
+  duration_minutes: number;
+  notes: string;
+  created_at: string;
+};
+
+export function mapAsapEntry(e: ApiAsapEntry): AsapEntry {
+  return {
+    id: e.id,
+    patientId: e.patient_id,
+    patientName: e.patient_name,
+    providerName: e.provider_name,
+    appointmentType: e.appointment_type,
+    startsAt: e.starts_at,
+    durationMinutes: e.duration_minutes,
+    notes: e.notes,
+    createdAt: e.created_at,
+  };
 }
 
 export const staffApi = {
@@ -618,7 +687,30 @@ export const staffApi = {
     update: (id: string, body: Record<string, unknown>) =>
       api.patch<ApiAppointment>(`/api/appointments/${id}`, body),
   },
-  waitlist: () => api.get<unknown[]>("/api/waitlist"),
+  waitlist: {
+    list: () => api.get<ApiWaitlistEntry[]>("/api/waitlist"),
+    add: (body: {
+      patient_id: string;
+      provider_name?: string;
+      appointment_type?: string;
+      notes?: string;
+    }) => api.post<ApiWaitlistEntry>("/api/waitlist", body),
+    remove: (id: string) => api.delete(`/api/waitlist/${id}`),
+  },
+  asapList: {
+    list: () => api.get<ApiAsapEntry[]>("/api/asap-list"),
+    add: (body: {
+      patient_id: string;
+      appointment_id?: string;
+      provider_name?: string;
+      appointment_type?: string;
+      appointment_type_id?: string;
+      starts_at?: string;
+      duration_minutes?: number;
+      notes?: string;
+    }) => api.post<ApiAsapEntry>("/api/asap-list", body),
+    remove: (appointmentId: string) => api.delete(`/api/asap-list/${appointmentId}`),
+  },
   forms: {
     templates: (archived = false) => api.get<ApiFormTemplate[]>(`/api/forms/templates?archived=${archived}`),
     createTemplate: (body: Record<string, unknown>) =>
@@ -768,12 +860,27 @@ export const staffApi = {
       api.post<{ message: string }>(`/api/medical-alerts/${id}/move`, { direction }),
   },
   appointmentTypes: {
-    list: () => api.get<ApiAppointmentType[]>("/api/appointment-types"),
+    list: (locationId?: string) =>
+      api.get<ApiAppointmentType[]>(
+        locationId ? `/api/appointment-types?location_id=${encodeURIComponent(locationId)}` : "/api/appointment-types"
+      ),
     create: (body: Record<string, unknown>) =>
       api.post<ApiAppointmentType>("/api/appointment-types", body),
     update: (id: string, body: Record<string, unknown>) =>
       api.patch<ApiAppointmentType>(`/api/appointment-types/${id}`, body),
     delete: (id: string) => api.delete(`/api/appointment-types/${id}`),
+    reorder: (orderedIds: string[]) =>
+      api.post<ApiAppointmentType[]>("/api/appointment-types/reorder", { ordered_ids: orderedIds }),
+    copy: (appointmentTypeIds: string[], locationIds: string[]) =>
+      api.post<{ copied: number }>("/api/appointment-types/copy", {
+        appointment_type_ids: appointmentTypeIds,
+        location_ids: locationIds,
+      }),
+    bulkPatientType: (locationId: string, updates: { id: string; patient_type: string }[]) =>
+      api.post<{ updated: number }>("/api/appointment-types/bulk-patient-type", {
+        location_id: locationId,
+        updates,
+      }),
   },
   mappingRules: {
     list: () => api.get<ApiMappingRule[]>("/api/mapping-rules"),
@@ -783,6 +890,12 @@ export const staffApi = {
     delete: (id: string) => api.delete(`/api/mapping-rules/${id}`),
     reorder: (orderedIds: string[]) =>
       api.post<ApiMappingRule[]>("/api/mapping-rules/reorder", { ordered_ids: orderedIds }),
+    retag: () => api.post<{ updated: number }>("/api/mapping-rules/retag", {}),
+    copy: (ruleIds: string[], locationIds: string[]) =>
+      api.post<{ copied: number }>("/api/mapping-rules/copy", {
+        rule_ids: ruleIds,
+        location_ids: locationIds,
+      }),
   },
   providers: {
     list: () => api.get<ApiProvider[]>("/api/providers"),
@@ -858,8 +971,14 @@ export const staffApi = {
   bookingInsurances: {
     list: () => api.get<ApiBookingInsurance[]>("/api/booking-insurances"),
     create: (name: string) => api.post<ApiBookingInsurance>("/api/booking-insurances", { name }),
-    bulkCreate: (names: string[]) =>
-      api.post<ApiBookingInsurance[]>("/api/booking-insurances/bulk", { names }),
+    bulkCreate: (names: string[], copyToAllLocations = false) =>
+      api.post<ApiBookingInsurance[]>("/api/booking-insurances/bulk", {
+        names,
+        copy_to_all_locations: copyToAllLocations,
+      }),
+    copy: (locationIds: string[]) =>
+      api.post<{ copied: number }>("/api/booking-insurances/copy", { location_ids: locationIds }),
+    restoreDefaults: () => api.post<ApiBookingInsurance[]>("/api/booking-insurances/restore-defaults"),
     delete: (id: string) => api.delete(`/api/booking-insurances/${id}`),
   },
   waitlistRequests: {
@@ -868,6 +987,7 @@ export const staffApi = {
     create: (body: {
       slots: { provider_id: string; operatory_id: string | null; starts_at: string; ends_at: string }[];
       patient_ids: string[];
+      template_type?: "asap" | "continuing_care";
     }) => api.post<ApiWaitlistRequest>("/api/waitlist-requests", body),
     cancel: (id: string) => api.post<ApiWaitlistRequest>(`/api/waitlist-requests/${id}/cancel`),
     claimSlot: (requestId: string, slotId: string, patientId: string) =>
@@ -892,6 +1012,38 @@ export const staffApi = {
         qs.set("exclude_recent_days", String(params.excludeRecentDays));
       return api.get<ApiWaitlistPatientCandidate[]>(
         `/api/waitlist-requests/candidates/missed-cancelled?${qs.toString()}`
+      );
+    },
+    searchAsap: (params: {
+      providerId?: string;
+      operatoryId?: string;
+      appointmentTypeId?: string;
+      durationMinutes?: number;
+      excludeRecentDays?: number;
+    }) => {
+      const qs = new URLSearchParams();
+      if (params.providerId) qs.set("provider_id", params.providerId);
+      if (params.operatoryId) qs.set("operatory_id", params.operatoryId);
+      if (params.appointmentTypeId) qs.set("appointment_type_id", params.appointmentTypeId);
+      if (params.durationMinutes) qs.set("duration_minutes", String(params.durationMinutes));
+      if (params.excludeRecentDays !== undefined)
+        qs.set("exclude_recent_days", String(params.excludeRecentDays));
+      return api.get<ApiWaitlistPatientCandidate[]>(`/api/waitlist-requests/candidates/asap?${qs.toString()}`);
+    },
+    searchContinuingCare: (params: {
+      recallType?: string;
+      startDate?: string;
+      endDate?: string;
+      excludeRecentDays?: number;
+    }) => {
+      const qs = new URLSearchParams();
+      if (params.recallType) qs.set("recall_type", params.recallType);
+      if (params.startDate) qs.set("start_date", params.startDate);
+      if (params.endDate) qs.set("end_date", params.endDate);
+      if (params.excludeRecentDays !== undefined)
+        qs.set("exclude_recent_days", String(params.excludeRecentDays));
+      return api.get<ApiWaitlistPatientCandidate[]>(
+        `/api/waitlist-requests/candidates/continuing-care?${qs.toString()}`
       );
     },
   },

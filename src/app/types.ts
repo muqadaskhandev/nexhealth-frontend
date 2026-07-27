@@ -188,6 +188,7 @@ export type AppointmentType = {
   availableOnline: boolean;
   patientType: PatientTypeRule;
   allowPatientCancel: boolean;
+  position: number;
   insertionRules: InsertionRule[];
 };
 
@@ -276,6 +277,8 @@ export type WaitlistRequestSlot = {
   id: string;
   providerId: string;
   operatoryId: string | null;
+  providerName: string;
+  operatoryName: string | null;
   startsAt: string;
   endsAt: string;
   claimedByPatientId: string | null;
@@ -303,8 +306,34 @@ export type WaitlistRequest = {
 export type WaitlistPatientCandidate = {
   id: string;
   name: string;
-  reason: "missed" | "cancelled";
+  reason: "missed" | "cancelled" | "asap" | "continuing_care";
   appointmentAt: string | null;
+  recallType?: string | null;
+  recallDueDate?: string | null;
+  appointmentNotes?: string | null;
+};
+
+export type WaitlistEntry = {
+  id: string;
+  patientId: string;
+  patientName: string;
+  providerName: string;
+  appointmentType: string;
+  notes: string;
+  status: string;
+  createdAt: string;
+};
+
+export type AsapEntry = {
+  id: string;
+  patientId: string;
+  patientName: string;
+  providerName: string;
+  appointmentType: string;
+  startsAt: string;
+  durationMinutes: number;
+  notes: string;
+  createdAt: string;
 };
 
 // ── Public patient forms portal (unauthenticated) ──────────────────────────────

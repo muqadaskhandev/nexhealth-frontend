@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowUp, ArrowDown, Plus, Trash2 } from "lucide-react";
+import { ArrowUp, ArrowDown, Plus, Trash2 } from "lucide-react";
 import { staffApi, mapMappingRule } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { IconButton } from "../../components/shared/IconButton";
+import { EhrComingSoonBanner, EhrComingSoonBadge } from "../../components/shared/EhrComingSoon";
+import { AppointmentTypesHeader } from "./AppointmentTypesHeader";
 import { MappingRuleModal } from "./MappingRuleModal";
+import { PreviewBookingModal } from "./PreviewBookingModal";
 import type { AppointmentType, MappingRule } from "../../types";
 
 const FIELD_LABELS: Record<string, string> = {
@@ -31,6 +34,8 @@ export function MappingRulesView({ types, onBack }: { types: AppointmentType[]; 
   const [saving, setSaving] = useState(false);
   const [deletingRule, setDeletingRule] = useState<MappingRule | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [retagging, setRetagging] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
 
   function refresh() {
     setLoading(true);
@@ -85,19 +90,38 @@ export function MappingRulesView({ types, onBack }: { types: AppointmentType[]; 
     }
   }
 
+  async function handleRetag() {
+    if (retagging) return;
+    setRetagging(true);
+    try {
+      const result = await staffApi.mappingRules.retag();
+      toastSuccess(
+        result.updated > 0
+          ? `Retagged ${result.updated} appointment${result.updated !== 1 ? "s" : ""} using mapping rules`
+          : "No appointments needed retagging"
+      );
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not retag appointments.");
+    } finally {
+      setRetagging(false);
+    }
+  }
+
   return (
     <div className="w-full min-w-0 px-4 sm:px-6 py-5 space-y-5">
+      <AppointmentTypesHeader
+        mappingActive
+        onMappingRules={() => {}}
+        onPreview={() => setPreviewing(true)}
+        onTitleClick={onBack}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
-          >
-            <ArrowLeft size={15} /> Appointment types
-          </button>
-          <span className="text-gray-300 hidden sm:inline">|</span>
-          <h1 className="text-2xl font-bold text-gray-900">Mapping rules</h1>
-        </div>
+        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          Mapping rules
+          <EhrComingSoonBadge />
+        </h2>
         {dirtyOrder && (
           <button
             onClick={saveOrder}
@@ -107,7 +131,21 @@ export function MappingRulesView({ types, onBack }: { types: AppointmentType[]; 
             {saving ? "Saving…" : "Save changes"}
           </button>
         )}
+        {!dirtyOrder && rules.length > 0 && (
+          <button
+            onClick={handleRetag}
+            disabled={retagging}
+            className="px-4 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            {retagging ? "Retagging…" : "Retag appointments"}
+          </button>
+        )}
       </div>
+
+      <EhrComingSoonBanner
+        title="EHR read & tagging coming soon"
+        message="Mapping rules can be configured and applied to appointments in NexHealth today. Reading visit types and procedure codes directly from your health record system will be available when EHR sync launches."
+      />
 
       <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
         Mapping rules are only needed if you are differentiating communications — <span className="font-semibold">Recalls, Reviews, Campaigns, Templates, or Forms</span> — by appointment type.
@@ -196,6 +234,8 @@ export function MappingRulesView({ types, onBack }: { types: AppointmentType[]; 
           onCancel={() => setDeletingRule(null)}
         />
       )}
+
+      {previewing && <PreviewBookingModal types={types} onClose={() => setPreviewing(false)} />}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { X, Plus, Trash2 } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { IconButton } from "../../components/shared/IconButton";
+import { EhrComingSoonBanner, EhrComingSoonBadge } from "../../components/shared/EhrComingSoon";
 import { staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { AppointmentType, PatientTypeRule } from "../../types";
@@ -169,7 +170,14 @@ export function AppointmentTypeModal({ initial, onClose, onSaved, onDeleted }: {
 
           {/* Insertion rules */}
           <div className="space-y-3">
-            <h3 className="text-sm font-bold text-gray-900">Insertion rules</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-gray-900">Insertion rules</h3>
+              <EhrComingSoonBadge />
+            </div>
+            <EhrComingSoonBanner
+              title="EHR write coming soon"
+              message="You can configure procedure codes now. When EHR sync launches, these rules will write visit types and codes into your health record on online bookings and waitlist claims."
+            />
             {rules.length === 0 && (
               <p className="text-sm text-gray-500 bg-gray-50 border border-gray-100 rounded-lg p-4 text-center">
                 You can map this appointment type to procedure codes in your health record system.

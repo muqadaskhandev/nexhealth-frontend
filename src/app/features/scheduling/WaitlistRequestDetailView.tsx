@@ -4,23 +4,8 @@ import { IconButton } from "../../components/shared/IconButton";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { staffApi, mapWaitlistRequest } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
+import { slotDisplayStatus } from "./waitlistRequestUtils";
 import type { WaitlistRequest, WaitlistRequestSlot } from "../../types";
-
-const EXPIRY_BUFFER_MINUTES = 15;
-
-function slotStatus(slot: WaitlistRequestSlot, patientName: (id: string) => string): { label: string; cls: string } {
-  if (slot.claimedByPatientId) {
-    return { label: `Claimed by ${patientName(slot.claimedByPatientId)}`, cls: "bg-teal-50 text-teal-700 border-teal-200" };
-  }
-  if (slot.cancelledAt) {
-    return { label: "Cancelled", cls: "bg-gray-100 text-gray-500 border-gray-200" };
-  }
-  const expiresAt = new Date(slot.startsAt).getTime() - EXPIRY_BUFFER_MINUTES * 60 * 1000;
-  if (Date.now() > expiresAt) {
-    return { label: "Expired", cls: "bg-gray-100 text-gray-500 border-gray-200" };
-  }
-  return { label: "Open", cls: "bg-amber-50 text-amber-700 border-amber-200" };
-}
 
 export function WaitlistRequestDetailView({
   requestId,
@@ -78,6 +63,7 @@ export function WaitlistRequestDetailView({
       setRequest(mapWaitlistRequest(updated));
       toastSuccess("Slot cancelled — it's no longer bookable from this request");
       setCancellingSlotId(null);
+      onChanged();
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
       toastError(apiErr?.detail || "Could not cancel this slot — please try again.");
@@ -141,8 +127,8 @@ export function WaitlistRequestDetailView({
             </div>
             <div className="divide-y divide-border">
               {request.slots.map((s) => {
-                const status = slotStatus(s, patientName);
-                const canClaim = request.status === "sent" && !s.claimedByPatientId && status.label !== "Expired";
+                const status = slotDisplayStatus(s, patientName);
+                const canClaim = request.status === "sent" && !s.claimedByPatientId && status.active;
                 return (
                   <div key={s.id} className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
                     <div className="min-w-0">

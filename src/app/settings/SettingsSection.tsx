@@ -19,9 +19,24 @@ import { IconButton } from "../components/shared/IconButton";
 import { LogoSettingsPanel } from "./LogoSettingsPanel";
 import { SynchronizerSettings } from "./SynchronizerSettings";
 import { LocationsSettingsPanel } from "./LocationsSettingsPanel";
+import { BookingFormFieldsView } from "../features/scheduling/BookingFormFieldsView";
+import { BookingInsuranceView } from "../features/scheduling/BookingInsuranceView";
+import { OnlineBookingLinksView } from "../features/scheduling/OnlineBookingLinksView";
+import { ReserveWithGoogleView } from "../features/scheduling/ReserveWithGoogleView";
+import { OnlineBookingSection } from "../features/scheduling/OnlineBookingSection";
 import { toastError, toastSuccess } from "../lib/toast";
 
-type SettingsTab = "account" | "logo" | "users" | "synchronizer" | "locations";
+export type SettingsTab =
+  | "account"
+  | "logo"
+  | "users"
+  | "synchronizer"
+  | "locations"
+  | "online-booking-form"
+  | "online-booking-links"
+  | "appointment-types"
+  | "booking-insurance"
+  | "reserve-with-google";
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all bg-white";
@@ -43,6 +58,13 @@ function SettingsNav({
     { id: "users", label: "Users", admin: true },
     { id: "synchronizer", label: "Synchronizer", admin: true },
     { id: "locations", label: "Locations" },
+  ];
+  const schedulingItems: { id: SettingsTab; label: string }[] = [
+    { id: "appointment-types", label: "Appointment types" },
+    { id: "online-booking-links", label: "Online booking links" },
+    { id: "online-booking-form", label: "Online booking form" },
+    { id: "booking-insurance", label: "Insurance" },
+    { id: "reserve-with-google", label: "Reserve with Google" },
   ];
 
   function renderGroup(
@@ -80,6 +102,7 @@ function SettingsNav({
     <nav className="w-56 flex-shrink-0 border-r border-border bg-white py-4 px-2 overflow-y-auto">
       {renderGroup("Account settings", accountItems)}
       {renderGroup("General", generalItems)}
+      {renderGroup("Scheduling options", schedulingItems)}
     </nav>
   );
 }
@@ -961,6 +984,11 @@ export function SettingsSection({
           {tab === "users" && isAdmin && <UsersSettings />}
           {tab === "synchronizer" && isAdmin && <SynchronizerSettings />}
           {tab === "locations" && <LocationsSettings />}
+          {tab === "online-booking-form" && <BookingFormFieldsView embedded />}
+          {tab === "online-booking-links" && <OnlineBookingLinksView embedded />}
+          {tab === "appointment-types" && <OnlineBookingSection embedded />}
+          {tab === "booking-insurance" && <BookingInsuranceView embedded />}
+          {tab === "reserve-with-google" && <ReserveWithGoogleView embedded />}
         </div>
       </div>
     </div>

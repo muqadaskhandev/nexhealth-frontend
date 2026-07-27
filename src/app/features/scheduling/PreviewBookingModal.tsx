@@ -66,6 +66,15 @@ export function PreviewBookingModal({ types, onClose }: { types: AppointmentType
 
         <div className="overflow-y-auto px-6 pb-6 pt-2 flex-1 space-y-5">
           <div>
+            <h3 className="text-xs font-semibold text-gray-600 mb-2">Who are you booking for?</h3>
+            <div className="rounded-lg border border-border overflow-hidden divide-y divide-border text-sm text-gray-700">
+              <div className="px-4 py-2.5">Myself</div>
+              <div className="px-4 py-2.5">My child or dependent</div>
+              <div className="px-4 py-2.5">Someone else (guarantor collects contact info)</div>
+            </div>
+          </div>
+
+          <div>
             <h3 className="text-xs font-semibold text-gray-600 mb-2">Appointment types</h3>
             {visible.length === 0 ? (
               <p className="py-8 text-center text-sm text-gray-400">
@@ -81,6 +90,16 @@ export function PreviewBookingModal({ types, onClose }: { types: AppointmentType
                 ))}
               </div>
             )}
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold text-gray-600 mb-2">Default patient fields</h3>
+            <div className="rounded-lg border border-border overflow-hidden divide-y divide-border text-sm text-gray-700">
+              <div className="px-4 py-2.5">First and last name, email, phone</div>
+              <div className="px-4 py-2.5">Date of birth (required for returning patients to verify identity)</div>
+              <div className="px-4 py-2.5">Zip code, legal sex (new patients)</div>
+              <div className="px-4 py-2.5">Call/Text consent checkbox</div>
+            </div>
           </div>
 
           {visibleFields.length > 0 && (

@@ -126,6 +126,8 @@ export type ApiLocation = {
   set_availability_by_operatory?: boolean;
   ask_for_insurance?: boolean;
   reserve_with_google?: boolean;
+  google_reserve_status?: string;
+  google_reserve_message?: string;
   form_expiration_amount?: number;
   form_expiration_unit?: string;
   form_sync_mode?: string;
@@ -268,6 +270,7 @@ export type Practice = {
   state: string;
   zip_code: string;
   phone: string;
+  booking_redirect_url?: string;
   subscription_plan: SubscriptionPlan;
   enabled_products: EnabledProducts;
   ehr_system: EhrSystem;

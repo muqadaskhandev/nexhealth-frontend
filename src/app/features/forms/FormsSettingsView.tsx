@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { ArrowLeft, MapPinned } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import { EhrComingSoonBanner, EhrComingSoonBadge, EhrComingSoonSection } from "../../components/shared/EhrComingSoon";
 import { useAuth } from "../../auth/AuthContext";
+import { useEhrFeatures } from "../../hooks/useEhrFeatures";
 import { practiceApi } from "../../lib/api";
 import { toastError, toastSuccess } from "../../lib/toast";
 
@@ -13,6 +15,7 @@ const UNITS = [
 
 export function FormsSettingsView({ onBack }: { onBack: () => void }) {
   const { user, activeLocation, refreshSession } = useAuth();
+  const { enabled: ehrLive, message: ehrMessage } = useEhrFeatures();
   const isAdmin = user?.role === "admin";
 
   const [amount, setAmount] = useState(activeLocation?.form_expiration_amount ?? 7);
@@ -50,6 +53,7 @@ export function FormsSettingsView({ onBack }: { onBack: () => void }) {
   }
 
   async function handleSaveSync() {
+    if (!ehrLive) return;
     if (!isAdmin || !activeLocation || syncSubmitting) return;
     setSyncError(null);
     setSyncSubmitting(true);
@@ -137,10 +141,30 @@ export function FormsSettingsView({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden max-w-2xl mt-5">
-        <div className="px-4 sm:px-5 py-3.5 border-b border-border">
-          <p className="text-sm font-semibold text-gray-900">Sync Preferences</p>
-          <p className="text-xs text-gray-500 mt-0.5">Sync completed forms automatically or manually to your health record system.</p>
+        <div className="px-4 sm:px-5 py-3.5 border-b border-border flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              Sync Preferences
+              <EhrComingSoonBadge />
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">Sync completed forms automatically or manually to your health record system.</p>
+          </div>
         </div>
+
+        {!ehrLive && (
+          <div className="px-4 sm:px-5 pt-4">
+            <EhrComingSoonBanner
+              title="Form sync to EHR coming soon"
+              message={ehrMessage}
+            />
+          </div>
+        )}
+
+        <EhrComingSoonSection
+          locked={!ehrLive}
+          title="Form sync to EHR coming soon"
+          message={ehrMessage}
+        >
 
         <IconButton
           label="Not available in this demo yet"
@@ -186,12 +210,13 @@ export function FormsSettingsView({ onBack }: { onBack: () => void }) {
         <div className="px-4 sm:px-5 pb-5">
           <button
             onClick={handleSaveSync}
-            disabled={!isAdmin || syncSubmitting}
+            disabled={!isAdmin || syncSubmitting || !ehrLive}
             className="px-5 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
           >
             {syncSubmitting ? "Saving…" : "Save"}
           </button>
         </div>
+        </EhrComingSoonSection>
       </div>
     </div>
   );

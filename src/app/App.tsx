@@ -6,7 +6,7 @@ import { ResetPasswordPage } from "./auth/ResetPasswordPage";
 import { Totp2faPage } from "./auth/Totp2faPage";
 import { Sso2faPage } from "./auth/Sso2faPage";
 import { PlatformAdminPage } from "./platform/PlatformAdminPage";
-import { SettingsSection } from "./settings/SettingsSection";
+import { SettingsSection, type SettingsTab } from "./settings/SettingsSection";
 import { TopBar } from "./components/layout/TopBar";
 import { Sidebar } from "./components/layout/Sidebar";
 import { HomeDashboard } from "./features/dashboard/HomeDashboard";
@@ -18,6 +18,8 @@ import { PaymentsSection } from "./features/payments/PaymentsSection";
 import { VerificationSection } from "./features/verification/VerificationSection";
 import { WaitlistSection } from "./features/scheduling/WaitlistSection";
 import { OnlineBookingSection } from "./features/scheduling/OnlineBookingSection";
+import { PublicBookingPage } from "./public/PublicBookingPage";
+import { PublicWaitlistPage } from "./public/PublicWaitlistPage";
 import { PublicFormsPage } from "./public/PublicFormsPage";
 import { PublicPacketPage } from "./public/PublicPacketPage";
 import { useStaffData } from "./hooks/useStaffData";
@@ -27,7 +29,7 @@ import type { AppointmentStatus, Patient } from "./types";
 export default function App() {
   const { status, user, activeLocation } = useAuth();
   const [activeNav, setActiveNav] = useState("home");
-  const [settingsTab, setSettingsTab] = useState<"account" | "logo" | "users" | "synchronizer" | "locations" | undefined>();
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | undefined>();
   const [panelPatient, setPanelPatient] = useState<Patient | null>(null);
 
   const isPracticeUser = status === "authenticated" && user?.account_type === "practice";
@@ -62,7 +64,12 @@ export default function App() {
   const publicFormsMatch = window.location.pathname.match(/\/forms\/([^/]+)\/?$/);
   const publicPacketMatch = window.location.pathname.match(/\/p\/([^/]+)\/?$/);
 
+  const publicApptMatch = window.location.pathname.match(/\/appt\/([^/]+)\/?$/);
+  const publicWaitlistMatch = window.location.pathname.match(/\/waitlist\/([^/]+)\/?$/);
+
   if (publicFormsMatch) return <PublicFormsPage token={publicFormsMatch[1]} />;
+  if (publicWaitlistMatch) return <PublicWaitlistPage token={publicWaitlistMatch[1]} />;
+  if (publicApptMatch) return <PublicBookingPage slug={publicApptMatch[1]} />;
   if (publicPacketMatch) return <PublicPacketPage code={publicPacketMatch[1]} />;
   if (isTotp2fa) return <Totp2faPage />;
   if (isSso2fa) return <Sso2faPage />;
