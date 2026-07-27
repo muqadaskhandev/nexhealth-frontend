@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Plus, Send, X } from "lucide-react";
+import { ArrowLeft, Plus, Search, Send, X } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
-import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import {
   staffApi,
   mapAppointmentType,
@@ -13,6 +12,7 @@ import {
 } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import { WaitlistCandidatePickerModal, WaitlistSendToEmpty } from "./WaitlistCandidatePickerModal";
+import { WaitlistSendConfirmModal } from "./WaitlistSendConfirmModal";
 import type { AppointmentType, AvailabilityBlock, AvailabilitySlot, Operatory, Patient, Provider } from "../../types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -327,39 +327,65 @@ export function NewWaitlistRequestView({
   const canSend = addedSlots.length > 0 && addedPatients.length > 0;
 
   return (
-    <div className="w-full min-w-0 px-4 sm:px-6 py-5 space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3 min-w-0">
+    <div className="w-full min-w-0 px-4 sm:px-6 py-5 space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
           <button
             onClick={onBack}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
           >
             <ArrowLeft size={15} /> Waitlist
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Waitlist request</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">New waitlist request</h1>
+          <p className="text-sm text-gray-500">
+            Add open times, choose patients, then send an SMS with a Book now link.
+          </p>
+          {!canSend && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 inline-block mt-1">
+              {addedSlots.length === 0 && addedPatients.length === 0
+                ? "Add at least one slot and one patient to enable Send."
+                : addedSlots.length === 0
+                  ? "Click Add slot after filling date/time — Send stays disabled until a slot is added."
+                  : "Add at least one patient to enable Send."}
+            </p>
+          )}
         </div>
         <button
           onClick={handleSendClick}
           disabled={!canSend}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors"
         >
           <Send size={15} /> Send
         </button>
       </div>
 
-      {/* Slots */}
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <div className="px-4 sm:px-5 py-3.5 border-b border-border flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-gray-900">Appointment slots</p>
-          <span className="text-xs text-gray-400">{addedSlots.length}/{MAX_SLOTS}</span>
+      {/* Step 1 — Slots */}
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3 bg-gradient-to-r from-white to-teal-50/40">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-7 h-7 rounded-full bg-teal-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+              1
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">Appointment slots</p>
+              <p className="text-xs text-gray-500">Times patients can claim (up to {MAX_SLOTS})</p>
+            </div>
+          </div>
+          <span
+            className={`text-xs font-semibold tabular-nums px-2.5 py-1 rounded-full ${
+              addedSlots.length > 0 ? "bg-teal-100 text-teal-800" : "bg-gray-100 text-gray-500"
+            }`}
+          >
+            {addedSlots.length}/{MAX_SLOTS}
+          </span>
         </div>
 
         {addedSlots.length > 0 && (
-          <div className="px-4 sm:px-5 py-3 flex flex-wrap gap-2 border-b border-border">
+          <div className="px-4 sm:px-6 py-4 flex flex-wrap gap-2 border-b border-gray-100 bg-teal-50/30">
             {addedSlots.map((s) => (
               <span
                 key={s.key}
-                className="inline-flex items-start gap-2 px-3 py-2 rounded-lg bg-teal-50 border border-teal-200 text-xs text-teal-900 max-w-xs"
+                className="inline-flex items-start gap-2 px-3 py-2.5 rounded-xl bg-white border border-teal-200 text-xs text-teal-900 shadow-sm max-w-xs"
               >
                 <span className="min-w-0">
                   {new Date(s.startsAt).toLocaleString(undefined, {
@@ -372,12 +398,17 @@ export function NewWaitlistRequestView({
                   {" — "}
                   {new Date(s.endsAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
                   <br />
-                  <span className="text-teal-700">
+                  <span className="text-teal-700 font-medium">
                     {providerName(s.providerId)}
                     {operatoryName(s.operatoryId) ? ` · ${operatoryName(s.operatoryId)}` : ""}
                   </span>
                 </span>
-                <button onClick={() => removeSlot(s.key)} className="text-teal-500 hover:text-teal-800 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => removeSlot(s.key)}
+                  className="text-teal-400 hover:text-teal-800 flex-shrink-0"
+                  aria-label="Remove slot"
+                >
                   <X size={14} />
                 </button>
               </span>
@@ -385,18 +416,11 @@ export function NewWaitlistRequestView({
           </div>
         )}
 
-        <div className="px-4 sm:px-5 py-3 border-b border-border">
-          <button
-            type="button"
-            onClick={() => document.getElementById("waitlist-add-slot")?.scrollIntoView({ behavior: "smooth" })}
-            className="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700"
-          >
-            <Plus size={14} /> Add slot
-          </button>
-        </div>
-
-        <div id="waitlist-add-slot" className="px-4 sm:px-5 py-4 border-b border-border space-y-3">
-          <p className="text-xs font-semibold text-gray-600">Manually create slot</p>
+        <div id="waitlist-add-slot" className="px-4 sm:px-6 py-5 space-y-4 border-b border-gray-100">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">Create a slot</p>
+            <p className="text-xs text-gray-500 mt-0.5">Fill the fields, then click Add slot to include it.</p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Date</label>
@@ -417,7 +441,9 @@ export function NewWaitlistRequestView({
               <select className={inputCls} value={manualProviderId} onChange={(e) => setManualProviderId(e.target.value)}>
                 <option value="">Select a provider…</option>
                 {providers.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -427,30 +453,40 @@ export function NewWaitlistRequestView({
                 <select className={inputCls} value={manualOperatoryId} onChange={(e) => setManualOperatoryId(e.target.value)}>
                   <option value="">None</option>
                   {operatories.map((o) => (
-                    <option key={o.id} value={o.id}>{o.name}</option>
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
                   ))}
                 </select>
               </div>
             )}
           </div>
           <button
+            type="button"
             onClick={addManualSlot}
-            className="px-4 py-2 bg-white border border-teal-500 text-teal-600 hover:bg-teal-50 text-sm font-semibold rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-xl transition-colors"
           >
-            Add slot
+            <Plus size={15} /> Add slot
           </button>
         </div>
 
-        <div className="px-4 sm:px-5 py-4 border-b border-border space-y-3">
-          <p className="text-xs font-semibold text-gray-600">Or select from open slots</p>
+        <div className="px-4 sm:px-6 py-5 space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">Or pick from open availability</p>
+            <p className="text-xs text-gray-500 mt-0.5">Based on provider schedules you already set up.</p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Provider</label>
               <select className={inputCls} value={pickerProviderId} onChange={(e) => setPickerProviderId(e.target.value)}>
                 <option value="">Select a provider…</option>
-                {providers.filter((p) => p.status === "active").map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
+                {providers
+                  .filter((p) => p.status === "active")
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
               </select>
             </div>
             <div>
@@ -465,15 +501,15 @@ export function NewWaitlistRequestView({
               />
             </div>
           </div>
-          {pickerProviderId && (
-            loading ? (
+          {pickerProviderId &&
+            (loading ? (
               <p className="text-sm text-gray-400 py-4 text-center">Loading availability…</p>
             ) : openWindows.length === 0 ? (
-              <p className="text-sm text-gray-500 bg-gray-50 border border-gray-100 rounded-lg p-3 text-center">
+              <p className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4 text-center">
                 No open availability found for this provider in the next few weeks.
               </p>
             ) : (
-              <div className="max-h-64 overflow-y-auto space-y-3">
+              <div className="max-h-64 overflow-y-auto space-y-4 rounded-xl border border-gray-100 p-3 bg-gray-50/50">
                 {Object.entries(
                   openWindows.reduce<Record<string, OpenWindow[]>>((acc, w) => {
                     (acc[w.dayLabel] ??= []).push(w);
@@ -481,7 +517,7 @@ export function NewWaitlistRequestView({
                   }, {})
                 ).map(([dayLabel, windows]) => (
                   <div key={dayLabel}>
-                    <p className="text-xs font-semibold text-gray-700 mb-1.5">{dayLabel}</p>
+                    <p className="text-xs font-semibold text-gray-600 mb-2">{dayLabel}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {windows.map((w) => {
                         const isAdded = addedSlots.some(
@@ -490,11 +526,12 @@ export function NewWaitlistRequestView({
                         return (
                           <button
                             key={w.key}
+                            type="button"
                             onClick={() => toggleOpenWindow(w)}
-                            className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                               isAdded
                                 ? "bg-teal-500 border-teal-500 text-white"
-                                : "border-gray-200 text-gray-700 hover:border-teal-300"
+                                : "bg-white border-gray-200 text-gray-700 hover:border-teal-300"
                             }`}
                           >
                             {w.timeLabel}
@@ -505,45 +542,61 @@ export function NewWaitlistRequestView({
                   </div>
                 ))}
               </div>
-            )
-          )}
+            ))}
         </div>
 
         {slotError && (
-          <div className="mx-4 sm:mx-5 mb-3 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{slotError}</div>
+          <div className="mx-4 sm:mx-6 mb-5 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+            {slotError}
+          </div>
         )}
-      </div>
+      </section>
 
-      {/* Patients */}
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <div className="px-4 sm:px-5 py-3.5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-gray-900">Send to</p>
+      {/* Step 2 — Patients */}
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-gradient-to-r from-white to-teal-50/40">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-7 h-7 rounded-full bg-teal-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+              2
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">Send to</p>
+              <p className="text-xs text-gray-500">
+                {addedPatients.length > 0
+                  ? `${addedPatients.length} patient${addedPatients.length !== 1 ? "s" : ""} selected`
+                  : "Choose who receives the SMS"}
+              </p>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             {(["asap", "continuing", "missed"] as const).map((g) => (
               <button
                 key={g}
                 type="button"
                 onClick={() => setGroupModal(g)}
-                className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-200 text-gray-600 hover:border-teal-300 hover:text-teal-700"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50 transition-colors"
               >
                 {g === "asap" ? "Your waitlist" : g === "continuing" ? "Continuing care" : "Missed or cancelled"}
               </button>
             ))}
-            <input
-              className="px-3 py-1.5 border border-gray-200 rounded-md text-sm min-w-[140px]"
-              placeholder="Find a patient"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm min-w-[160px] bg-white outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+                placeholder="Find a patient"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
         {addedPatients.length === 0 && !searchQuery.trim() ? (
           <WaitlistSendToEmpty onPickGroup={setGroupModal} />
         ) : (
-          <div className="px-4 sm:px-5 py-4 space-y-3">
+          <div className="px-4 sm:px-6 py-5 space-y-4">
             {searchQuery.trim() && (
-              <div className="rounded-lg border border-border overflow-hidden divide-y divide-border max-h-40 overflow-y-auto">
+              <div className="rounded-xl border border-gray-200 overflow-hidden divide-y divide-gray-100 max-h-40 overflow-y-auto">
                 {searching ? (
                   <p className="px-4 py-3 text-sm text-gray-400">Searching…</p>
                 ) : searchResults.length === 0 ? (
@@ -552,12 +605,13 @@ export function NewWaitlistRequestView({
                   searchResults.map((p) => {
                     const name = `${p.firstName} ${p.lastName}`.trim();
                     return (
-                      <div key={p.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
-                        <span className="text-sm text-gray-700">{name}</span>
+                      <div key={p.id} className="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-gray-50">
+                        <span className="text-sm text-gray-800 font-medium">{name}</span>
                         <button
+                          type="button"
                           onClick={() => addPatient({ id: p.id, name })}
                           disabled={addedPatients.some((added) => added.id === p.id)}
-                          className="text-sm font-medium text-teal-600 hover:text-teal-700 disabled:text-gray-300"
+                          className="text-sm font-semibold text-teal-600 hover:text-teal-700 disabled:text-gray-300"
                         >
                           {addedPatients.some((added) => added.id === p.id) ? "Added" : "+ Add"}
                         </button>
@@ -568,14 +622,19 @@ export function NewWaitlistRequestView({
               </div>
             )}
             {addedPatients.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {addedPatients.map((p) => (
                   <span
                     key={p.id}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200 text-xs font-medium text-teal-800"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-xs font-semibold text-teal-800"
                   >
                     {p.name}
-                    <button onClick={() => removePatient(p.id)} className="text-teal-500 hover:text-teal-800">
+                    <button
+                      type="button"
+                      onClick={() => removePatient(p.id)}
+                      className="text-teal-500 hover:text-teal-900"
+                      aria-label={`Remove ${p.name}`}
+                    >
                       <X size={12} />
                     </button>
                   </span>
@@ -584,13 +643,13 @@ export function NewWaitlistRequestView({
             )}
           </div>
         )}
-      </div>
+      </section>
 
       {sendError && (
-        <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{sendError}</div>
+        <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">{sendError}</div>
       )}
       {addedPatients.length > 100 && (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
           Smart Send will notify patients in batches of 10 every 5 minutes to protect them from spam.
         </p>
       )}
@@ -606,10 +665,9 @@ export function NewWaitlistRequestView({
       )}
 
       {confirming && (
-        <ConfirmModal
-          title={`Send to ${addedPatients.length} patient${addedPatients.length !== 1 ? "s" : ""}?`}
-          message={`Once a patient accepts a waitlist request, an appointment will be created in your health record system. NexHealth uses Smart Send to protect your patients from spam.`}
-          confirmLabel="Send request now"
+        <WaitlistSendConfirmModal
+          patientCount={addedPatients.length}
+          slotCount={addedSlots.length}
           submitting={sending}
           onConfirm={handleConfirmSend}
           onCancel={() => setConfirming(false)}

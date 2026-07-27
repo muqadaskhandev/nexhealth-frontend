@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
+  Calendar,
   Eye,
   EyeOff,
+  FileText,
+  Globe,
+  Image,
   KeyRound,
+  Link2,
+  MapPin,
+  RefreshCw,
+  Shield,
+  User,
+  Users,
 } from "lucide-react";
 import { QRCodeSVG as QRCode } from "qrcode.react";
 import { useAuth } from "../auth/AuthContext";
@@ -50,60 +60,83 @@ function SettingsNav({
   setTab: (t: SettingsTab) => void;
   isAdmin: boolean;
 }) {
-  const accountItems: { id: SettingsTab; label: string; admin?: boolean }[] = [
-    { id: "account", label: "Profile" },
-  ];
-  const generalItems: { id: SettingsTab; label: string; admin?: boolean }[] = [
-    { id: "logo", label: "Logo", admin: true },
-    { id: "users", label: "Users", admin: true },
-    { id: "synchronizer", label: "Synchronizer", admin: true },
-    { id: "locations", label: "Locations" },
-  ];
-  const schedulingItems: { id: SettingsTab; label: string }[] = [
-    { id: "appointment-types", label: "Appointment types" },
-    { id: "online-booking-links", label: "Online booking links" },
-    { id: "online-booking-form", label: "Online booking form" },
-    { id: "booking-insurance", label: "Insurance" },
-    { id: "reserve-with-google", label: "Reserve with Google" },
-  ];
+  type NavItem = { id: SettingsTab; label: string; icon: ReactNode; admin?: boolean };
 
-  function renderGroup(
-    title: string,
-    items: { id: SettingsTab; label: string; admin?: boolean }[]
-  ) {
-    const visible = items.filter((item) => !item.admin || isAdmin);
-    if (visible.length === 0) return null;
-    return (
-      <div className="mb-4">
-        <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-          {title}
-        </p>
-        <div className="space-y-0.5">
-          {visible.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                tab === item.id
-                  ? "bg-teal-400 text-white font-medium"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const sections: { title: string; items: NavItem[] }[] = [
+    {
+      title: "Account settings",
+      items: [{ id: "account", label: "Profile", icon: <User size={16} /> }],
+    },
+    {
+      title: "General",
+      items: [
+        { id: "logo", label: "Logo", icon: <Image size={16} />, admin: true },
+        { id: "users", label: "Users", icon: <Users size={16} />, admin: true },
+        { id: "synchronizer", label: "Synchronizer", icon: <RefreshCw size={16} />, admin: true },
+        { id: "locations", label: "Locations", icon: <MapPin size={16} /> },
+      ],
+    },
+    {
+      title: "Scheduling options",
+      items: [
+        { id: "appointment-types", label: "Appointment types", icon: <Calendar size={16} /> },
+        { id: "online-booking-links", label: "Online booking links", icon: <Link2 size={16} /> },
+        { id: "online-booking-form", label: "Online booking form", icon: <FileText size={16} /> },
+        { id: "booking-insurance", label: "Insurance", icon: <Shield size={16} /> },
+        { id: "reserve-with-google", label: "Reserve with Google", icon: <Globe size={16} /> },
+      ],
+    },
+  ];
 
   return (
-    <nav className="w-56 flex-shrink-0 border-r border-border bg-white py-4 px-2 overflow-y-auto">
-      {renderGroup("Account settings", accountItems)}
-      {renderGroup("General", generalItems)}
-      {renderGroup("Scheduling options", schedulingItems)}
-    </nav>
+    <aside className="w-60 flex-shrink-0 h-full flex flex-col border-r border-gray-200/80 bg-gradient-to-b from-gray-50 to-white">
+      <div className="px-4 py-4 border-b border-gray-200/60">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Settings</p>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        {sections.map((section) => {
+          const visible = section.items.filter((item) => !item.admin || isAdmin);
+          if (visible.length === 0) return null;
+
+          return (
+            <div key={section.title}>
+              <p className="px-2.5 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                {section.title}
+              </p>
+              <div className="space-y-1">
+                {visible.map((item) => {
+                  const active = tab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setTab(item.id)}
+                      className={`group w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm transition-all ${
+                        active
+                          ? "bg-teal-500 text-white shadow-sm shadow-teal-500/20"
+                          : "text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          active
+                            ? "bg-white/20 text-white"
+                            : "bg-white text-gray-400 group-hover:text-teal-600 border border-gray-200/80"
+                        }`}
+                      >
+                        {item.icon}
+                      </span>
+                      <span className="truncate font-medium text-left">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </nav>
+    </aside>
   );
 }
 
@@ -978,7 +1011,7 @@ export function SettingsSection({
       </div>
       <div className="flex flex-1 min-h-0">
         <SettingsNav tab={tab} setTab={setTab} isAdmin={!!isAdmin} />
-        <div className="flex-1 overflow-y-auto p-6 bg-background">
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/40">
           {tab === "account" && <AccountSettings onPasswordChanged={() => logout()} />}
           {tab === "logo" && isAdmin && <LogoSettingsPanel />}
           {tab === "users" && isAdmin && <UsersSettings />}

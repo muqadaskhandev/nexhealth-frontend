@@ -119,7 +119,7 @@ export function FormsListView({
     staffApi.forms.requests
       .sync(batch.requestIds)
       .then(() => {
-        toastSuccess("Sync attempted");
+        toastSuccess("Sync finished — refresh the list. Failed if patient isn’t linked to EHR.");
         refreshBatches();
       })
       .catch((err: unknown) => {

@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
-import { X, Search, Info, Calendar, ChevronLeft, ChevronRight, Edit, FileText } from "lucide-react";
+import {
+  X,
+  Search,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Send,
+  UserRound,
+  MessageSquareText,
+  Package,
+} from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
 import { IconButton } from "../../components/shared/IconButton";
 import { staffApi, mapFormTemplate } from "../../lib/staff-api";
@@ -16,32 +27,63 @@ function MiniCalendar({ value, onChange }: { value: Date; onChange: (d: Date) =>
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  function prevMonth() { setViewDate(new Date(year, month - 1, 1)); }
-  function nextMonth() { setViewDate(new Date(year, month + 1, 1)); }
+  function prevMonth() {
+    setViewDate(new Date(year, month - 1, 1));
+  }
+  function nextMonth() {
+    setViewDate(new Date(year, month + 1, 1));
+  }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-72 z-50">
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 w-72 z-50">
       <div className="flex items-center justify-between mb-3">
-        <IconButton label="Previous month" onClick={prevMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronLeft size={16} /></IconButton>
-        <span className="text-sm font-bold text-gray-900">{monthName} {year}</span>
-        <IconButton label="Next month" onClick={nextMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronRight size={16} /></IconButton>
+        <IconButton
+          label="Previous month"
+          onClick={prevMonth}
+          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+        >
+          <ChevronLeft size={16} />
+        </IconButton>
+        <span className="text-sm font-semibold text-gray-900">
+          {monthName} {year}
+        </span>
+        <IconButton
+          label="Next month"
+          onClick={nextMonth}
+          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+        >
+          <ChevronRight size={16} />
+        </IconButton>
       </div>
       <div className="grid grid-cols-7 gap-0 mb-1">
-        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
-          <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">{d}</div>
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+          <div key={d} className="text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400 py-1">
+            {d}
+          </div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-0">
-        {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+        {Array.from({ length: firstDay }).map((_, i) => (
+          <div key={`e${i}`} />
+        ))}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
-          const isSelected = value.getDate() === day && value.getMonth() === month && value.getFullYear() === year;
+          const isSelected =
+            value.getDate() === day && value.getMonth() === month && value.getFullYear() === year;
+          const today = new Date();
+          const isToday =
+            today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
           return (
             <button
               key={day}
+              type="button"
               onClick={() => onChange(new Date(year, month, day))}
               className={`w-9 h-9 flex items-center justify-center text-sm rounded-full mx-auto transition-colors ${
-                isSelected ? "bg-gray-900 text-white font-bold" : "text-gray-700 hover:bg-gray-100"
+                isSelected
+                  ? "bg-teal-500 text-white font-semibold shadow-sm"
+                  : isToday
+                    ? "text-teal-700 font-semibold bg-teal-50"
+                    : "text-gray-700 hover:bg-gray-100"
               }`}
             >
               {day}
@@ -52,6 +94,11 @@ function MiniCalendar({ value, onChange }: { value: Date; onChange: (d: Date) =>
     </div>
   );
 }
+
+const fieldShell =
+  "flex items-center gap-2.5 px-3.5 py-3 border rounded-xl bg-white transition-shadow";
+const fieldFocus = "border-teal-400 ring-2 ring-teal-100";
+const fieldIdle = "border-gray-200 hover:border-gray-300";
 
 export function RequestFormsModal({
   onClose,
@@ -91,7 +138,7 @@ export function RequestFormsModal({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const patientMatches = patients.filter(p => {
+  const patientMatches = patients.filter((p) => {
     if (p.archived || patientSearch.length === 0) return false;
     const q = patientSearch.toLowerCase();
     const name = `${p.firstName} ${p.lastName}`.toLowerCase();
@@ -104,27 +151,35 @@ export function RequestFormsModal({
   });
 
   const sortedTemplates = [...templates].sort((a, b) => a.name.localeCompare(b.name));
-  const formMatches = sortedTemplates.filter(t =>
-    formSearch.length > 0 && t.name.toLowerCase().includes(formSearch.toLowerCase()) && !selectedForms.some(f => f.id === t.id)
+  const formMatches = sortedTemplates.filter(
+    (t) =>
+      formSearch.length > 0 &&
+      t.name.toLowerCase().includes(formSearch.toLowerCase()) &&
+      !selectedForms.some((f) => f.id === t.id)
   );
 
-  const fmtExpiry = expiryDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const fmtExpiry = expiryDate.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   function addForm(t: FormTemplate) {
-    setSelectedForms(prev => (prev.some(f => f.id === t.id) ? prev : [...prev, t]));
+    setSelectedForms((prev) => (prev.some((f) => f.id === t.id) ? prev : [...prev, t]));
     setFormSearch("");
     setShowFormDrop(false);
   }
 
   function removeForm(id: string) {
-    setSelectedForms(prev => prev.filter(f => f.id !== id));
+    setSelectedForms((prev) => prev.filter((f) => f.id !== id));
   }
 
   function addPacket(pkt: FormPacket) {
     const forms = pkt.formTemplateIds
-      .map(id => templates.find(t => t.id === id))
+      .map((id) => templates.find((t) => t.id === id))
       .filter((t): t is FormTemplate => Boolean(t));
-    setSelectedForms(prev => [...prev, ...forms.filter(t => !prev.some(f => f.id === t.id))]);
+    setSelectedForms((prev) => [...prev, ...forms.filter((t) => !prev.some((f) => f.id === t.id))]);
   }
 
   async function handleSend() {
@@ -149,12 +204,14 @@ export function RequestFormsModal({
     try {
       await staffApi.forms.send({
         patientId: selectedPatient.id,
-        formTemplateIds: selectedForms.map(f => f.id),
+        formTemplateIds: selectedForms.map((f) => f.id),
         expiresAt: expiresAtDate.toISOString(),
         message: customizeMsg && smsMsg.trim() ? smsMsg.trim() : undefined,
         emailNote: customizeMsg && emailMsg.trim() ? emailMsg.trim() : undefined,
       });
-      toastSuccess(`Sent ${selectedForms.length} form${selectedForms.length !== 1 ? "s" : ""} to ${selectedPatient.firstName} ${selectedPatient.lastName}`);
+      toastSuccess(
+        `Sent ${selectedForms.length} form${selectedForms.length !== 1 ? "s" : ""} to ${selectedPatient.firstName} ${selectedPatient.lastName}`
+      );
       onSent();
       onClose();
     } catch (err: unknown) {
@@ -167,205 +224,372 @@ export function RequestFormsModal({
     }
   }
 
+  const canSend = Boolean(selectedPatient) && selectedForms.length > 0 && !submitting;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white w-full max-w-md mx-4 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full max-w-xl rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col max-h-[92vh]"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-labelledby="send-forms-title"
+      >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-6 pb-3 flex-shrink-0">
-          <div>
-            <h2 className="text-base font-bold text-gray-900">Send forms</h2>
-            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-              Patients will receive an email and text message with a link to fill out these forms.
+        <div className="flex items-start gap-3 px-6 pt-6 pb-5 border-b border-gray-100 bg-gradient-to-r from-white to-teal-50/50 flex-shrink-0">
+          <div className="w-11 h-11 rounded-xl bg-teal-500 text-white flex items-center justify-center shadow-sm shadow-teal-500/25 flex-shrink-0">
+            <Send size={18} />
+          </div>
+          <div className="min-w-0 flex-1 pt-0.5">
+            <h2 id="send-forms-title" className="text-lg font-bold text-gray-900 tracking-tight">
+              Send forms
+            </h2>
+            <p className="text-sm text-gray-500 mt-0.5 leading-snug">
+              Patient gets a link by SMS (and email note if you add one) to complete forms before their visit.
             </p>
           </div>
-          <IconButton label="Close" onClick={onClose} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0"><X size={18} /></IconButton>
+          <IconButton
+            label="Close"
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg text-gray-400 hover:bg-white hover:text-gray-600 flex-shrink-0"
+          >
+            <X size={18} />
+          </IconButton>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-6 pb-2 space-y-5">
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
           {error && (
-            <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{error}</div>
+            <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+              {error}
+            </div>
           )}
 
-          {/* Send to */}
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-1.5">Send to</label>
-            <div className="relative">
-              <div className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl transition-colors ${showPatientDrop ? "border-teal-400 ring-2 ring-teal-100" : "border-gray-200"}`}>
-                <Search size={14} className="text-gray-400 flex-shrink-0" />
-                <input
-                  value={selectedPatient ? `${selectedPatient.firstName} ${selectedPatient.lastName}` : patientSearch}
-                  onChange={e => { setPatientSearch(e.target.value); setSelectedPatient(null); setShowPatientDrop(true); }}
-                  onFocus={() => setShowPatientDrop(true)}
-                  placeholder="Search by name, date of birth, email, or phone"
-                  className="flex-1 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent"
-                />
-                {selectedPatient && <IconButton label="Clear" onClick={() => { setSelectedPatient(null); setPatientSearch(""); }} className="text-gray-400 hover:text-gray-600"><X size={13} /></IconButton>}
-              </div>
-              {showPatientDrop && patientMatches.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
-                  {patientMatches.map(p => (
-                    <button key={p.id} onClick={() => { setSelectedPatient(p); setPatientSearch(""); setShowPatientDrop(false); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
-                      <div className="w-7 h-7 rounded-lg bg-gray-500 text-white text-xs font-semibold flex items-center justify-center flex-shrink-0">{p.initials}</div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{p.firstName} {p.lastName}</p>
-                        <p className="text-xs text-gray-400">{p.dob}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* Patient */}
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-[11px] font-bold flex items-center justify-center">
+                1
+              </span>
+              <label className="text-sm font-semibold text-gray-900">Patient</label>
             </div>
-            <p className="text-xs text-gray-400 mt-1">Find an existing patient by name, date of birth, email, or phone</p>
-          </div>
+
+            {selectedPatient ? (
+              <div className="flex items-center gap-3 px-3.5 py-3 rounded-xl border border-teal-200 bg-teal-50/60">
+                <div className="w-10 h-10 rounded-xl bg-teal-500 text-white text-sm font-semibold flex items-center justify-center flex-shrink-0">
+                  {selectedPatient.initials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {selectedPatient.firstName} {selectedPatient.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {[selectedPatient.dob, selectedPatient.phone, selectedPatient.email]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPatient(null);
+                    setPatientSearch("");
+                  }}
+                  className="text-xs font-semibold text-teal-700 hover:text-teal-900 px-2 py-1 rounded-lg hover:bg-teal-100/80"
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className={`${fieldShell} ${showPatientDrop ? fieldFocus : fieldIdle}`}>
+                  <UserRound size={16} className="text-gray-400 flex-shrink-0" />
+                  <input
+                    value={patientSearch}
+                    onChange={(e) => {
+                      setPatientSearch(e.target.value);
+                      setShowPatientDrop(true);
+                    }}
+                    onFocus={() => setShowPatientDrop(true)}
+                    placeholder="Search name, DOB, email, or phone"
+                    className="flex-1 outline-none text-sm text-gray-800 placeholder:text-gray-400 bg-transparent"
+                  />
+                  <Search size={15} className="text-gray-300 flex-shrink-0" />
+                </div>
+                {showPatientDrop && patientSearch.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-52 overflow-y-auto">
+                    {patientMatches.length === 0 ? (
+                      <p className="px-4 py-3 text-sm text-gray-400">No patients found</p>
+                    ) : (
+                      patientMatches.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPatient(p);
+                            setPatientSearch("");
+                            setShowPatientDrop(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-teal-50/60 transition-colors text-left"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-gray-800 text-white text-xs font-semibold flex items-center justify-center flex-shrink-0">
+                            {p.initials}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {p.firstName} {p.lastName}
+                            </p>
+                            <p className="text-xs text-gray-400 truncate">
+                              {[p.dob, p.phone].filter(Boolean).join(" · ")}
+                            </p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
 
           {/* Forms */}
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-1.5">Forms</label>
+          <section className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-[11px] font-bold flex items-center justify-center">
+                  2
+                </span>
+                <label className="text-sm font-semibold text-gray-900">Forms</label>
+              </div>
+              {selectedForms.length > 0 && (
+                <span className="text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full">
+                  {selectedForms.length} selected
+                </span>
+              )}
+            </div>
+
             <div className="relative">
-              <div className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl transition-colors ${showFormDrop ? "border-teal-400 ring-2 ring-teal-100" : "border-gray-200"}`}>
-                <Search size={14} className="text-gray-400 flex-shrink-0" />
+              <div className={`${fieldShell} ${showFormDrop ? fieldFocus : fieldIdle}`}>
+                <FileText size={16} className="text-gray-400 flex-shrink-0" />
                 <input
                   value={formSearch}
-                  onChange={e => { setFormSearch(e.target.value); setShowFormDrop(true); }}
+                  onChange={(e) => {
+                    setFormSearch(e.target.value);
+                    setShowFormDrop(true);
+                  }}
                   onFocus={() => setShowFormDrop(true)}
-                  placeholder="Choose forms"
-                  className="flex-1 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent"
+                  placeholder="Search forms to add…"
+                  className="flex-1 outline-none text-sm text-gray-800 placeholder:text-gray-400 bg-transparent"
                 />
+                <Search size={15} className="text-gray-300 flex-shrink-0" />
               </div>
-              {showFormDrop && formMatches.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
-                  {formMatches.map(t => (
-                    <button key={t.id} onClick={() => addForm(t)} className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
-                      <FileText size={14} className="text-gray-400 flex-shrink-0" />
-                      <span className="text-sm text-gray-800">{t.name}</span>
-                    </button>
-                  ))}
+              {showFormDrop && formSearch.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
+                  {formMatches.length === 0 ? (
+                    <p className="px-4 py-3 text-sm text-gray-400">No matching forms</p>
+                  ) : (
+                    formMatches.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => addForm(t)}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-teal-50/60 transition-colors text-left"
+                      >
+                        <FileText size={14} className="text-teal-500 flex-shrink-0" />
+                        <span className="text-sm text-gray-800">{t.name}</span>
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Selected forms */}
             {selectedForms.length > 0 && (
-              <div className="mt-2 space-y-1.5">
-                {selectedForms.map(t => (
-                  <div key={t.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText size={13} className="text-gray-400 flex-shrink-0" />
-                      <span className="text-sm text-gray-700 truncate">{t.name}</span>
+              <div className="rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                {selectedForms.map((t) => (
+                  <div key={t.id} className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white">
+                    <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
+                      <FileText size={14} className="text-gray-500" />
                     </div>
-                    <IconButton label="Remove" onClick={() => removeForm(t.id)} className="text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0"><X size={13} /></IconButton>
+                    <span className="text-sm font-medium text-gray-800 truncate flex-1">{t.name}</span>
+                    <IconButton
+                      label="Remove"
+                      onClick={() => removeForm(t.id)}
+                      className="w-7 h-7 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 flex-shrink-0"
+                    >
+                      <X size={14} />
+                    </IconButton>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Quick-add pills — most commonly sent forms */}
-            {frequentForms.length > 0 && (
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {frequentForms.filter(t => !selectedForms.some(f => f.id === t.id)).map(t => (
-                  <button key={t.id} onClick={() => addForm(t)}
-                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-200 rounded-full text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
-                    <span className="text-teal-500">+</span> {t.name}
-                  </button>
-                ))}
+            {frequentForms.filter((t) => !selectedForms.some((f) => f.id === t.id)).length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
+                  Frequently sent
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {frequentForms
+                    .filter((t) => !selectedForms.some((f) => f.id === t.id))
+                    .map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => addForm(t)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 transition-colors"
+                      >
+                        <span className="text-teal-500 font-bold">+</span>
+                        {t.name}
+                      </button>
+                    ))}
+                </div>
               </div>
             )}
 
-            {/* Packets — add every form in a packet at once */}
             {packets.length > 0 && (
-              <div className="mt-2">
-                <p className="text-xs font-semibold text-gray-500 mb-1.5">Packets</p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {packets.map(pkt => (
-                    <button key={pkt.id} onClick={() => addPacket(pkt)}
-                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-teal-200 bg-teal-50 rounded-full text-teal-700 hover:bg-teal-100 transition-colors">
-                      <span>+</span> {pkt.name}
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5 flex items-center gap-1">
+                  <Package size={11} /> Packets
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {packets.map((pkt) => (
+                    <button
+                      key={pkt.id}
+                      type="button"
+                      onClick={() => addPacket(pkt)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 transition-colors"
+                    >
+                      <span>+</span>
+                      {pkt.name}
+                      <span className="font-normal text-teal-600/80">
+                        ({pkt.formTemplateIds.length})
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Expiration date */}
-          <div>
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <label className="text-sm font-bold text-gray-900">Expiration date</label>
-              <Info size={13} className="text-gray-400" />
+          {/* Expiration */}
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-[11px] font-bold flex items-center justify-center">
+                3
+              </span>
+              <label className="text-sm font-semibold text-gray-900">Expires</label>
             </div>
             <div className="relative">
-              <div className="flex items-center justify-between px-3 py-2.5 border border-gray-200 rounded-xl">
-                <div className="flex items-center gap-2 text-sm text-gray-800">
-                  <Calendar size={14} className="text-gray-400" />
+              <button
+                type="button"
+                onClick={() => setShowCalendar((v) => !v)}
+                className={`w-full ${fieldShell} ${showCalendar ? fieldFocus : fieldIdle} justify-between text-left`}
+              >
+                <span className="flex items-center gap-2.5 text-sm text-gray-800">
+                  <Calendar size={16} className="text-teal-500" />
                   {fmtExpiry}
-                </div>
-                <IconButton label="Edit" onClick={() => setShowCalendar(v => !v)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                  <Edit size={14} />
-                </IconButton>
-              </div>
-              <p className="text-xs text-gray-400 mt-1">Defaults to 7 days from today.</p>
+                </span>
+                <span className="text-xs font-semibold text-teal-600">Change</span>
+              </button>
+              <p className="text-xs text-gray-400 mt-1.5">Defaults to 7 days from today.</p>
               {showCalendar && (
                 <div className="absolute top-full left-0 mt-2 z-50">
-                  <MiniCalendar value={expiryDate} onChange={d => { setExpiryDate(d); setShowCalendar(false); }} />
+                  <MiniCalendar
+                    value={expiryDate}
+                    onChange={(d) => {
+                      setExpiryDate(d);
+                      setShowCalendar(false);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpiryDate(defaultExpiry);
+                      setShowCalendar(false);
+                    }}
+                    className="mt-2 text-xs font-semibold text-teal-600 hover:text-teal-700"
+                  >
+                    Reset to 7 days
+                  </button>
                 </div>
               )}
-              {showCalendar && (
-                <button onClick={() => { setExpiryDate(defaultExpiry); setShowCalendar(false); }} className="text-xs text-teal-600 hover:text-teal-700 mt-1 transition-colors">Reset</button>
-              )}
             </div>
-          </div>
+          </section>
 
           {/* Customize message */}
-          <div className={`rounded-xl border transition-colors ${customizeMsg ? "border-gray-200 bg-gray-50 p-4" : "p-0"}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-gray-900">Customize message</span>
+          <section
+            className={`rounded-2xl border transition-colors ${
+              customizeMsg ? "border-teal-200 bg-teal-50/40 p-4" : "border-gray-200 bg-gray-50/50 p-4"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    customizeMsg ? "bg-teal-500 text-white" : "bg-white border border-gray-200 text-gray-500"
+                  }`}
+                >
+                  <MessageSquareText size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">Customize message</p>
+                  <p className="text-xs text-gray-500">Optional SMS / email note with the form link</p>
+                </div>
+              </div>
               <Toggle on={customizeMsg} onChange={setCustomizeMsg} />
             </div>
 
             {customizeMsg && (
-              <div className="mt-4 space-y-4">
-                {/* SMS */}
+              <div className="mt-4 space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-bold text-gray-800">SMS message</label>
-                    <span className="text-xs font-medium text-teal-600">{smsMsg.length} characters</span>
+                    <label className="text-xs font-semibold text-gray-600">SMS message</label>
+                    <span className="text-[11px] font-medium text-teal-600">{smsMsg.length} chars</span>
                   </div>
                   <textarea
                     value={smsMsg}
-                    onChange={e => setSmsMsg(e.target.value)}
+                    onChange={(e) => setSmsMsg(e.target.value)}
                     rows={2}
-                    placeholder={`Good morning, ${selectedPatient?.firstName || "Patient"}! Please fill out these forms.`}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 outline-none focus:border-teal-400 resize-none bg-white placeholder:text-gray-400"
+                    placeholder={`Hi ${selectedPatient?.firstName || "there"}! Please fill out these forms before your visit.`}
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 resize-none bg-white placeholder:text-gray-400"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Customize the text sent out. Leave blank for the default message.</p>
                 </div>
-                {/* Email */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-800 mb-1.5">Email</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Email note</label>
                   <input
                     value={emailMsg}
-                    onChange={e => setEmailMsg(e.target.value)}
-                    placeholder={selectedPatient?.email || "Additional note for the email"}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 outline-none focus:border-teal-400 bg-white placeholder:text-gray-400"
+                    onChange={(e) => setEmailMsg(e.target.value)}
+                    placeholder="Optional extra note for email"
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 bg-white placeholder:text-gray-400"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Add additional notes to emails when patients follow the link.</p>
                 </div>
               </div>
             )}
-          </div>
+          </section>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-4 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/70 flex-shrink-0">
           <button
-            disabled={submitting}
+            type="button"
+            disabled={!canSend}
             onClick={handleSend}
-            className="px-6 py-2.5 text-sm font-bold rounded-xl transition-colors bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-colors bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white shadow-sm shadow-teal-500/20 disabled:shadow-none"
           >
-            {submitting ? "Sending…" : "Send"}
+            <Send size={15} />
+            {submitting
+              ? "Sending…"
+              : `Send${selectedForms.length > 0 ? ` ${selectedForms.length} form${selectedForms.length !== 1 ? "s" : ""}` : ""}`}
           </button>
-          <button onClick={onClose} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Cancel</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm font-medium text-teal-600 hover:text-teal-700 px-2"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>

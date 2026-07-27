@@ -12,7 +12,8 @@ import {
   type PublicBookingTimeSlot,
   type PublicBookingType,
 } from "../lib/public-booking-api";
-import { PublicBookingFormFieldInput, validateFormField } from "./PublicBookingFormFieldInput";
+import { PublicBookingDetailsForm } from "./PublicBookingDetailsForm";
+import { validateFormField } from "./PublicBookingFormFieldInput";
 
 type Step = "loading" | "invalid" | "location" | "kind" | "bookingFor" | "type" | "time" | "details" | "done";
 type PatientKind = "new" | "existing";
@@ -95,9 +96,6 @@ export function PublicBookingPage({ slug }: { slug: string }) {
   const separateByType = info && locationId ? locationUsesPatientTypeSplit(info, locationId) : info?.separate_by_patient_type ?? false;
   const selectedType = types.find((t) => t.id === typeId) ?? null;
   const askForInsurance = location?.ask_for_insurance ?? false;
-  const filteredInsurances = insurances.filter((i) =>
-    !insuranceSearch.trim() || i.name.toLowerCase().includes(insuranceSearch.trim().toLowerCase())
-  );
 
   useEffect(() => {
     publicBookingApi
@@ -502,9 +500,9 @@ export function PublicBookingPage({ slug }: { slug: string }) {
         )}
 
         {step === "details" && selectedSlot && selectedType && (
-          <section className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+          <section className="space-y-4">
             {patientNotFound ? (
-              <div className="text-center space-y-4 py-4">
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 text-center space-y-4 py-8">
                 <h2 className="text-lg font-bold text-gray-900">Oops! We couldn&apos;t find your patient record</h2>
                 <p className="text-sm text-gray-600 max-w-md mx-auto">
                   We couldn&apos;t match the information you entered to an existing patient at this practice.
@@ -514,156 +512,73 @@ export function PublicBookingPage({ slug }: { slug: string }) {
                   <button
                     type="button"
                     onClick={() => setPatientNotFound(false)}
-                    className="w-full sm:w-auto px-5 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors"
+                    className="w-full sm:w-auto px-5 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-xl transition-colors"
                   >
                     Update your information
                   </button>
                   <button
                     type="button"
                     onClick={bookAsNewPatient}
-                    className="w-full sm:w-auto px-5 py-2.5 border border-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                    className="w-full sm:w-auto px-5 py-2.5 border border-gray-200 text-gray-800 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors"
                   >
                     Book as new patient
                   </button>
                 </div>
               </div>
             ) : (
-              <>
-            <div className="rounded-lg bg-teal-50 border border-teal-100 px-4 py-3 text-sm text-teal-900">
-              <p className="font-semibold">{selectedType.name}</p>
-              <p className="text-teal-800 mt-0.5">
-                {formatDay(selectedSlot.starts_at.slice(0, 10))} at {selectedSlot.label} with {selectedSlot.provider_name}
-              </p>
-            </div>
-
-            {error && (
-              <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{error}</div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  {bookingFor === "self" ? "First name *" : "Patient first name *"}
-                </label>
-                <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  {bookingFor === "self" ? "Last name *" : "Patient last name *"}
-                </label>
-                <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Email{patientKind === "new" ? " *" : ""}</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Phone{patientKind === "new" ? " *" : ""}</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-              {patientKind === "existing" && (
-                <p className="text-xs text-gray-400 mt-1">Provide email or phone — at least one must match our records.</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Date of birth{(patientKind === "new" || patientKind === "existing") ? " *" : ""}</label>
-              <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Zip code{patientKind === "new" ? " *" : ""}</label>
-              <input value={zipCode} onChange={(e) => setZipCode(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Legal sex{patientKind === "new" ? " *" : ""}</label>
-              <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                <option value="">Select…</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            {bookingFor !== "self" && (
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-3">
-                <p className="text-sm font-semibold text-gray-900">Guarantor information</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">First name *</label>
-                    <input value={guarantorFirstName} onChange={(e) => setGuarantorFirstName(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
+              <PublicBookingDetailsForm
+                patientKind={patientKind}
+                bookingFor={bookingFor}
+                values={{
+                  firstName,
+                  lastName,
+                  email,
+                  phone,
+                  dob,
+                  zipCode,
+                  gender,
+                  guarantorFirstName,
+                  guarantorLastName,
+                  guarantorEmail,
+                  guarantorPhone,
+                  callTextConsent,
+                  insuranceId,
+                  insuranceSearch,
+                  formAnswers,
+                }}
+                onChange={(patch) => {
+                  if (patch.firstName !== undefined) setFirstName(patch.firstName);
+                  if (patch.lastName !== undefined) setLastName(patch.lastName);
+                  if (patch.email !== undefined) setEmail(patch.email);
+                  if (patch.phone !== undefined) setPhone(patch.phone);
+                  if (patch.dob !== undefined) setDob(patch.dob);
+                  if (patch.zipCode !== undefined) setZipCode(patch.zipCode);
+                  if (patch.gender !== undefined) setGender(patch.gender);
+                  if (patch.guarantorFirstName !== undefined) setGuarantorFirstName(patch.guarantorFirstName);
+                  if (patch.guarantorLastName !== undefined) setGuarantorLastName(patch.guarantorLastName);
+                  if (patch.guarantorEmail !== undefined) setGuarantorEmail(patch.guarantorEmail);
+                  if (patch.guarantorPhone !== undefined) setGuarantorPhone(patch.guarantorPhone);
+                  if (patch.callTextConsent !== undefined) setCallTextConsent(patch.callTextConsent);
+                  if (patch.insuranceId !== undefined) setInsuranceId(patch.insuranceId);
+                  if (patch.insuranceSearch !== undefined) setInsuranceSearch(patch.insuranceSearch);
+                  if (patch.formAnswers !== undefined) setFormAnswers(patch.formAnswers);
+                }}
+                formFields={formFields}
+                askForInsurance={askForInsurance}
+                insurances={insurances}
+                error={error}
+                submitting={submitting}
+                onSubmit={handleBook}
+                appointmentSummary={
+                  <div className="rounded-xl bg-teal-50 border border-teal-100 px-4 py-3.5 text-sm text-teal-900 shadow-sm">
+                    <p className="font-semibold">{selectedType.name}</p>
+                    <p className="text-teal-800 mt-0.5">
+                      {formatDay(selectedSlot.starts_at.slice(0, 10))} at {selectedSlot.label} with{" "}
+                      {selectedSlot.provider_name}
+                    </p>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Last name *</label>
-                    <input value={guarantorLastName} onChange={(e) => setGuarantorLastName(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Email</label>
-                  <input type="email" value={guarantorEmail} onChange={(e) => setGuarantorEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
-                  <input type="tel" value={guarantorPhone} onChange={(e) => setGuarantorPhone(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white" />
-                </div>
-              </div>
-            )}
-
-            {askForInsurance && insurances.length > 0 && (
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Insurance *</label>
-                <input
-                  value={insuranceSearch}
-                  onChange={(e) => setInsuranceSearch(e.target.value)}
-                  placeholder="Search insurers…"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-2"
-                />
-                <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
-                  {filteredInsurances.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-gray-400">No matching insurers.</p>
-                  ) : (
-                    filteredInsurances.map((ins) => (
-                      <button
-                        key={ins.id}
-                        type="button"
-                        onClick={() => setInsuranceId(ins.id)}
-                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                          insuranceId === ins.id ? "bg-teal-50 text-teal-800 font-medium" : "text-gray-800 hover:bg-gray-50"
-                        }`}
-                      >
-                        {ins.name}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-
-            {formFields.map((f) => (
-              <PublicBookingFormFieldInput
-                key={f.id}
-                field={f}
-                value={formAnswers[f.id]}
-                onChange={(value) => setFormAnswers((prev) => ({ ...prev, [f.id]: value }))}
+                }
               />
-            ))}
-
-            <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={callTextConsent}
-                onChange={(e) => setCallTextConsent(e.target.checked)}
-                className="mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-              />
-              By leaving checked, I agree with the Call/Text Consent and resubscribe to communications from this practice.
-            </label>
-
-            <button
-              onClick={handleBook}
-              disabled={submitting}
-              className="w-full py-3 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
-            >
-              {submitting ? "Booking…" : "Book appointment"}
-            </button>
-              </>
             )}
           </section>
         )}

@@ -8,6 +8,7 @@ import type { BookingFieldType, BookingFormField, PatientTypeRule } from "../../
 
 const FIELD_TYPE_OPTIONS: { value: BookingFieldType; label: string }[] = [
   { value: "text", label: "Text" },
+  { value: "number", label: "Number" },
   { value: "note", label: "Note" },
   { value: "single_select", label: "Single select" },
   { value: "multi_select", label: "Multi select" },

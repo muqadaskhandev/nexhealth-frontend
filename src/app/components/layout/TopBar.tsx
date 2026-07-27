@@ -12,10 +12,12 @@ export function TopBar({
   onOpenSettings,
   onOpenUsers,
   onSelectPatient,
+  onGoHome,
 }: {
   onOpenSettings: () => void;
   onOpenUsers?: () => void;
   onSelectPatient: (patient: Patient) => void;
+  onGoHome?: () => void;
 }) {
   const { user, activeLocation } = useAuth();
   const practice = usePractice(user?.account_type === "practice");
@@ -32,7 +34,7 @@ export function TopBar({
       >
         <Menu size={18} />
       </button>
-      <TopBarLogo logoUrl={logoUrl} alt={practice?.name || "VaraSync"} />
+      <TopBarLogo logoUrl={logoUrl} alt={practice?.name || "VaraSync"} onClick={onGoHome} />
       <GlobalSearch onSelectPatient={onSelectPatient} />
       <div className="flex-1 hidden lg:block" />
       <LocationPicker />

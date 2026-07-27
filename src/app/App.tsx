@@ -19,6 +19,7 @@ import { VerificationSection } from "./features/verification/VerificationSection
 import { WaitlistSection } from "./features/scheduling/WaitlistSection";
 import { OnlineBookingSection } from "./features/scheduling/OnlineBookingSection";
 import { PublicBookingPage } from "./public/PublicBookingPage";
+import { PublicBookingThankYouPage } from "./public/PublicBookingThankYouPage";
 import { PublicWaitlistPage } from "./public/PublicWaitlistPage";
 import { PublicFormsPage } from "./public/PublicFormsPage";
 import { PublicPacketPage } from "./public/PublicPacketPage";
@@ -39,6 +40,11 @@ export default function App() {
   useEffect(() => {
     setPanelPatient(null);
   }, [activeLocation?.id]);
+
+  function goHome() {
+    setSettingsTab(undefined);
+    setActiveNav("home");
+  }
 
   function openSettings(tab?: typeof settingsTab) {
     setSettingsTab(tab);
@@ -66,9 +72,13 @@ export default function App() {
 
   const publicApptMatch = window.location.pathname.match(/\/appt\/([^/]+)\/?$/);
   const publicWaitlistMatch = window.location.pathname.match(/\/waitlist\/([^/]+)\/?$/);
+  const isBookingThankYou =
+    window.location.pathname === "/booking/thank-you" ||
+    window.location.pathname.endsWith("/booking/thank-you");
 
   if (publicFormsMatch) return <PublicFormsPage token={publicFormsMatch[1]} />;
   if (publicWaitlistMatch) return <PublicWaitlistPage token={publicWaitlistMatch[1]} />;
+  if (isBookingThankYou) return <PublicBookingThankYouPage />;
   if (publicApptMatch) return <PublicBookingPage slug={publicApptMatch[1]} />;
   if (publicPacketMatch) return <PublicPacketPage code={publicPacketMatch[1]} />;
   if (isTotp2fa) return <Totp2faPage />;
@@ -150,6 +160,7 @@ export default function App() {
         </div>
       )}
       <TopBar
+        onGoHome={goHome}
         onOpenSettings={() => openSettings()}
         onOpenUsers={() => openSettings("users")}
         onSelectPatient={setPanelPatient}
@@ -158,7 +169,7 @@ export default function App() {
         {activeNav !== "settings" && (
           <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} />
         )}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-background">{renderMain()}</main>
+        <main className="flex-1 min-w-0 overflow-y-auto bg-gray-50/40">{renderMain()}</main>
       </div>
 
       {currentPanelPatient && (

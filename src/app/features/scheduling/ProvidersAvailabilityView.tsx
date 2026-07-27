@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Copy, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Ban, Calendar, Clock, Copy, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { IconButton } from "../../components/shared/IconButton";
@@ -51,6 +51,20 @@ function formatDateTime(iso: string): string {
     minute: "2-digit",
   });
 }
+
+function providerInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+const actionBtnCls =
+  "w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors";
+const dangerBtnCls =
+  "w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors";
 
 export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
   const { activeLocation, refreshSession } = useAuth();
@@ -317,193 +331,274 @@ export function ProvidersAvailabilityView({ onBack }: { onBack: () => void }) {
       </div>
 
       {loading ? (
-        <p className="py-8 text-center text-sm text-gray-400">Loading…</p>
+        <p className="py-12 text-center text-sm text-gray-400">Loading providers…</p>
       ) : filteredProviders.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-400">No providers yet.</p>
+        <div className="rounded-xl border-2 border-dashed border-gray-200 bg-white px-6 py-12 text-center">
+          <p className="text-sm font-medium text-gray-600">No providers yet</p>
+          <p className="text-xs text-gray-400 mt-1">Add a provider to start setting up online booking availability.</p>
+          <button
+            onClick={() => setAddingProvider(true)}
+            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Plus size={15} /> Add provider
+          </button>
+        </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {filteredProviders.map((provider) => {
             const providerSlots = slots.filter((s) => s.providerId === provider.id);
             const providerBlocks = blocks.filter((b) => b.providerId === provider.id);
+            const isActive = provider.status === "active";
             return (
-              <div key={provider.id} className="bg-white rounded-xl border border-border overflow-hidden">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-border">
-                  <div className="flex items-center gap-3 min-w-0">
+              <div
+                key={provider.id}
+                className={`bg-white rounded-xl border border-gray-200/80 shadow-sm overflow-hidden transition-opacity ${
+                  isActive ? "" : "opacity-75"
+                }`}
+              >
+                {/* Header */}
+                <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 bg-gradient-to-r from-gray-50/80 to-white">
+                  <div className="flex items-center gap-3.5 min-w-0">
                     {provider.avatarUrl ? (
-                      <img src={provider.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                      <img
+                        src={provider.avatarUrl}
+                        alt=""
+                        className="w-11 h-11 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow-sm"
+                      />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {provider.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
+                      <div className="w-11 h-11 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-sm font-bold flex-shrink-0 ring-2 ring-white shadow-sm">
+                        {providerInitials(provider.name)}
                       </div>
                     )}
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-gray-900 truncate">{provider.name}</span>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-semibold text-gray-900 truncate">{provider.name}</h3>
                         <IconButton
                           label="Edit"
                           onClick={() => setEditingProvider(provider)}
                           className="text-gray-400 hover:text-teal-600 flex-shrink-0"
                         >
-                          <Pencil size={12} />
+                          <Pencil size={13} />
                         </IconButton>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide ${
+                            isActive ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {isActive ? "Active" : "Inactive"}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500">{provider.role || "No role set"}</span>
+                      <p className="text-sm text-gray-500 mt-0.5">{provider.role || "No role set"}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 flex-shrink-0">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <span className="text-xs font-medium text-gray-600">{provider.status === "active" ? "Active" : "Inactive"}</span>
-                      <Toggle on={provider.status === "active"} onChange={() => toggleProviderStatus(provider)} />
-                    </label>
+                  <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-center">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-gray-200">
+                      <span className="text-xs font-medium text-gray-600">Online booking</span>
+                      <Toggle on={isActive} onChange={() => toggleProviderStatus(provider)} />
+                    </div>
                     <IconButton
                       label="Delete"
                       onClick={() => setDeletingProvider(provider)}
-                      className="text-gray-400 hover:text-red-500"
+                      className={dangerBtnCls}
                     >
                       <Trash2 size={14} />
                     </IconButton>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 px-4 sm:px-5 py-2.5 border-b border-border">
+                {/* Defaults */}
+                <div className="flex flex-wrap gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50/40">
                   <button
                     onClick={() => setDefaultsModal({ provider, mode: "types" })}
-                    className="text-left text-xs text-gray-600 hover:text-teal-700"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-teal-300 hover:bg-teal-50/50 transition-colors"
                   >
-                    <span className="font-semibold">Default appointment types</span>{" "}
-                    ({provider.defaultAppointmentTypeIds.length}) <span className="text-teal-600">Edit</span>
+                    <Calendar size={14} className="text-teal-600 flex-shrink-0" />
+                    <span>
+                      Appointment types
+                      <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
+                        {provider.defaultAppointmentTypeIds.length}
+                      </span>
+                    </span>
                   </button>
                   <button
                     onClick={() => setDefaultsModal({ provider, mode: "insurances" })}
-                    className="text-left text-xs text-gray-600 hover:text-teal-700"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-teal-300 hover:bg-teal-50/50 transition-colors"
                   >
-                    <span className="font-semibold">Default insurances</span>{" "}
-                    ({provider.defaultInsurances.length}) <span className="text-teal-600">Edit</span>
+                    <span>
+                      Default insurances
+                      <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
+                        {provider.defaultInsurances.length}
+                      </span>
+                    </span>
                   </button>
                 </div>
 
-                <div className="px-4 sm:px-5 py-3">
+                {/* Availability */}
+                <div className="px-5 py-4">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Clock size={15} className="text-teal-600" />
+                      <h4 className="text-sm font-semibold text-gray-900">Availability</h4>
+                      {providerSlots.length > 0 && (
+                        <span className="text-xs font-medium text-gray-500">
+                          {providerSlots.length} slot{providerSlots.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setSlotModal({ providerId: provider.id })}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors"
+                    >
+                      <Plus size={14} /> Add time
+                    </button>
+                  </div>
+
                   {providerSlots.length === 0 ? (
-                    <p className="text-sm text-gray-400 py-3 text-center">No availability set yet.</p>
+                    <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 text-center">
+                      <p className="text-sm font-medium text-gray-600">No availability set yet</p>
+                      <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
+                        Add weekly hours so patients can book this provider online.
+                      </p>
+                      <button
+                        onClick={() => setSlotModal({ providerId: provider.id })}
+                        className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors"
+                      >
+                        <Plus size={14} /> Add first time slot
+                      </button>
+                    </div>
                   ) : (
-                    <div className="overflow-x-auto -mx-1">
-                      <table className="w-full text-sm min-w-[560px]">
-                        <thead>
-                          <tr className="text-xs text-gray-500">
-                            <th className="text-left font-semibold py-1.5 px-1">Hours</th>
-                            <th className="text-left font-semibold py-1.5 px-1">Time</th>
-                            <th className="text-left font-semibold py-1.5 px-1">Appointment types</th>
-                            <th className="text-left font-semibold py-1.5 px-1">Operatory</th>
-                            <th className="py-1.5 px-1" />
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {providerSlots.map((slot) => (
-                            <tr key={slot.id}>
-                              <td className="py-2 px-1 text-gray-700">{formatHours(slot)}</td>
-                              <td className="py-2 px-1 text-gray-700 whitespace-nowrap">
-                                {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-                              </td>
-                              <td className="py-2 px-1 text-gray-700 truncate max-w-[200px]">
+                    <div className="space-y-2">
+                      {providerSlots.map((slot) => (
+                        <div
+                          key={slot.id}
+                          className="group flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-teal-200 hover:shadow-sm transition-all"
+                        >
+                          <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Hours</p>
+                              <p className="text-sm text-gray-800">{formatHours(slot)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Time</p>
+                              <p className="text-sm text-gray-800 whitespace-nowrap">
+                                {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+                              </p>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Types</p>
+                              <p className="text-sm text-gray-800 truncate">
                                 {formatAppointmentTypes(slot, appointmentTypes)}
-                              </td>
-                              <td className="py-2 px-1 text-gray-700">
-                                {slot.operatoryId ? operatories.find((o) => o.id === slot.operatoryId)?.name ?? "—" : activeLocation?.name ?? "Location name"}
-                              </td>
-                              <td className="py-2 px-1">
-                                <div className="flex items-center gap-1 justify-end">
-                                  <IconButton
-                                    label="Edit"
-                                    onClick={() => setSlotModal({ providerId: provider.id, initial: slot })}
-                                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
-                                  >
-                                    <Pencil size={12} />
-                                  </IconButton>
-                                  <IconButton
-                                    label="Clone"
-                                    onClick={() => handleCloneSlot(slot)}
-                                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
-                                  >
-                                    <Copy size={12} />
-                                  </IconButton>
-                                  <IconButton
-                                    label="Delete"
-                                    onClick={() => setDeletingSlot(slot)}
-                                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-red-500 hover:bg-red-50"
-                                  >
-                                    <Trash2 size={12} />
-                                  </IconButton>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              </p>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Operatory</p>
+                              <p className="text-sm text-gray-800 truncate">
+                                {slot.operatoryId
+                                  ? operatories.find((o) => o.id === slot.operatoryId)?.name ?? "—"
+                                  : activeLocation?.name ?? "Location"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0 sm:opacity-80 sm:group-hover:opacity-100">
+                            <IconButton
+                              label="Edit"
+                              onClick={() => setSlotModal({ providerId: provider.id, initial: slot })}
+                              className={actionBtnCls}
+                            >
+                              <Pencil size={13} />
+                            </IconButton>
+                            <IconButton
+                              label="Clone"
+                              onClick={() => handleCloneSlot(slot)}
+                              className={actionBtnCls}
+                            >
+                              <Copy size={13} />
+                            </IconButton>
+                            <IconButton
+                              label="Delete"
+                              onClick={() => setDeletingSlot(slot)}
+                              className={dangerBtnCls}
+                            >
+                              <Trash2 size={13} />
+                            </IconButton>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
-                  <button
-                    onClick={() => setSlotModal({ providerId: provider.id })}
-                    className="mt-2 flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700"
-                  >
-                    <Plus size={14} /> Add time
-                  </button>
                 </div>
 
-                <div className="px-4 sm:px-5 py-3 border-t border-border">
-                  <p className="text-xs font-semibold text-gray-600 mb-2">Blocked times</p>
+                {/* Blocked times */}
+                <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/30">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Ban size={15} className="text-gray-400" />
+                      <h4 className="text-sm font-semibold text-gray-900">Blocked times</h4>
+                      {providerBlocks.length > 0 && (
+                        <span className="text-xs font-medium text-gray-500">
+                          {providerBlocks.length} block{providerBlocks.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setBlockModal({ providerId: provider.id })}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <Plus size={14} /> Block time
+                    </button>
+                  </div>
+
                   {providerBlocks.length === 0 ? (
-                    <p className="text-sm text-gray-400 py-1">No blocked times.</p>
+                    <p className="text-sm text-gray-400 pl-6">No blocked times — vacations and closures can be added here.</p>
                   ) : (
-                    <div className="overflow-x-auto -mx-1">
-                      <table className="w-full text-sm min-w-[560px]">
-                        <thead>
-                          <tr className="text-xs text-gray-500">
-                            <th className="text-left font-semibold py-1.5 px-1">Starts</th>
-                            <th className="text-left font-semibold py-1.5 px-1">Ends</th>
-                            <th className="text-left font-semibold py-1.5 px-1">Operatory</th>
-                            <th className="text-left font-semibold py-1.5 px-1">Notes</th>
-                            <th className="py-1.5 px-1" />
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {providerBlocks.map((block) => (
-                            <tr key={block.id}>
-                              <td className="py-2 px-1 text-gray-700 whitespace-nowrap">{formatDateTime(block.startsAt)}</td>
-                              <td className="py-2 px-1 text-gray-700 whitespace-nowrap">{formatDateTime(block.endsAt)}</td>
-                              <td className="py-2 px-1 text-gray-700">
-                                {block.operatoryId ? operatories.find((o) => o.id === block.operatoryId)?.name ?? "—" : "Whole provider"}
-                              </td>
-                              <td className="py-2 px-1 text-gray-700 truncate max-w-[200px]">{block.notes || "—"}</td>
-                              <td className="py-2 px-1">
-                                <div className="flex items-center gap-1 justify-end">
-                                  <IconButton
-                                    label="Edit"
-                                    onClick={() => setBlockModal({ providerId: provider.id, initial: block })}
-                                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
-                                  >
-                                    <Pencil size={12} />
-                                  </IconButton>
-                                  <IconButton
-                                    label="Delete"
-                                    onClick={() => setDeletingBlock(block)}
-                                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-red-500 hover:bg-red-50"
-                                  >
-                                    <Trash2 size={12} />
-                                  </IconButton>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="space-y-2">
+                      {providerBlocks.map((block) => (
+                        <div
+                          key={block.id}
+                          className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white"
+                        >
+                          <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Starts</p>
+                              <p className="text-sm text-gray-800 whitespace-nowrap">{formatDateTime(block.startsAt)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Ends</p>
+                              <p className="text-sm text-gray-800 whitespace-nowrap">{formatDateTime(block.endsAt)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Operatory</p>
+                              <p className="text-sm text-gray-800">
+                                {block.operatoryId
+                                  ? operatories.find((o) => o.id === block.operatoryId)?.name ?? "—"
+                                  : "Whole provider"}
+                              </p>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Notes</p>
+                              <p className="text-sm text-gray-800 truncate">{block.notes || "—"}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <IconButton
+                              label="Edit"
+                              onClick={() => setBlockModal({ providerId: provider.id, initial: block })}
+                              className={actionBtnCls}
+                            >
+                              <Pencil size={13} />
+                            </IconButton>
+                            <IconButton
+                              label="Delete"
+                              onClick={() => setDeletingBlock(block)}
+                              className={dangerBtnCls}
+                            >
+                              <Trash2 size={13} />
+                            </IconButton>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
-                  <button
-                    onClick={() => setBlockModal({ providerId: provider.id })}
-                    className="mt-2 flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700"
-                  >
-                    <Plus size={14} /> Block time
-                  </button>
                 </div>
               </div>
             );

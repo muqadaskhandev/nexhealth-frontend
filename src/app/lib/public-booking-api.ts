@@ -130,15 +130,18 @@ export function buildConversionBookingLink(
   return url.toString();
 }
 
-export function buildConversionEmbedCode(link: string, buttonHex: string, assetName?: string): string {
+export function buildConversionEmbedCode(link: string, buttonHex: string, _assetName?: string): string {
   const safeLink = link.replace(/"/g, "&quot;");
-  const imgSrc = assetName
-    ? `https://frontend.assets.nexhealth.com/nexassets/book-now-button/button-${assetName}.svg`
-    : null;
-  const inner = imgSrc
-    ? `<img alt="Book Now" src="${imgSrc}" style="border: 0; margin: 0.25em;" />`
-    : `<span style="display:inline-block;background:${buttonHex};color:#fff;padding:12px 24px;border-radius:9999px;font-family:system-ui,sans-serif;font-size:14px;font-weight:600;">Book Now <span style="opacity:0.8;font-weight:500;font-size:12px;">by NexHealth</span></span>`;
-  return `<a href="${safeLink}" target="_blank" rel="noopener noreferrer" data-nexhealth-booking="true" style="text-decoration:none;">${inner}</a><script src="https://frontend.assets.nexhealth.com/scripts/NexHealth.min.js"></script>`;
+  // Always use an HTML button (not external CDN images) so Book Now works offline / without NexHealth assets.
+  const inner = `<span style="display:inline-block;background:${buttonHex};color:#fff;padding:12px 24px;border-radius:9999px;font-family:system-ui,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Book Now</span>`;
+  return `<a href="${safeLink}" target="_blank" rel="noopener noreferrer" data-nexhealth-booking="true" style="text-decoration:none;">${inner}</a>`;
+}
+
+/** Built-in thank-you page for post-booking redirect. */
+export function buildBookingThankYouUrl(practiceName?: string): string {
+  const url = new URL(`${window.location.origin}/booking/thank-you`);
+  if (practiceName) url.searchParams.set("practice", practiceName);
+  return url.toString();
 }
 
 function qs(extra: Record<string, string | undefined>): string {
