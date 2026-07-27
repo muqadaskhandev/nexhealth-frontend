@@ -2,7 +2,7 @@ import { BrandLogo } from "../branding/BrandLogo";
 
 /**
  * Fixed top-left logo slot used in the app header.
- * Keeps wordmarks and square marks visually aligned without stretching.
+ * Wide enough for wordmarks; acts as a plain home link (not a button).
  */
 export function TopBarLogo({
   logoUrl,
@@ -17,30 +17,33 @@ export function TopBarLogo({
     <BrandLogo
       logoUrl={logoUrl}
       alt={alt}
-      className="h-full w-full max-h-10 object-contain object-left"
+      variant="header"
     />
   );
 
+  const slotClass =
+    "flex items-center justify-start h-full min-w-[280px] w-auto max-w-[480px] flex-shrink-0 pr-2";
+
   if (!onClick) {
     return (
-      <div
-        className="hidden sm:flex items-center justify-start h-10 w-[180px] min-w-[140px] max-w-[200px] flex-shrink-0"
-        title={alt}
-      >
+      <div className={slotClass} title={alt}>
         {content}
       </div>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <a
+      href="/"
+      onClick={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
       title={`${alt} — go to dashboard`}
       aria-label="Go to dashboard"
-      className="hidden sm:flex items-center justify-start h-10 w-[180px] min-w-[140px] max-w-[200px] flex-shrink-0 rounded-lg hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2"
+      className={`${slotClass} no-underline cursor-pointer hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 rounded-lg`}
     >
       {content}
-    </button>
+    </a>
   );
 }
