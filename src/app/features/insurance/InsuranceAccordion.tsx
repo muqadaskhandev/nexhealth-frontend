@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown, FileText, MoreHorizontal } from "lucide-react";
 import { VerifyOnDemandModal } from "./VerifyOnDemandModal";
 import { OverrideEligibilityStatusModal } from "./OverrideEligibilityStatusModal";
+import { IconButton } from "../../components/shared/IconButton";
 import type { Patient, InsuranceData, EligibilityStatus } from "../../types";
 
 export function InsuranceAccordion({ patient, onSavePatient }: {
@@ -111,12 +112,13 @@ export function InsuranceAccordion({ patient, onSavePatient }: {
                 View Eligibility PDF
               </button>
               <div ref={ellipsisRef} className="relative">
-                <button
+                <IconButton
+                  label="More"
                   onClick={() => setEllipsisOpen(v => !v)}
                   className="w-9 h-9 rounded-xl border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
                 >
                   <MoreHorizontal size={16} />
-                </button>
+                </IconButton>
                 {ellipsisOpen && (
                   <div className="absolute bottom-full right-0 mb-1.5 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1">
                     <button onClick={() => { setShowVerifyModal(true); setEllipsisOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Re-verify eligibility</button>

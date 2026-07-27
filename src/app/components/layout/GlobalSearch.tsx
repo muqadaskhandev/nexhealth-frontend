@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, X, MessageSquare, FileText, DollarSign } from "lucide-react";
 import { PatientAvatar } from "../shared/PatientAvatar";
+import { IconButton } from "../shared/IconButton";
 import { staffApi, mapPatient } from "../../lib/staff-api";
 import type { Patient } from "../../types";
 
@@ -63,7 +64,7 @@ export function GlobalSearch({ onSelectPatient }: { onSelectPatient: (patient: P
         <Search size={14} className="text-gray-400 flex-shrink-0" />
         <input ref={inputRef} value={query} onChange={e => { setQuery(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder="Search patients" className="flex-1 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent" />
         {query ? (
-          <button onClick={() => { setQuery(""); inputRef.current?.focus(); }} className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center flex-shrink-0 hover:bg-gray-500 transition-colors"><X size={11} className="text-white" /></button>
+          <IconButton label="Clear" onClick={() => { setQuery(""); inputRef.current?.focus(); }} className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center flex-shrink-0 hover:bg-gray-500 transition-colors"><X size={11} className="text-white" /></IconButton>
         ) : (
           <span className="text-xs bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 text-gray-400 font-mono flex-shrink-0">⌘K</span>
         )}
@@ -85,9 +86,9 @@ export function GlobalSearch({ onSelectPatient }: { onSelectPatient: (patient: P
                 <p className="text-sm text-gray-500">{patient.email}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <button onClick={e => e.stopPropagation()} className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-teal-600 hover:bg-teal-50"><MessageSquare size={16} /></button>
-                <button onClick={e => e.stopPropagation()} className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-teal-600 hover:bg-teal-50"><FileText size={16} /></button>
-                <button onClick={e => e.stopPropagation()} className="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-teal-600 hover:bg-teal-50"><DollarSign size={16} /></button>
+                <button title="Message" onClick={e => e.stopPropagation()} className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-teal-600 hover:bg-teal-50"><MessageSquare size={16} /></button>
+                <button title="Form" onClick={e => e.stopPropagation()} className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-teal-600 hover:bg-teal-50"><FileText size={16} /></button>
+                <button title="Payment" onClick={e => e.stopPropagation()} className="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-teal-600 hover:bg-teal-50"><DollarSign size={16} /></button>
               </div>
             </div>
           ))}

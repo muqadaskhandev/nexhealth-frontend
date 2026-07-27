@@ -121,6 +121,14 @@ export type ApiLocation = {
   logo_url?: string | null;
   ehr_site_id?: string | null;
   ehr_site_name?: string | null;
+  separate_by_patient_type?: boolean;
+  allow_cancellations_for_unmapped?: boolean;
+  set_availability_by_operatory?: boolean;
+  ask_for_insurance?: boolean;
+  reserve_with_google?: boolean;
+  form_expiration_amount?: number;
+  form_expiration_unit?: string;
+  form_sync_mode?: string;
 };
 
 export type ApiUser = {
@@ -403,6 +411,14 @@ export const practiceApi = {
       zip_code?: string;
       phone?: string;
       email?: string;
+      separate_by_patient_type?: boolean;
+      allow_cancellations_for_unmapped?: boolean;
+      set_availability_by_operatory?: boolean;
+      ask_for_insurance?: boolean;
+      reserve_with_google?: boolean;
+      form_expiration_amount?: number;
+      form_expiration_unit?: string;
+      form_sync_mode?: string;
     }
   ) => api.patch<ApiLocation>(`/api/practice/locations/${locationId}`, body),
   uploadLocationLogo: (locationId: string, file: File) =>
@@ -419,6 +435,10 @@ export const practiceApi = {
     api.delete<ApiLocation>(`/api/practice/locations/${locationId}/logo`),
   copyLocationLogo: (locationId: string, locationIds: string[]) =>
     api.post<ApiLocation[]>(`/api/practice/locations/${locationId}/logo/copy`, {
+      location_ids: locationIds,
+    }),
+  copyReserveWithGoogle: (locationId: string, locationIds: string[]) =>
+    api.post<ApiLocation[]>(`/api/practice/locations/${locationId}/reserve-with-google/copy`, {
       location_ids: locationIds,
     }),
   inviteStaff: (body: {

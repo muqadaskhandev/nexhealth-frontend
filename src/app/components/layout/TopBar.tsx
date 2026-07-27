@@ -26,6 +26,7 @@ export function TopBar({
     <header className="h-16 bg-white border-b border-border flex items-center px-4 sm:px-5 gap-3 sm:gap-4 flex-shrink-0">
       <button
         type="button"
+        title="Menu"
         className="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0 lg:hidden"
         aria-label="Open menu"
       >

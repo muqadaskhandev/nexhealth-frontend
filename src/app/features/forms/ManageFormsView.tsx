@@ -1,23 +1,69 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ArrowLeft, Search, ChevronDown, Archive, Copy, RefreshCw, Wrench,
-  Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList,
+  Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList, Zap, Link2, Lock, Star,
 } from "lucide-react";
+import { IconButton } from "../../components/shared/IconButton";
 import { NewPacketModal } from "./NewPacketModal";
-import { MANAGE_FORMS } from "./forms-data";
-import type { Packet } from "../../types";
+import { PreviewFormModal } from "./PreviewFormModal";
+import { PublicPacketAccessModal } from "./PublicPacketAccessModal";
+import { CopyToLocationsModal } from "./CopyToLocationsModal";
+import { ArchivedFormsView } from "./ArchivedFormsView";
+import { ConfirmModal } from "../../components/shared/ConfirmModal";
+import { useAuth } from "../../auth/AuthContext";
+import { mapFormPacket, staffApi } from "../../lib/staff-api";
+import { toastError, toastSuccess } from "../../lib/toast";
+import type { FormPacket, FormTemplate } from "../../types";
 
-export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () => void; onBuild: () => void; onDigitize: () => void }) {
+export function ManageFormsView({
+  onBack,
+  onBuild,
+  onEdit,
+  onDigitize,
+  onRefresh,
+  templates,
+  packets,
+  onRefreshPackets,
+}: {
+  onBack: () => void;
+  onBuild: () => void;
+  onEdit: (template: FormTemplate) => void;
+  onDigitize: () => void;
+  onRefresh: () => void;
+  templates: FormTemplate[];
+  packets: FormPacket[];
+  onRefreshPackets: () => void;
+}) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const [showArchived, setShowArchived] = useState(false);
   const [activeTab, setActiveTab] = useState<"forms" | "packets">("forms");
   const [search, setSearch] = useState("");
   const [newFormOpen, setNewFormOpen] = useState(false);
   const [ellipsisOpen, setEllipsisOpen] = useState<string | null>(null);
-  const [packets, setPackets] = useState<Packet[]>([
-    { id: "pkt1", name: "New Patient Paperwork", forms: ["Cancellation Policy", "Consent for Internet Communications", "Medical History Form", "Patient Information Form"] },
-    { id: "pkt2", name: "Insurance Verification", forms: ["Dental Insurance Verification Form", "Credit Card Authorization Form"] },
-  ]);
-  const [showNewPacket, setShowNewPacket] = useState(false);
+  const [previewing, setPreviewing] = useState<FormTemplate | null>(null);
+  const [copying, setCopying] = useState<{ preselectedFormId?: string } | null>(null);
+  const [editingPacket, setEditingPacket] = useState<FormPacket | "new" | null>(null);
+  const [deletingPacket, setDeletingPacket] = useState<FormPacket | null>(null);
+  const [deletingPacketBusy, setDeletingPacketBusy] = useState(false);
+  const [publicAccessPacket, setPublicAccessPacket] = useState<FormPacket | null>(null);
+  const [publicAccessBusy, setPublicAccessBusy] = useState<string | null>(null);
   const newFormRef = useRef<HTMLDivElement>(null);
+
+  function handlePublicAccess(pkt: FormPacket) {
+    setPublicAccessBusy(pkt.id);
+    staffApi.forms.packets
+      .publicAccess(pkt.id)
+      .then((updated) => {
+        onRefreshPackets();
+        setPublicAccessPacket(mapFormPacket(updated));
+      })
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        toastError(apiErr?.detail || "Could not create a public link — please try again.");
+      })
+      .finally(() => setPublicAccessBusy(null));
+  }
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -27,30 +73,98 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const filtered = MANAGE_FORMS.filter(f => !search || f.toLowerCase().includes(search.toLowerCase()));
+  const filtered = templates.filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()));
 
-  const ELLIPSIS_ITEMS = [
-    { label: "Edit details",       icon: <Edit size={14} /> },
-    { label: "Preview",            icon: <Eye size={14} /> },
-    { label: "Duplicate",          icon: <Copy size={14} /> },
-    { label: "Download",           icon: <Download size={14} /> },
-    { label: "Copy to locations",  icon: <MapPinned size={14} /> },
-    { label: "Archive",            icon: <Archive size={14} />, danger: true },
-  ];
+  const noop = () => {};
+
+  async function handleDuplicate(t: FormTemplate) {
+    if (!isAdmin) return;
+    setEllipsisOpen(null);
+    try {
+      await staffApi.forms.duplicateTemplate(t.id);
+      toastSuccess("Your duplicated form is ready!");
+      onRefresh();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not duplicate this form — please try again.");
+    }
+  }
+
+  async function handleArchive(t: FormTemplate) {
+    if (!isAdmin) return;
+    setEllipsisOpen(null);
+    try {
+      await staffApi.forms.archiveTemplate(t.id);
+      toastSuccess(`"${t.name}" archived`);
+      onRefresh();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not archive this form — please try again.");
+    }
+  }
+
+  function hasMedicalAlerts(t: FormTemplate): boolean {
+    return t.fields.some((f) => f.type === "medical_alerts_dropdown" || f.type === "medical_alerts_radio");
+  }
+
+  async function handleSetDefault(t: FormTemplate) {
+    if (!isAdmin) return;
+    setEllipsisOpen(null);
+    try {
+      await staffApi.forms.setDefaultTemplate(t.id);
+      toastSuccess(`"${t.name}" is now the default Medical History form`);
+      onRefresh();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not set this form as default — please try again.");
+    }
+  }
+
+  function formNamesFor(pkt: FormPacket): string[] {
+    return pkt.formTemplateIds
+      .map(id => templates.find(t => t.id === id)?.name)
+      .filter((n): n is string => Boolean(n));
+  }
+
+  async function handleDeletePacket() {
+    if (!deletingPacket) return;
+    setDeletingPacketBusy(true);
+    try {
+      await staffApi.forms.packets.delete(deletingPacket.id);
+      toastSuccess(`"${deletingPacket.name}" deleted`);
+      setDeletingPacket(null);
+      onRefreshPackets();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not delete this packet — please try again.");
+    } finally {
+      setDeletingPacketBusy(false);
+    }
+  }
+
+  if (showArchived) {
+    return <ArchivedFormsView onBack={() => setShowArchived(false)} onChanged={onRefresh} />;
+  }
 
   return (
     <>
-    <div className="w-full min-w-0 px-6 py-5">
+    <div className="w-full min-w-0 px-4 sm:px-6 py-5">
       {/* Back + heading */}
       <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors mb-2">
         <ArrowLeft size={14} /> Forms
       </button>
-      <h1 className="text-2xl font-bold text-gray-900 mb-5">Manage Forms</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-3">Manage Forms</h1>
+
+      {!isAdmin && (
+        <div className="mb-4 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+          You need the Admin permission level for the Forms feature to create, edit, or digitize forms.
+        </div>
+      )}
 
       {/* Card */}
       <div className="bg-white rounded-xl border border-border overflow-visible">
         {/* Tab bar */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-5 py-3 border-b border-border">
           <div className="flex items-center gap-1">
             {(["forms", "packets"] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${activeTab === tab ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
@@ -59,25 +173,38 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
             ))}
           </div>
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">
+            <IconButton
+              label="View archived forms"
+              onClick={() => setShowArchived(true)}
+              className="flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+            >
               <Archive size={14} /> Archived forms
-            </button>
-            <button className="flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">
+            </IconButton>
+            <IconButton
+              label={isAdmin ? "Copy forms to other locations" : "You need the Admin permission level for the Forms feature"}
+              onClick={() => isAdmin && templates.length > 0 && setCopying({})}
+              disabled={!isAdmin || templates.length === 0}
+              className="flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
               <Copy size={14} /> Copy to locations
-            </button>
+            </IconButton>
           </div>
         </div>
 
         {/* Search + action button — changes per tab */}
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-5 py-3 border-b border-border">
           <div className="flex items-center gap-2 flex-1 px-3 py-2 border border-gray-200 rounded-lg">
-            <Search size={14} className="text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={activeTab === "packets" ? "Search packets" : "Search forms"} className="flex-1 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent" />
+            <Search size={14} className="text-gray-400 flex-shrink-0" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={activeTab === "packets" ? "Search packets" : "Search forms"} className="flex-1 min-w-0 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent" />
           </div>
 
           {activeTab === "forms" ? (
             <div ref={newFormRef} className="relative">
-              <button onClick={() => setNewFormOpen(v => !v)} className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors">
+              <button
+                onClick={() => isAdmin && setNewFormOpen(v => !v)}
+                disabled={!isAdmin}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
+              >
                 New form <ChevronDown size={14} />
               </button>
               {newFormOpen && (
@@ -105,14 +232,20 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
               )}
             </div>
           ) : (
-            <button onClick={() => setShowNewPacket(true)} className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
+            <IconButton
+              label={isAdmin ? "Create a new packet" : "You need the Admin permission level for the Forms feature"}
+              onClick={() => isAdmin && setEditingPacket("new")}
+              disabled={!isAdmin}
+              className="px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
+            >
               New packet
-            </button>
+            </IconButton>
           )}
         </div>
 
         {/* Forms tab — table */}
         {activeTab === "forms" && (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -126,29 +259,114 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(form => (
-                <tr key={form} className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors group">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="py-10 text-center text-sm text-gray-400">
+                    No forms yet. Click "New form" to build or digitize one.
+                  </td>
+                </tr>
+              ) : filtered.map(t => (
+                <tr key={t.id} className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors group">
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <FileText size={15} className="text-gray-400 flex-shrink-0" />
-                      <span className="text-gray-800 font-medium">{form}</span>
+                      <span className="text-gray-800 font-medium truncate">{t.name}</span>
+                      {t.source === "digitize" && t.status === "digitizing" && (
+                        <IconButton
+                          label="Our team converts this outside of this demo environment"
+                          onClick={noop}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 flex-shrink-0"
+                        >
+                          <RefreshCw size={10} className="animate-spin" /> Digitizing…
+                        </IconButton>
+                      )}
+                      {hasMedicalAlerts(t) && t.isDefault && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 flex-shrink-0">
+                          Default
+                        </span>
+                      )}
+                      {t.isLocked && (
+                        <IconButton
+                          label="Has real patient submissions — duplicate to make changes"
+                          onClick={noop}
+                          className="text-gray-400 flex-shrink-0"
+                        >
+                          <Lock size={12} />
+                        </IconButton>
+                      )}
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-gray-400 text-xs">—</td>
+                  <td className="px-5 py-3">
+                    {t.sendAutomatically ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-100">
+                        <Zap size={10} /> Yes
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">No</span>
+                    )}
+                  </td>
                   <td className="px-3 py-3 relative">
-                    <button
-                      onClick={() => setEllipsisOpen(ellipsisOpen === form ? null : form)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === form ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
+                    <IconButton
+                      label="More"
+                      onClick={() => setEllipsisOpen(ellipsisOpen === t.id ? null : t.id)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === t.id ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
                     >
                       <MoreHorizontal size={15} />
-                    </button>
-                    {ellipsisOpen === form && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
-                        {ELLIPSIS_ITEMS.map(item => (
-                          <button key={item.label} onClick={() => setEllipsisOpen(null)} className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${item.danger ? "text-red-500" : "text-gray-700"}`}>
-                            {item.icon}{item.label}
-                          </button>
-                        ))}
+                    </IconButton>
+                    {ellipsisOpen === t.id && (
+                      <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => { setEllipsisOpen(null); setPreviewing(t); }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Eye size={14} />Preview
+                        </button>
+                        <button
+                          onClick={() => { if (isAdmin && t.source === "build") { setEllipsisOpen(null); onEdit(t); } }}
+                          disabled={!isAdmin || t.source !== "build"}
+                          title={t.source !== "build" ? "Digitized forms don't have editable fields yet" : undefined}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
+                          <Edit size={14} />Edit details
+                        </button>
+                        <IconButton
+                          label={isAdmin ? "Duplicate this form" : "You need the Admin permission level for the Forms feature"}
+                          onClick={() => handleDuplicate(t)}
+                          disabled={!isAdmin}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
+                          <Copy size={14} />Duplicate
+                        </IconButton>
+                        {hasMedicalAlerts(t) && !t.isDefault && (
+                          <IconButton
+                            label={isAdmin ? "Make this the default Medical History form" : "You need the Admin permission level for the Forms feature"}
+                            onClick={() => handleSetDefault(t)}
+                            disabled={!isAdmin}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          >
+                            <Star size={14} />Mark as default
+                          </IconButton>
+                        )}
+                        <IconButton label="Not available in this demo yet" onClick={noop} disabled
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                          <Download size={14} />Download
+                        </IconButton>
+                        <IconButton
+                          label={isAdmin ? "Copy this form to other locations" : "You need the Admin permission level for the Forms feature"}
+                          onClick={() => { if (isAdmin) { setEllipsisOpen(null); setCopying({ preselectedFormId: t.id }); } }}
+                          disabled={!isAdmin}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
+                          <MapPinned size={14} />Copy to locations
+                        </IconButton>
+                        <IconButton
+                          label={isAdmin ? "Archive this form" : "You need the Admin permission level for the Forms feature"}
+                          onClick={() => handleArchive(t)}
+                          disabled={!isAdmin}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
+                          <Archive size={14} />Archive
+                        </IconButton>
                       </div>
                     )}
                   </td>
@@ -156,6 +374,7 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         {/* Packets tab */}
@@ -164,6 +383,7 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
             {packets.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase())).length === 0 ? (
               <div className="py-12 text-center text-sm text-gray-400">No packets yet. Click "New packet" to create one.</div>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
@@ -177,7 +397,9 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
                 <tbody>
                   {packets
                     .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
-                    .map(pkt => (
+                    .map(pkt => {
+                      const names = formNamesFor(pkt);
+                      return (
                       <tr key={pkt.id} className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors group">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
@@ -186,39 +408,99 @@ export function ManageFormsView({ onBack, onBuild, onDigitize }: { onBack: () =>
                           </div>
                         </td>
                         <td className="px-5 py-3">
-                          <span className="text-xs text-gray-500">{pkt.forms.length} form{pkt.forms.length !== 1 ? "s" : ""}</span>
-                          <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{pkt.forms.slice(0, 3).join(", ")}{pkt.forms.length > 3 ? "…" : ""}</p>
+                          <span className="text-xs text-gray-500">{names.length} form{names.length !== 1 ? "s" : ""}</span>
+                          <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{names.slice(0, 3).join(", ")}{names.length > 3 ? "…" : ""}</p>
                         </td>
                         <td className="px-3 py-3 relative">
-                          <button
+                          <IconButton
+                            label="More"
                             onClick={() => setEllipsisOpen(ellipsisOpen === pkt.id ? null : pkt.id)}
                             className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === pkt.id ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
                           >
                             <MoreHorizontal size={15} />
-                          </button>
+                          </IconButton>
                           {ellipsisOpen === pkt.id && (
                             <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
-                              <button onClick={() => setEllipsisOpen(null)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><Edit size={14} />Edit</button>
-                              <button onClick={() => setEllipsisOpen(null)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><Copy size={14} />Duplicate</button>
-                              <button onClick={() => { setPackets(prev => prev.filter(p => p.id !== pkt.id)); setEllipsisOpen(null); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50"><Archive size={14} />Delete</button>
+                              <IconButton
+                                label={isAdmin ? "Edit this packet" : "You need the Admin permission level for the Forms feature"}
+                                onClick={() => { if (isAdmin) { setEllipsisOpen(null); setEditingPacket(pkt); } }}
+                                disabled={!isAdmin}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                              >
+                                <Edit size={14} />Edit
+                              </IconButton>
+                              <IconButton label="Not available in this demo yet" onClick={noop} disabled
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                                <Copy size={14} />Duplicate
+                              </IconButton>
+                              <IconButton
+                                label={isAdmin ? "Get a shareable public URL for this packet" : "You need the Admin permission level for the Forms feature"}
+                                onClick={() => { if (isAdmin) { setEllipsisOpen(null); handlePublicAccess(pkt); } }}
+                                disabled={!isAdmin || publicAccessBusy === pkt.id}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                              >
+                                <Link2 size={14} />{publicAccessBusy === pkt.id ? "Loading…" : "Public packet access"}
+                              </IconButton>
+                              <IconButton
+                                label={isAdmin ? "Delete this packet" : "You need the Admin permission level for the Forms feature"}
+                                onClick={() => { if (isAdmin) { setEllipsisOpen(null); setDeletingPacket(pkt); } }}
+                                disabled={!isAdmin}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                              >
+                                <Archive size={14} />Delete
+                              </IconButton>
                             </div>
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}
       </div>
     </div>
 
-    {/* New Packet modal */}
-    {showNewPacket && (
+    {/* New / Edit Packet modal */}
+    {editingPacket && (
       <NewPacketModal
-        onClose={() => setShowNewPacket(false)}
-        onSave={pkt => setPackets(prev => [...prev, pkt])}
+        initial={editingPacket === "new" ? undefined : editingPacket}
+        templates={templates}
+        onClose={() => setEditingPacket(null)}
+        onSaved={() => {
+          setEditingPacket(null);
+          onRefreshPackets();
+        }}
+      />
+    )}
+
+    {deletingPacket && (
+      <ConfirmModal
+        title="Delete this packet?"
+        message={`"${deletingPacket.name}" will be removed. The forms inside it won't be affected.`}
+        confirmLabel="Yes, delete packet"
+        danger
+        submitting={deletingPacketBusy}
+        onConfirm={handleDeletePacket}
+        onCancel={() => setDeletingPacket(null)}
+      />
+    )}
+
+    {previewing && <PreviewFormModal template={previewing} onClose={() => setPreviewing(null)} />}
+
+    {publicAccessPacket && (
+      <PublicPacketAccessModal packet={publicAccessPacket} onClose={() => setPublicAccessPacket(null)} />
+    )}
+
+    {copying && (
+      <CopyToLocationsModal
+        templates={templates}
+        preselectedFormId={copying.preselectedFormId}
+        onClose={() => setCopying(null)}
+        onCopied={onRefresh}
       />
     )}
     </>

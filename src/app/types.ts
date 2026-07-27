@@ -88,4 +88,293 @@ export type FormSubmission = {
   syncLabel?: string;
 };
 
-export type Packet = { id: string; name: string; forms: string[] };
+export type FormPacket = {
+  id: string;
+  name: string;
+  formTemplateIds: string[];
+  publicCode: string | null;
+  createdAt: string;
+};
+
+export type FormRequestBatchStatus = "active" | "expired" | "synced";
+export type FormRequestCompletedStatus = "sent" | "viewed" | "in_progress" | "complete";
+
+export type FormRequestBatch = {
+  patientId: string;
+  patientName: string;
+  patientInitials: string;
+  requestIds: string[];
+  sentAt: string;
+  expiresAt: string;
+  forms: { id: string; name: string }[];
+  status: FormRequestBatchStatus;
+  completedStatus: FormRequestCompletedStatus;
+  syncStatus: "sync-now" | "sync-failed" | null;
+};
+
+export type FormFieldType =
+  | "text" | "textarea" | "email" | "number" | "phone"
+  | "checkbox" | "select_boxes" | "dropdown" | "radio"
+  | "date" | "date_entry" | "address" | "file" | "signature"
+  | "insurance" | "preferred_language" | "payment"
+  | "content" | "location_logo"
+  | "medical_alerts_dropdown" | "medical_alerts_radio";
+
+export type MedicalAlertCategory = "condition" | "allergy" | "medication";
+
+export type MedicalAlert = {
+  id: string;
+  category: MedicalAlertCategory;
+  label: string;
+  active: boolean;
+  flash: boolean;
+  sortOrder: number;
+  snomedCode: string | null;
+};
+
+export type MedicalAlertCatalog = Record<MedicalAlertCategory, { id: string; label: string }[]>;
+
+export type FormField = {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  required: boolean;
+  options: string[];
+  page: number;
+  minLength: number | null;
+  maxLength: number | null;
+  conditionalFieldId: string | null;
+  conditionalValue: string;
+};
+
+export type FormTemplateSource = "build" | "digitize";
+export type FormTemplateStatus = "active" | "digitizing";
+export type FormDisplayType = "wizard" | "single_page";
+export type RulePatientStatus = "any" | "new" | "existing";
+
+export type FormTemplate = {
+  id: string;
+  name: string;
+  documentType: string;
+  source: FormTemplateSource;
+  status: FormTemplateStatus;
+  displayType: FormDisplayType;
+  fields: FormField[];
+  pageCount: number;
+  uploadedFileUrl: string | null;
+  digitizeNotes: string;
+  archivedAt: string | null;
+  sendAutomatically: boolean;
+  rulePatientStatus: RulePatientStatus;
+  ruleFrequencyMonths: number | null;
+  ruleMinAge: number | null;
+  ruleMaxAge: number | null;
+  ruleAppointmentTypeIds: string[];
+  isDefault: boolean;
+  isLocked: boolean;
+  createdAt: string;
+};
+
+// ── Scheduling: appointment types & mapping rules ─────────────────────────────────
+
+export type PatientTypeRule = "new" | "existing" | "all";
+
+export type InsertionRule = { id: string; codeType: string; codes: string[] };
+
+export type AppointmentType = {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  availableOnline: boolean;
+  patientType: PatientTypeRule;
+  allowPatientCancel: boolean;
+  insertionRules: InsertionRule[];
+};
+
+export type MappingField = "visit_type" | "service_type" | "procedure_code" | "operatory" | "provider";
+
+export type MappingCondition = { field: MappingField; values: string[] };
+
+export type MappingRule = {
+  id: string;
+  targetAppointmentTypeId: string;
+  conditions: MappingCondition[];
+  position: number;
+};
+
+// ── Scheduling: providers, operatories & availability ─────────────────────────────
+
+export type ProviderStatus = "active" | "inactive";
+
+export type Provider = {
+  id: string;
+  name: string;
+  role: string;
+  status: ProviderStatus;
+  defaultAppointmentTypeIds: string[];
+  defaultInsurances: string[];
+  appointmentTypeDurations: Record<string, number>;
+  avatarUrl: string | null;
+};
+
+export type Operatory = {
+  id: string;
+  name: string;
+  active: boolean;
+};
+
+export type RepeatMode = "once" | "weekly";
+
+export type AvailabilitySlot = {
+  id: string;
+  providerId: string;
+  operatoryId: string | null;
+  repeatMode: RepeatMode;
+  specificDate: string | null;
+  dayOfWeek: number | null;
+  startsOn: string | null;
+  startTime: string;
+  endTime: string;
+  useProviderDefaults: boolean;
+  appointmentTypeIds: string[];
+};
+
+export type AvailabilityBlock = {
+  id: string;
+  providerId: string;
+  operatoryId: string | null;
+  startsAt: string;
+  endsAt: string;
+  notes: string;
+};
+
+// ── Scheduling: custom booking form fields & insurance ────────────────────────
+
+export type BookingFieldType = "text" | "note" | "single_select" | "multi_select" | "payment";
+
+export type BookingFormField = {
+  id: string;
+  fieldType: BookingFieldType;
+  label: string;
+  showTo: PatientTypeRule;
+  required: boolean;
+  noteText: string;
+  options: string[];
+  position: number;
+};
+
+export type BookingInsurance = {
+  id: string;
+  name: string;
+};
+
+// ── Scheduling: waitlist requests ──────────────────────────────────────────────
+
+export type WaitlistRequestStatus = "sent" | "cancelled";
+
+export type WaitlistRequestSlot = {
+  id: string;
+  providerId: string;
+  operatoryId: string | null;
+  startsAt: string;
+  endsAt: string;
+  claimedByPatientId: string | null;
+  claimedAt: string | null;
+  createdAppointmentId: string | null;
+  cancelledAt: string | null;
+};
+
+export type WaitlistRequestPatient = {
+  id: string;
+  patientId: string;
+  name: string;
+  notifiedAt: string | null;
+};
+
+export type WaitlistRequest = {
+  id: string;
+  status: WaitlistRequestStatus;
+  createdAt: string;
+  sentAt: string;
+  slots: WaitlistRequestSlot[];
+  patients: WaitlistRequestPatient[];
+};
+
+export type WaitlistPatientCandidate = {
+  id: string;
+  name: string;
+  reason: "missed" | "cancelled";
+  appointmentAt: string | null;
+};
+
+// ── Public patient forms portal (unauthenticated) ──────────────────────────────
+
+export type PublicBranding = {
+  practiceName: string;
+  practiceLogoUrl: string | null;
+  locationName: string;
+  locationAddress: string;
+  locationPhone: string;
+};
+
+export type PublicFormField = {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  required: boolean;
+  options: string[];
+  page: number;
+  minLength: number | null;
+  maxLength: number | null;
+  conditionalFieldId: string | null;
+  conditionalValue: string;
+};
+
+export type PublicForm = {
+  requestId: string;
+  templateId: string;
+  name: string;
+  displayType: FormDisplayType;
+  pageCount: number;
+  fields: PublicFormField[];
+  completed: boolean;
+  expiresAt: string;
+  medicalAlerts: MedicalAlertCatalog | null;
+  prefillAnswers: Record<string, unknown>;
+};
+
+export type PublicVerifyResult = PublicBranding & {
+  patientName: string;
+  forms: PublicForm[];
+};
+
+// ── Public packet links (unauthenticated, no known patient) ────────────────────
+
+export type PublicPacketForm = {
+  templateId: string;
+  name: string;
+  displayType: FormDisplayType;
+  pageCount: number;
+  fields: PublicFormField[];
+  medicalAlerts: MedicalAlertCatalog | null;
+};
+
+export type PublicPacketInfo = PublicBranding & {
+  packetName: string;
+  forms: PublicPacketForm[];
+};
+
+// ── Staff-side: pending public packet submissions (Assign & sync) ──────────────
+
+export type PublicPacketSubmission = {
+  id: string;
+  formPacketId: string;
+  packetName: string;
+  firstName: string;
+  lastName: string;
+  dob: string | null;
+  phone: string;
+  email: string;
+  formNames: string[];
+  createdAt: string;
+};

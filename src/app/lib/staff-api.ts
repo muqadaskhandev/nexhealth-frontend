@@ -1,5 +1,42 @@
 import { api } from "./api";
-import type { Appointment, AppointmentStatus, FormSubmission, Patient } from "../types";
+import type {
+  Appointment,
+  AppointmentStatus,
+  AppointmentType,
+  AvailabilityBlock,
+  AvailabilitySlot,
+  BookingFieldType,
+  BookingFormField,
+  BookingInsurance,
+  FormDisplayType,
+  FormField,
+  FormFieldType,
+  FormPacket,
+  FormRequestBatch,
+  FormRequestBatchStatus,
+  FormRequestCompletedStatus,
+  FormSubmission,
+  FormTemplate,
+  FormTemplateSource,
+  FormTemplateStatus,
+  InsertionRule,
+  MappingCondition,
+  MappingRule,
+  MedicalAlert,
+  Operatory,
+  Patient,
+  PatientTypeRule,
+  Provider,
+  ProviderStatus,
+  PublicPacketSubmission,
+  RepeatMode,
+  RulePatientStatus,
+  WaitlistPatientCandidate,
+  WaitlistRequest,
+  WaitlistRequestPatient,
+  WaitlistRequestSlot,
+  WaitlistRequestStatus,
+} from "../types";
 
 // ── API types (snake_case from backend) ─────────────────────────────────────
 export type ApiPatient = {
@@ -154,6 +191,404 @@ export function mapFormSubmission(s: ApiFormSubmission): FormSubmission {
   };
 }
 
+export type ApiMedicalAlert = {
+  id: string;
+  category: "condition" | "allergy" | "medication";
+  label: string;
+  active: boolean;
+  flash: boolean;
+  sort_order: number;
+  snomed_code: string | null;
+};
+
+export function mapMedicalAlert(a: ApiMedicalAlert): MedicalAlert {
+  return {
+    id: a.id,
+    category: a.category,
+    label: a.label,
+    active: a.active,
+    flash: a.flash,
+    sortOrder: a.sort_order,
+    snomedCode: a.snomed_code,
+  };
+}
+
+export type ApiFormField = {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  required: boolean;
+  options: string[];
+  page: number;
+  min_length: number | null;
+  max_length: number | null;
+  conditional_field_id: string | null;
+  conditional_value: string;
+};
+
+export type ApiFormTemplate = {
+  id: string;
+  name: string;
+  form_type: string;
+  source: FormTemplateSource;
+  status: FormTemplateStatus;
+  display_type: FormDisplayType;
+  fields: ApiFormField[];
+  page_count: number;
+  uploaded_file_url: string | null;
+  digitize_notes: string;
+  archived_at: string | null;
+  send_automatically: boolean;
+  rule_patient_status: RulePatientStatus;
+  rule_frequency_months: number | null;
+  rule_min_age: number | null;
+  rule_max_age: number | null;
+  rule_appointment_type_ids: string[];
+  is_default: boolean;
+  is_locked: boolean;
+  created_at: string;
+};
+
+export function mapFormTemplate(t: ApiFormTemplate): FormTemplate {
+  return {
+    id: t.id,
+    name: t.name,
+    documentType: t.form_type,
+    source: t.source,
+    status: t.status,
+    displayType: t.display_type,
+    fields: t.fields.map((f): FormField => ({
+      id: f.id,
+      type: f.type,
+      label: f.label,
+      required: f.required,
+      options: f.options,
+      page: f.page,
+      minLength: f.min_length,
+      maxLength: f.max_length,
+      conditionalFieldId: f.conditional_field_id,
+      conditionalValue: f.conditional_value,
+    })),
+    pageCount: t.page_count,
+    uploadedFileUrl: t.uploaded_file_url,
+    digitizeNotes: t.digitize_notes,
+    archivedAt: t.archived_at,
+    sendAutomatically: t.send_automatically,
+    rulePatientStatus: t.rule_patient_status,
+    ruleFrequencyMonths: t.rule_frequency_months,
+    ruleMinAge: t.rule_min_age,
+    ruleMaxAge: t.rule_max_age,
+    ruleAppointmentTypeIds: t.rule_appointment_type_ids,
+    isDefault: t.is_default,
+    isLocked: t.is_locked,
+    createdAt: t.created_at,
+  };
+}
+
+export type ApiFormPacket = {
+  id: string;
+  name: string;
+  form_template_ids: string[];
+  public_code: string | null;
+  created_at: string;
+};
+
+export function mapFormPacket(p: ApiFormPacket): FormPacket {
+  return {
+    id: p.id,
+    name: p.name,
+    formTemplateIds: p.form_template_ids,
+    publicCode: p.public_code,
+    createdAt: p.created_at,
+  };
+}
+
+export type ApiPublicPacketSubmission = {
+  id: string;
+  form_packet_id: string;
+  packet_name: string;
+  first_name: string;
+  last_name: string;
+  dob: string | null;
+  phone: string;
+  email: string;
+  form_names: string[];
+  created_at: string;
+};
+
+export function mapPublicPacketSubmission(s: ApiPublicPacketSubmission): PublicPacketSubmission {
+  return {
+    id: s.id,
+    formPacketId: s.form_packet_id,
+    packetName: s.packet_name,
+    firstName: s.first_name,
+    lastName: s.last_name,
+    dob: s.dob,
+    phone: s.phone,
+    email: s.email,
+    formNames: s.form_names,
+    createdAt: s.created_at,
+  };
+}
+
+export type ApiFormRequestBatch = {
+  patient_id: string;
+  patient_name: string;
+  patient_initials: string;
+  request_ids: string[];
+  sent_at: string;
+  expires_at: string;
+  forms: { id: string; name: string }[];
+  status: FormRequestBatchStatus;
+  completed_status: FormRequestCompletedStatus;
+  sync_status: "sync-now" | "sync-failed" | null;
+};
+
+export function mapFormRequestBatch(b: ApiFormRequestBatch): FormRequestBatch {
+  return {
+    patientId: b.patient_id,
+    patientName: b.patient_name,
+    patientInitials: b.patient_initials,
+    requestIds: b.request_ids,
+    sentAt: b.sent_at,
+    expiresAt: b.expires_at,
+    forms: b.forms,
+    status: b.status,
+    completedStatus: b.completed_status,
+    syncStatus: b.sync_status,
+  };
+}
+
+export type ApiFormSubmissionDetail = {
+  form_name: string;
+  answers: Record<string, unknown>;
+  submitted_at: string;
+};
+
+export type ApiInsertionRule = { id: string; code_type: string; codes: string[] };
+
+export type ApiAppointmentType = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  available_online: boolean;
+  patient_type: PatientTypeRule;
+  allow_patient_cancel: boolean;
+  insertion_rules: ApiInsertionRule[];
+  created_at: string;
+};
+
+export function mapAppointmentType(t: ApiAppointmentType): AppointmentType {
+  return {
+    id: t.id,
+    name: t.name,
+    durationMinutes: t.duration_minutes,
+    availableOnline: t.available_online,
+    patientType: t.patient_type,
+    allowPatientCancel: t.allow_patient_cancel,
+    insertionRules: t.insertion_rules.map((r) => ({ id: r.id, codeType: r.code_type, codes: r.codes })),
+  };
+}
+
+export type ApiMappingRule = {
+  id: string;
+  target_appointment_type_id: string;
+  conditions: MappingCondition[];
+  position: number;
+  created_at: string;
+};
+
+export function mapMappingRule(r: ApiMappingRule): MappingRule {
+  return {
+    id: r.id,
+    targetAppointmentTypeId: r.target_appointment_type_id,
+    conditions: r.conditions,
+    position: r.position,
+  };
+}
+
+export type ApiProvider = {
+  id: string;
+  name: string;
+  role: string;
+  status: ProviderStatus;
+  default_appointment_type_ids: string[];
+  default_insurances: string[];
+  appointment_type_durations: Record<string, number>;
+  avatar_url: string | null;
+  created_at: string;
+};
+
+export function mapProvider(p: ApiProvider): Provider {
+  return {
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    status: p.status,
+    defaultAppointmentTypeIds: p.default_appointment_type_ids,
+    defaultInsurances: p.default_insurances,
+    appointmentTypeDurations: p.appointment_type_durations,
+    avatarUrl: p.avatar_url,
+  };
+}
+
+export type ApiOperatory = { id: string; name: string; active: boolean; created_at: string };
+
+export function mapOperatory(o: ApiOperatory): Operatory {
+  return { id: o.id, name: o.name, active: o.active };
+}
+
+export type ApiAvailabilitySlot = {
+  id: string;
+  provider_id: string;
+  operatory_id: string | null;
+  repeat_mode: RepeatMode;
+  specific_date: string | null;
+  day_of_week: number | null;
+  starts_on: string | null;
+  start_time: string;
+  end_time: string;
+  use_provider_defaults: boolean;
+  appointment_type_ids: string[];
+  created_at: string;
+};
+
+export function mapAvailabilitySlot(s: ApiAvailabilitySlot): AvailabilitySlot {
+  return {
+    id: s.id,
+    providerId: s.provider_id,
+    operatoryId: s.operatory_id,
+    repeatMode: s.repeat_mode,
+    specificDate: s.specific_date,
+    dayOfWeek: s.day_of_week,
+    startsOn: s.starts_on,
+    startTime: s.start_time,
+    endTime: s.end_time,
+    useProviderDefaults: s.use_provider_defaults,
+    appointmentTypeIds: s.appointment_type_ids,
+  };
+}
+
+export type ApiAvailabilityBlock = {
+  id: string;
+  provider_id: string;
+  operatory_id: string | null;
+  starts_at: string;
+  ends_at: string;
+  notes: string;
+  created_at: string;
+};
+
+export function mapAvailabilityBlock(b: ApiAvailabilityBlock): AvailabilityBlock {
+  return {
+    id: b.id,
+    providerId: b.provider_id,
+    operatoryId: b.operatory_id,
+    startsAt: b.starts_at,
+    endsAt: b.ends_at,
+    notes: b.notes,
+  };
+}
+
+export type ApiBookingFormField = {
+  id: string;
+  field_type: BookingFieldType;
+  label: string;
+  show_to: PatientTypeRule;
+  required: boolean;
+  note_text: string;
+  options: string[];
+  position: number;
+  created_at: string;
+};
+
+export function mapBookingFormField(f: ApiBookingFormField): BookingFormField {
+  return {
+    id: f.id,
+    fieldType: f.field_type,
+    label: f.label,
+    showTo: f.show_to,
+    required: f.required,
+    noteText: f.note_text,
+    options: f.options,
+    position: f.position,
+  };
+}
+
+export type ApiBookingInsurance = { id: string; name: string; created_at: string };
+
+export function mapBookingInsurance(i: ApiBookingInsurance): BookingInsurance {
+  return { id: i.id, name: i.name };
+}
+
+export type ApiWaitlistRequestSlot = {
+  id: string;
+  provider_id: string;
+  operatory_id: string | null;
+  starts_at: string;
+  ends_at: string;
+  claimed_by_patient_id: string | null;
+  claimed_at: string | null;
+  created_appointment_id: string | null;
+  cancelled_at: string | null;
+};
+
+export function mapWaitlistRequestSlot(s: ApiWaitlistRequestSlot): WaitlistRequestSlot {
+  return {
+    id: s.id,
+    providerId: s.provider_id,
+    operatoryId: s.operatory_id,
+    startsAt: s.starts_at,
+    endsAt: s.ends_at,
+    claimedByPatientId: s.claimed_by_patient_id,
+    claimedAt: s.claimed_at,
+    createdAppointmentId: s.created_appointment_id,
+    cancelledAt: s.cancelled_at,
+  };
+}
+
+export type ApiWaitlistRequestPatient = {
+  id: string;
+  patient_id: string;
+  name: string;
+  notified_at: string | null;
+};
+
+export function mapWaitlistRequestPatient(p: ApiWaitlistRequestPatient): WaitlistRequestPatient {
+  return { id: p.id, patientId: p.patient_id, name: p.name, notifiedAt: p.notified_at };
+}
+
+export type ApiWaitlistRequest = {
+  id: string;
+  status: WaitlistRequestStatus;
+  created_at: string;
+  sent_at: string;
+  slots: ApiWaitlistRequestSlot[];
+  patients: ApiWaitlistRequestPatient[];
+};
+
+export function mapWaitlistRequest(r: ApiWaitlistRequest): WaitlistRequest {
+  return {
+    id: r.id,
+    status: r.status,
+    createdAt: r.created_at,
+    sentAt: r.sent_at,
+    slots: r.slots.map(mapWaitlistRequestSlot),
+    patients: r.patients.map(mapWaitlistRequestPatient),
+  };
+}
+
+export type ApiWaitlistPatientCandidate = {
+  id: string;
+  name: string;
+  reason: "missed" | "cancelled";
+  appointment_at: string | null;
+};
+
+export function mapWaitlistPatientCandidate(c: ApiWaitlistPatientCandidate): WaitlistPatientCandidate {
+  return { id: c.id, name: c.name, reason: c.reason, appointmentAt: c.appointment_at };
+}
+
 export const staffApi = {
   patients: {
     list: (q = "", archived = false, allLocations = false) =>
@@ -185,10 +620,100 @@ export const staffApi = {
   },
   waitlist: () => api.get<unknown[]>("/api/waitlist"),
   forms: {
-    templates: () => api.get<{ id: string; name: string; form_type: string }[]>("/api/forms/templates"),
+    templates: (archived = false) => api.get<ApiFormTemplate[]>(`/api/forms/templates?archived=${archived}`),
+    createTemplate: (body: Record<string, unknown>) =>
+      api.post<ApiFormTemplate>("/api/forms/templates", body),
+    updateTemplate: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiFormTemplate>(`/api/forms/templates/${id}`, body),
+    digitizeTemplate: async (file: File, name: string, notes: string) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("name", name);
+      form.append("notes", notes);
+      const res = await fetch("/api/forms/templates/digitize", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+        headers: {
+          "X-CSRF-Token":
+            document.cookie
+              .split("; ")
+              .find((c) => c.startsWith("csrf_token="))
+              ?.split("=")
+              .slice(1)
+              .join("=") || "",
+        },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+        throw err;
+      }
+      return (await res.json()) as ApiFormTemplate;
+    },
+    duplicateTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/duplicate`),
+    copyTemplates: (templateIds: string[], locationIds: string[]) =>
+      api.post<{ copied: number }>("/api/forms/templates/copy", {
+        template_ids: templateIds,
+        location_ids: locationIds,
+      }),
+    archiveTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/archive`),
+    unarchiveTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/unarchive`),
+    setDefaultTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/set-default`),
+    frequentTemplates: () => api.get<ApiFormTemplate[]>("/api/forms/templates/frequent"),
     submissions: () => api.get<ApiFormSubmission[]>("/api/forms/submissions"),
-    send: (patientId: string, formTemplateId: string) =>
-      api.post("/api/forms/send", { patient_id: patientId, form_template_id: formTemplateId }),
+    send: (params: {
+      patientId: string;
+      formTemplateIds: string[];
+      expiresAt?: string;
+      message?: string;
+      emailNote?: string;
+    }) =>
+      api.post<{ message: string; count: number }>("/api/forms/send", {
+        patient_id: params.patientId,
+        form_template_ids: params.formTemplateIds,
+        expires_at: params.expiresAt,
+        message: params.message,
+        email_note: params.emailNote,
+      }),
+    packets: {
+      list: () => api.get<ApiFormPacket[]>("/api/forms/packets"),
+      create: (body: { name: string; form_template_ids: string[] }) =>
+        api.post<ApiFormPacket>("/api/forms/packets", body),
+      update: (id: string, body: { name: string; form_template_ids: string[] }) =>
+        api.patch<ApiFormPacket>(`/api/forms/packets/${id}`, body),
+      delete: (id: string) => api.delete(`/api/forms/packets/${id}`),
+      publicAccess: (id: string) => api.post<ApiFormPacket>(`/api/forms/packets/${id}/public-access`),
+    },
+    publicSubmissions: {
+      list: () => api.get<ApiPublicPacketSubmission[]>("/api/forms/public-submissions"),
+      assign: (id: string, patientId: string) =>
+        api.post<{ message: string }>(`/api/forms/public-submissions/${id}/assign`, { patient_id: patientId }),
+    },
+    requests: {
+      list: (tab: "active" | "expired" | "synced" | "all" = "all") =>
+        api.get<ApiFormRequestBatch[]>(`/api/forms/requests?tab=${tab}`),
+      reactivate: (requestIds: string[], expiresAt: string) =>
+        api.post<{ message: string }>("/api/forms/requests/reactivate", {
+          request_ids: requestIds,
+          expires_at: expiresAt,
+        }),
+      archive: (requestIds: string[]) =>
+        api.post<{ message: string }>("/api/forms/requests/archive", {
+          request_ids: requestIds,
+        }),
+      sync: (requestIds: string[]) =>
+        api.post<{ message: string }>("/api/forms/requests/sync", {
+          request_ids: requestIds,
+        }),
+      markSynced: (requestIds: string[]) =>
+        api.post<{ message: string }>("/api/forms/requests/mark-synced", {
+          request_ids: requestIds,
+        }),
+      submissions: (requestIds: string[]) =>
+        api.get<ApiFormSubmissionDetail[]>(
+          `/api/forms/requests/submissions?${requestIds.map((id) => `request_ids=${id}`).join("&")}`
+        ),
+    },
   },
   messages: {
     list: (patientId?: string) =>
@@ -232,4 +757,142 @@ export const staffApi = {
       pending_forms: number;
       pending_payments: number;
     }>("/api/dashboard/stats"),
+  medicalAlerts: {
+    list: () => api.get<ApiMedicalAlert[]>("/api/medical-alerts"),
+    create: (body: { category: string; label: string; flash?: boolean; snomed_code?: string | null }) =>
+      api.post<ApiMedicalAlert>("/api/medical-alerts", body),
+    update: (id: string, body: { label?: string; active?: boolean; flash?: boolean; snomed_code?: string | null }) =>
+      api.patch<ApiMedicalAlert>(`/api/medical-alerts/${id}`, body),
+    delete: (id: string) => api.delete(`/api/medical-alerts/${id}`),
+    move: (id: string, direction: "up" | "down") =>
+      api.post<{ message: string }>(`/api/medical-alerts/${id}/move`, { direction }),
+  },
+  appointmentTypes: {
+    list: () => api.get<ApiAppointmentType[]>("/api/appointment-types"),
+    create: (body: Record<string, unknown>) =>
+      api.post<ApiAppointmentType>("/api/appointment-types", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiAppointmentType>(`/api/appointment-types/${id}`, body),
+    delete: (id: string) => api.delete(`/api/appointment-types/${id}`),
+  },
+  mappingRules: {
+    list: () => api.get<ApiMappingRule[]>("/api/mapping-rules"),
+    create: (body: Record<string, unknown>) => api.post<ApiMappingRule>("/api/mapping-rules", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiMappingRule>(`/api/mapping-rules/${id}`, body),
+    delete: (id: string) => api.delete(`/api/mapping-rules/${id}`),
+    reorder: (orderedIds: string[]) =>
+      api.post<ApiMappingRule[]>("/api/mapping-rules/reorder", { ordered_ids: orderedIds }),
+  },
+  providers: {
+    list: () => api.get<ApiProvider[]>("/api/providers"),
+    create: (body: Record<string, unknown>) => api.post<ApiProvider>("/api/providers", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiProvider>(`/api/providers/${id}`, body),
+    delete: (id: string) => api.delete(`/api/providers/${id}`),
+    uploadAvatar: async (id: string, file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/providers/${id}/avatar`, {
+        method: "POST",
+        body: form,
+        credentials: "include",
+        headers: {
+          "X-CSRF-Token":
+            document.cookie
+              .split("; ")
+              .find((c) => c.startsWith("csrf_token="))
+              ?.split("=")
+              .slice(1)
+              .join("=") || "",
+        },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+        throw err;
+      }
+      return (await res.json()) as ApiProvider;
+    },
+    removeAvatar: (id: string) => api.delete<ApiProvider>(`/api/providers/${id}/avatar`),
+  },
+  operatories: {
+    list: () => api.get<ApiOperatory[]>("/api/operatories"),
+    create: (body: Record<string, unknown>) => api.post<ApiOperatory>("/api/operatories", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiOperatory>(`/api/operatories/${id}`, body),
+    delete: (id: string) => api.delete(`/api/operatories/${id}`),
+  },
+  availabilitySlots: {
+    list: (providerId?: string) =>
+      api.get<ApiAvailabilitySlot[]>(
+        `/api/availability-slots${providerId ? `?provider_id=${providerId}` : ""}`
+      ),
+    create: (body: Record<string, unknown>) =>
+      api.post<ApiAvailabilitySlot>("/api/availability-slots", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiAvailabilitySlot>(`/api/availability-slots/${id}`, body),
+    delete: (id: string) => api.delete(`/api/availability-slots/${id}`),
+    clone: (id: string) => api.post<ApiAvailabilitySlot>(`/api/availability-slots/${id}/clone`),
+  },
+  availabilityBlocks: {
+    list: (providerId?: string) =>
+      api.get<ApiAvailabilityBlock[]>(
+        `/api/availability-blocks${providerId ? `?provider_id=${providerId}` : ""}`
+      ),
+    create: (body: Record<string, unknown>) =>
+      api.post<ApiAvailabilityBlock>("/api/availability-blocks", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiAvailabilityBlock>(`/api/availability-blocks/${id}`, body),
+    delete: (id: string) => api.delete(`/api/availability-blocks/${id}`),
+  },
+  bookingFormFields: {
+    list: () => api.get<ApiBookingFormField[]>("/api/booking-form-fields"),
+    create: (body: Record<string, unknown>) =>
+      api.post<ApiBookingFormField>("/api/booking-form-fields", body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiBookingFormField>(`/api/booking-form-fields/${id}`, body),
+    delete: (id: string) => api.delete(`/api/booking-form-fields/${id}`),
+    reorder: (orderedIds: string[]) =>
+      api.post<ApiBookingFormField[]>("/api/booking-form-fields/reorder", { ordered_ids: orderedIds }),
+  },
+  bookingInsurances: {
+    list: () => api.get<ApiBookingInsurance[]>("/api/booking-insurances"),
+    create: (name: string) => api.post<ApiBookingInsurance>("/api/booking-insurances", { name }),
+    bulkCreate: (names: string[]) =>
+      api.post<ApiBookingInsurance[]>("/api/booking-insurances/bulk", { names }),
+    delete: (id: string) => api.delete(`/api/booking-insurances/${id}`),
+  },
+  waitlistRequests: {
+    list: () => api.get<ApiWaitlistRequest[]>("/api/waitlist-requests"),
+    get: (id: string) => api.get<ApiWaitlistRequest>(`/api/waitlist-requests/${id}`),
+    create: (body: {
+      slots: { provider_id: string; operatory_id: string | null; starts_at: string; ends_at: string }[];
+      patient_ids: string[];
+    }) => api.post<ApiWaitlistRequest>("/api/waitlist-requests", body),
+    cancel: (id: string) => api.post<ApiWaitlistRequest>(`/api/waitlist-requests/${id}/cancel`),
+    claimSlot: (requestId: string, slotId: string, patientId: string) =>
+      api.post<ApiWaitlistRequest>(`/api/waitlist-requests/${requestId}/slots/${slotId}/claim`, {
+        patient_id: patientId,
+      }),
+    cancelSlot: (requestId: string, slotId: string) =>
+      api.post<ApiWaitlistRequest>(`/api/waitlist-requests/${requestId}/slots/${slotId}/cancel`),
+    searchMissedCancelled: (params: {
+      missed?: boolean;
+      cancelled?: boolean;
+      startDate?: string;
+      endDate?: string;
+      excludeRecentDays?: number;
+    }) => {
+      const qs = new URLSearchParams();
+      qs.set("missed", String(params.missed ?? false));
+      qs.set("cancelled", String(params.cancelled ?? false));
+      if (params.startDate) qs.set("start_date", params.startDate);
+      if (params.endDate) qs.set("end_date", params.endDate);
+      if (params.excludeRecentDays !== undefined)
+        qs.set("exclude_recent_days", String(params.excludeRecentDays));
+      return api.get<ApiWaitlistPatientCandidate[]>(
+        `/api/waitlist-requests/candidates/missed-cancelled?${qs.toString()}`
+      );
+    },
+  },
 };

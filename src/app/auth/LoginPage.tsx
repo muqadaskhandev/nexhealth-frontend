@@ -3,6 +3,7 @@ import { ShieldCheck, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { authApi, ssoLoginUrl } from "../lib/api";
 import { BrandLogo } from "../components/branding/BrandLogo";
+import { IconButton } from "../components/shared/IconButton";
 import { toastError, toastSuccess } from "../lib/toast";
 import { emailError } from "../lib/fieldFormat";
 
@@ -199,13 +200,13 @@ export function LoginPage() {
                     onChange={e => setPassword(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all pr-12"
                   />
-                  <button
-                    type="button"
+                  <IconButton
+                    label={showPw ? "Hide" : "Show"}
                     onClick={() => setShowPw(v => !v)}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
-                  </button>
+                  </IconButton>
                 </div>
               </div>
             )}

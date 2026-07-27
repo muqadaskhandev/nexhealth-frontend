@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { StatCards } from "./StatCards";
 import { AppointmentsTable } from "./AppointmentsTable";
+import { IconButton } from "../../components/shared/IconButton";
 import type { Appointment, Patient, AppointmentStatus } from "../../types";
 import { staffApi } from "../../lib/staff-api";
 
@@ -22,8 +23,8 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
     <div className="w-full min-w-0 px-6 py-5 space-y-5">
       <StatCards />
       <div className="flex items-center gap-2">
-        <button onClick={() => setDateOffset(d => d - 1)} className="p-1.5 rounded-md border border-border bg-white hover:bg-gray-50 text-gray-500 transition-colors"><ChevronLeft size={16} /></button>
-        <button onClick={() => setDateOffset(d => d + 1)} className="p-1.5 rounded-md border border-border bg-white hover:bg-gray-50 text-gray-500 transition-colors"><ChevronRight size={16} /></button>
+        <IconButton label="Previous day" onClick={() => setDateOffset(d => d - 1)} className="p-1.5 rounded-md border border-border bg-white hover:bg-gray-50 text-gray-500 transition-colors"><ChevronLeft size={16} /></IconButton>
+        <IconButton label="Next day" onClick={() => setDateOffset(d => d + 1)} className="p-1.5 rounded-md border border-border bg-white hover:bg-gray-50 text-gray-500 transition-colors"><ChevronRight size={16} /></IconButton>
         <h2 className="text-xl font-semibold text-foreground">{displayDate}</h2>
       </div>
       {waitlistCount > 0 && (

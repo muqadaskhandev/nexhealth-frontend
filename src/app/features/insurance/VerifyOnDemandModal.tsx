@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
-import { dobError, formatDobInput } from "../../lib/fieldFormat";
+import { IconButton } from "../../components/shared/IconButton";
 import type { Patient, InsuranceData } from "../../types";
 
 const INSURERS = [
@@ -20,7 +20,7 @@ export function VerifyOnDemandModal({ patient, onClose, onVerified }: {
     groupNumber: "",
     firstName: patient.firstName,
     lastName: patient.lastName,
-    dob: formatDobInput(patient.dob || ""),
+    dob: patient.dob,
     providerName: `Dr. ${patient.provider}`,
     npi: "1234567890",
     taxId: "",
@@ -33,11 +33,6 @@ export function VerifyOnDemandModal({ patient, onClose, onVerified }: {
 
   function handleVerify() {
     if (!form.insuranceName) return;
-    const err = dobError(form.dob, { required: true });
-    if (err) {
-      alert(err);
-      return;
-    }
     onVerified({
       status: "active",
       name: form.insuranceName,
@@ -59,7 +54,7 @@ export function VerifyOnDemandModal({ patient, onClose, onVerified }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3 flex-shrink-0">
           <h2 className="text-base font-bold text-gray-900">Verify on demand</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={15} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={15} /></IconButton>
         </div>
 
         {/* Teal info banner */}
@@ -117,7 +112,7 @@ export function VerifyOnDemandModal({ patient, onClose, onVerified }: {
           {/* DOB */}
           <div>
             <label className={labelCls}>Patient date of birth</label>
-            <input className={inputCls} inputMode="numeric" placeholder="MM/DD/YYYY" value={form.dob} onChange={e => setForm(f => ({ ...f, dob: formatDobInput(e.target.value) }))} />
+            <input className={inputCls} value={form.dob} onChange={e => setForm(f => ({ ...f, dob: e.target.value }))} />
           </div>
 
           {/* Provider name */}

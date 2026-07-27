@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { authApi } from "../lib/api";
+import { IconButton } from "../components/shared/IconButton";
 import { toastError, toastSuccess } from "../lib/toast";
 
 export function ResetPasswordPage() {
@@ -98,13 +99,13 @@ export function ResetPasswordPage() {
                   className={`${inputCls} pr-12`}
                   disabled={!token}
                 />
-                <button
-                  type="button"
+                <IconButton
+                  label={show ? "Hide" : "Show"}
                   onClick={() => setShow((v) => !v)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {show ? <EyeOff size={17} /> : <Eye size={17} />}
-                </button>
+                </IconButton>
               </div>
             </div>
             <div>

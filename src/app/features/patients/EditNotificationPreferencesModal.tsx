@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, ChevronDown, ChevronRight } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
+import { IconButton } from "../../components/shared/IconButton";
 import type { NotificationPrefs, Patient } from "../../types";
 
 const NOTIFICATION_TYPES = [
@@ -50,7 +51,7 @@ export function EditNotificationPreferencesModal({ patient, onClose, onSave }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-900">Edit notification preferences</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={16} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={16} /></IconButton>
         </div>
 
         <div className="overflow-y-auto px-6 pb-2 flex-1 space-y-5">

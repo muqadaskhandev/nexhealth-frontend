@@ -3,22 +3,22 @@ import { MapPin, Pencil, Plus } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { authApi, practiceApi, type ApiLocation } from "../lib/api";
 import { formatLocationAddress } from "../lib/locationFormat";
-import { toastError, toastSuccess } from "../lib/toast";
+import { toastSuccess } from "../lib/toast";
+import { IconButton } from "../components/shared/IconButton";
 import { LocationEditForm } from "./LocationEditForm";
 
 /**
  * Settings → Locations — full CRUD for practice offices (admin) or read-only
- * list for members. Admins can also switch the active location from this list.
+ * list for members.
  */
 export function LocationsSettingsPanel() {
-  const { user, activeLocation, refreshSession, switchLocation } = useAuth();
+  const { user, activeLocation, refreshSession } = useAuth();
   const isAdmin = user?.role === "admin";
   const [locations, setLocations] = useState<ApiLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<ApiLocation | null>(null);
   const [creating, setCreating] = useState(false);
-  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,20 +54,6 @@ export function LocationsSettingsPanel() {
     toastSuccess(msg);
     await load();
     await refreshSession();
-  }
-
-  async function handleSwitch(loc: ApiLocation) {
-    if (loc.id === activeLocation?.id || switchingId) return;
-    setSwitchingId(loc.id);
-    try {
-      await switchLocation(loc.id);
-      toastSuccess(`Switched to ${loc.name}`);
-    } catch (err: unknown) {
-      const apiErr = err as { detail?: string };
-      toastError(apiErr?.detail || "Could not switch location");
-    } finally {
-      setSwitchingId(null);
-    }
   }
 
   if (creating || editing) {
@@ -108,7 +94,7 @@ export function LocationsSettingsPanel() {
           <h2 className="text-lg font-bold text-gray-900">Locations</h2>
           <p className="text-sm text-gray-500 mt-1">
             {isAdmin
-              ? "Add, manage, and switch between practice offices. Staff only see locations they are assigned to."
+              ? "Add and manage practice offices. Staff only see locations they are assigned to."
               : "Practice locations you can access. Ask an admin to change addresses or add offices."}
           </p>
         </div>
@@ -118,9 +104,9 @@ export function LocationsSettingsPanel() {
             onClick={() => {
               setCreating(true);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600 whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600"
           >
-            <Plus size={16} className="shrink-0" />
+            <Plus size={16} />
             Add location
           </button>
         )}
@@ -150,7 +136,6 @@ export function LocationsSettingsPanel() {
         <div className="bg-white rounded-xl border border-border overflow-hidden divide-y divide-border">
           {sorted.map((loc) => {
             const active = loc.id === activeLocation?.id;
-            const busy = switchingId === loc.id;
             return (
               <div
                 key={loc.id}
@@ -179,30 +164,15 @@ export function LocationsSettingsPanel() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {!active && (
-                    <button
-                      type="button"
-                      disabled={switchingId !== null}
-                      onClick={() => handleSwitch(loc)}
-                      className="px-3 py-1.5 text-xs font-semibold text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-50 disabled:opacity-60"
-                    >
-                      {busy ? "Switching…" : "Switch"}
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditing(loc);
-                      }}
-                      className="w-9 h-9 rounded-lg bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600 flex-shrink-0"
-                      aria-label={`Edit ${loc.name}`}
-                    >
-                      <Pencil size={15} />
-                    </button>
-                  )}
-                </div>
+                {isAdmin && (
+                  <IconButton
+                    label="Edit"
+                    onClick={() => setEditing(loc)}
+                    className="w-9 h-9 rounded-lg bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600 flex-shrink-0"
+                  >
+                    <Pencil size={15} />
+                  </IconButton>
+                )}
               </div>
             );
           })}

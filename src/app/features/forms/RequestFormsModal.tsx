@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { X, Search, Info, Calendar, ChevronLeft, ChevronRight, ChevronDown, Edit, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Search, Info, Calendar, ChevronLeft, ChevronRight, Edit, FileText } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
-import { MANAGE_FORMS } from "./forms-data";
-import type { Patient } from "../../types";
-
-const QUICK_ADD_PACKETS = ["New Patient", "Quick Session", "Returning Patient"];
+import { IconButton } from "../../components/shared/IconButton";
+import { staffApi, mapFormTemplate } from "../../lib/staff-api";
+import { toastError, toastSuccess } from "../../lib/toast";
+import type { FormPacket, FormTemplate, Patient } from "../../types";
 
 function MiniCalendar({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
   const [viewDate, setViewDate] = useState(new Date(value));
@@ -22,9 +22,9 @@ function MiniCalendar({ value, onChange }: { value: Date; onChange: (d: Date) =>
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-72 z-50">
       <div className="flex items-center justify-between mb-3">
-        <button onClick={prevMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronLeft size={16} /></button>
+        <IconButton label="Previous month" onClick={prevMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronLeft size={16} /></IconButton>
         <span className="text-sm font-bold text-gray-900">{monthName} {year}</span>
-        <button onClick={nextMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronRight size={16} /></button>
+        <IconButton label="Next month" onClick={nextMonth} className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"><ChevronRight size={16} /></IconButton>
       </div>
       <div className="grid grid-cols-7 gap-0 mb-1">
         {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
@@ -55,18 +55,29 @@ function MiniCalendar({ value, onChange }: { value: Date; onChange: (d: Date) =>
 
 export function RequestFormsModal({
   onClose,
+  onSent,
   patients,
+  templates,
+  packets,
 }: {
   onClose: () => void;
+  onSent: () => void;
   patients: Patient[];
+  templates: FormTemplate[];
+  packets: FormPacket[];
 }) {
   const [patientSearch, setPatientSearch] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<string>("");
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showPatientDrop, setShowPatientDrop] = useState(false);
 
   const [formSearch, setFormSearch] = useState("");
-  const [selectedForms, setSelectedForms] = useState<string[]>([]);
+  const [selectedForms, setSelectedForms] = useState<FormTemplate[]>([]);
   const [showFormDrop, setShowFormDrop] = useState(false);
+  const [frequentForms, setFrequentForms] = useState<FormTemplate[]>([]);
+
+  useEffect(() => {
+    staffApi.forms.frequentTemplates().then((rows) => setFrequentForms(rows.map(mapFormTemplate)));
+  }, []);
 
   const defaultExpiry = new Date();
   defaultExpiry.setDate(defaultExpiry.getDate() + 7);
@@ -77,32 +88,76 @@ export function RequestFormsModal({
   const [smsMsg, setSmsMsg] = useState("");
   const [emailMsg, setEmailMsg] = useState("");
 
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const patientMatches = patients.filter(p =>
     !p.archived && patientSearch.length > 0 &&
     `${p.firstName} ${p.lastName}`.toLowerCase().includes(patientSearch.toLowerCase())
   );
 
-  const formMatches = MANAGE_FORMS.filter(f =>
-    formSearch.length > 0 && f.toLowerCase().includes(formSearch.toLowerCase()) && !selectedForms.includes(f)
+  const sortedTemplates = [...templates].sort((a, b) => a.name.localeCompare(b.name));
+  const formMatches = sortedTemplates.filter(t =>
+    formSearch.length > 0 && t.name.toLowerCase().includes(formSearch.toLowerCase()) && !selectedForms.some(f => f.id === t.id)
   );
-
-  const canSend = selectedPatient.length > 0 && selectedForms.length > 0;
 
   const fmtExpiry = expiryDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  function addForm(f: string) {
-    setSelectedForms(prev => prev.includes(f) ? prev : [...prev, f]);
+  function addForm(t: FormTemplate) {
+    setSelectedForms(prev => (prev.some(f => f.id === t.id) ? prev : [...prev, t]));
     setFormSearch("");
     setShowFormDrop(false);
   }
 
-  function addQuickAdd(label: string) {
-    const map: Record<string, string[]> = {
-      "New Patient": ["Patient Information Form", "Medical History Form", "HIPAA Notice"],
-      "Quick Session": ["Consent for Internet Communications"],
-      "Returning Patient": ["Dental History Form", "Credit Card Authorization Form"],
-    };
-    (map[label] ?? []).forEach(f => setSelectedForms(prev => prev.includes(f) ? prev : [...prev, f]));
+  function removeForm(id: string) {
+    setSelectedForms(prev => prev.filter(f => f.id !== id));
+  }
+
+  function addPacket(pkt: FormPacket) {
+    const forms = pkt.formTemplateIds
+      .map(id => templates.find(t => t.id === id))
+      .filter((t): t is FormTemplate => Boolean(t));
+    setSelectedForms(prev => [...prev, ...forms.filter(t => !prev.some(f => f.id === t.id))]);
+  }
+
+  async function handleSend() {
+    if (submitting) return;
+    setError(null);
+    if (!selectedPatient) {
+      setError("Search for and select a patient to send to.");
+      return;
+    }
+    if (selectedForms.length === 0) {
+      setError("Select at least one form to send.");
+      return;
+    }
+    const expiresAtDate = new Date(expiryDate);
+    expiresAtDate.setHours(23, 59, 59, 999);
+    if (expiresAtDate <= new Date()) {
+      setError("Expiration date must be in the future.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await staffApi.forms.send({
+        patientId: selectedPatient.id,
+        formTemplateIds: selectedForms.map(f => f.id),
+        expiresAt: expiresAtDate.toISOString(),
+        message: customizeMsg && smsMsg.trim() ? smsMsg.trim() : undefined,
+        emailNote: customizeMsg && emailMsg.trim() ? emailMsg.trim() : undefined,
+      });
+      toastSuccess(`Sent ${selectedForms.length} form${selectedForms.length !== 1 ? "s" : ""} to ${selectedPatient.firstName} ${selectedPatient.lastName}`);
+      onSent();
+      onClose();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      const msg = apiErr?.detail || "Could not send these forms — please try again.";
+      setError(msg);
+      toastError(msg);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -113,14 +168,16 @@ export function RequestFormsModal({
           <div>
             <h2 className="text-base font-bold text-gray-900">New form request</h2>
             <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-              Patients will receive an email and text message from your{" "}
-              <button className="text-blue-600 underline">form request template</button>.
+              Patients will receive an email and text message with a link to fill out these forms.
             </p>
           </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0"><X size={18} /></button>
+          <IconButton label="Close" onClick={onClose} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0"><X size={18} /></IconButton>
         </div>
 
         <div className="overflow-y-auto flex-1 px-6 pb-2 space-y-5">
+          {error && (
+            <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{error}</div>
+          )}
 
           {/* Send to */}
           <div>
@@ -129,18 +186,18 @@ export function RequestFormsModal({
               <div className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl transition-colors ${showPatientDrop ? "border-teal-400 ring-2 ring-teal-100" : "border-gray-200"}`}>
                 <Search size={14} className="text-gray-400 flex-shrink-0" />
                 <input
-                  value={selectedPatient || patientSearch}
-                  onChange={e => { setPatientSearch(e.target.value); setSelectedPatient(""); setShowPatientDrop(true); }}
+                  value={selectedPatient ? `${selectedPatient.firstName} ${selectedPatient.lastName}` : patientSearch}
+                  onChange={e => { setPatientSearch(e.target.value); setSelectedPatient(null); setShowPatientDrop(true); }}
                   onFocus={() => setShowPatientDrop(true)}
                   placeholder="Search by name, date of birth, email, or phone"
                   className="flex-1 outline-none text-sm text-gray-700 placeholder:text-gray-400 bg-transparent"
                 />
-                {selectedPatient && <button onClick={() => { setSelectedPatient(""); setPatientSearch(""); }} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>}
+                {selectedPatient && <IconButton label="Clear" onClick={() => { setSelectedPatient(null); setPatientSearch(""); }} className="text-gray-400 hover:text-gray-600"><X size={13} /></IconButton>}
               </div>
               {showPatientDrop && patientMatches.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
                   {patientMatches.map(p => (
-                    <button key={p.id} onClick={() => { setSelectedPatient(`${p.firstName} ${p.lastName}`); setPatientSearch(""); setShowPatientDrop(false); }}
+                    <button key={p.id} onClick={() => { setSelectedPatient(p); setPatientSearch(""); setShowPatientDrop(false); }}
                       className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
                       <div className="w-7 h-7 rounded-lg bg-gray-500 text-white text-xs font-semibold flex items-center justify-center flex-shrink-0">{p.initials}</div>
                       <div>
@@ -152,7 +209,7 @@ export function RequestFormsModal({
                 </div>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-1">Find an existing patient or send to a phone/email address</p>
+            <p className="text-xs text-gray-400 mt-1">Find an existing patient by name, date of birth, email, or phone</p>
           </div>
 
           {/* Forms */}
@@ -171,10 +228,10 @@ export function RequestFormsModal({
               </div>
               {showFormDrop && formMatches.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
-                  {formMatches.map(f => (
-                    <button key={f} onClick={() => addForm(f)} className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
+                  {formMatches.map(t => (
+                    <button key={t.id} onClick={() => addForm(t)} className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
                       <FileText size={14} className="text-gray-400 flex-shrink-0" />
-                      <span className="text-sm text-gray-800">{f}</span>
+                      <span className="text-sm text-gray-800">{t.name}</span>
                     </button>
                   ))}
                 </div>
@@ -184,27 +241,44 @@ export function RequestFormsModal({
             {/* Selected forms */}
             {selectedForms.length > 0 && (
               <div className="mt-2 space-y-1.5">
-                {selectedForms.map(f => (
-                  <div key={f} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <FileText size={13} className="text-gray-400" />
-                      <span className="text-sm text-gray-700">{f}</span>
+                {selectedForms.map(t => (
+                  <div key={t.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText size={13} className="text-gray-400 flex-shrink-0" />
+                      <span className="text-sm text-gray-700 truncate">{t.name}</span>
                     </div>
-                    <button onClick={() => setSelectedForms(prev => prev.filter(x => x !== f))} className="text-gray-300 hover:text-gray-500 transition-colors"><X size={13} /></button>
+                    <IconButton label="Remove" onClick={() => removeForm(t.id)} className="text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0"><X size={13} /></IconButton>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Quick-add pills */}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {QUICK_ADD_PACKETS.map(label => (
-                <button key={label} onClick={() => addQuickAdd(label)}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-200 rounded-full text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
-                  <span className="text-teal-500">+</span> {label}
-                </button>
-              ))}
-            </div>
+            {/* Quick-add pills — most commonly sent forms */}
+            {frequentForms.length > 0 && (
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {frequentForms.filter(t => !selectedForms.some(f => f.id === t.id)).map(t => (
+                  <button key={t.id} onClick={() => addForm(t)}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-200 rounded-full text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
+                    <span className="text-teal-500">+</span> {t.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Packets — add every form in a packet at once */}
+            {packets.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs font-semibold text-gray-500 mb-1.5">Packets</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {packets.map(pkt => (
+                    <button key={pkt.id} onClick={() => addPacket(pkt)}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-teal-200 bg-teal-50 rounded-full text-teal-700 hover:bg-teal-100 transition-colors">
+                      <span>+</span> {pkt.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Expiration date */}
@@ -219,14 +293,11 @@ export function RequestFormsModal({
                   <Calendar size={14} className="text-gray-400" />
                   {fmtExpiry}
                 </div>
-                <button onClick={() => setShowCalendar(v => !v)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                <IconButton label="Edit" onClick={() => setShowCalendar(v => !v)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
                   <Edit size={14} />
-                </button>
+                </IconButton>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Set by your default expiration date.{" "}
-                <button className="text-blue-500 hover:underline">Update settings</button>
-              </p>
+              <p className="text-xs text-gray-400 mt-1">Defaults to 7 days from today.</p>
               {showCalendar && (
                 <div className="absolute top-full left-0 mt-2 z-50">
                   <MiniCalendar value={expiryDate} onChange={d => { setExpiryDate(d); setShowCalendar(false); }} />
@@ -257,7 +328,7 @@ export function RequestFormsModal({
                     value={smsMsg}
                     onChange={e => setSmsMsg(e.target.value)}
                     rows={2}
-                    placeholder={`Good morning, ${selectedPatient.split(" ")[0] || "Patient"}! Please fill out these forms.`}
+                    placeholder={`Good morning, ${selectedPatient?.firstName || "Patient"}! Please fill out these forms.`}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 outline-none focus:border-teal-400 resize-none bg-white placeholder:text-gray-400"
                   />
                   <p className="text-xs text-gray-400 mt-1">Customize the text sent out. Leave blank for the default message.</p>
@@ -268,7 +339,7 @@ export function RequestFormsModal({
                   <input
                     value={emailMsg}
                     onChange={e => setEmailMsg(e.target.value)}
-                    placeholder={selectedPatient ? `${selectedPatient.toLowerCase().replace(" ", "")}@email.com` : "Email address"}
+                    placeholder={selectedPatient?.email || "Additional note for the email"}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 outline-none focus:border-teal-400 bg-white placeholder:text-gray-400"
                   />
                   <p className="text-xs text-gray-400 mt-1">Add additional notes to emails when patients follow the link.</p>
@@ -281,11 +352,11 @@ export function RequestFormsModal({
         {/* Footer */}
         <div className="flex items-center gap-4 px-6 py-4 border-t border-gray-100 flex-shrink-0">
           <button
-            disabled={!canSend}
-            onClick={onClose}
-            className={`px-6 py-2.5 text-sm font-bold rounded-xl transition-colors ${canSend ? "bg-teal-500 hover:bg-teal-600 text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+            disabled={submitting}
+            onClick={handleSend}
+            className="px-6 py-2.5 text-sm font-bold rounded-xl transition-colors bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white"
           >
-            Send
+            {submitting ? "Sending…" : "Send"}
           </button>
           <button onClick={onClose} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Cancel</button>
         </div>
