@@ -226,6 +226,11 @@ export type ApiFormField = {
   max_length: number | null;
   conditional_field_id: string | null;
   conditional_value: string;
+  label_position?: FormFieldLabelPosition;
+  sync_target?: string | null;
+  placeholder?: string;
+  default_value?: string;
+  width?: FormFieldWidth;
 };
 
 export type ApiFormTemplate = {
@@ -246,6 +251,7 @@ export type ApiFormTemplate = {
   rule_min_age: number | null;
   rule_max_age: number | null;
   rule_appointment_type_ids: string[];
+  rule_procedure_codes: string[];
   is_default: boolean;
   is_locked: boolean;
   created_at: string;
@@ -270,6 +276,11 @@ export function mapFormTemplate(t: ApiFormTemplate): FormTemplate {
       maxLength: f.max_length,
       conditionalFieldId: f.conditional_field_id,
       conditionalValue: f.conditional_value,
+      labelPosition: f.label_position ?? "top",
+      syncTarget: f.sync_target ?? null,
+      placeholder: f.placeholder ?? "",
+      defaultValue: f.default_value ?? "",
+      width: f.width ?? "full",
     })),
     pageCount: t.page_count,
     uploadedFileUrl: t.uploaded_file_url,
@@ -281,6 +292,7 @@ export function mapFormTemplate(t: ApiFormTemplate): FormTemplate {
     ruleMinAge: t.rule_min_age,
     ruleMaxAge: t.rule_max_age,
     ruleAppointmentTypeIds: t.rule_appointment_type_ids,
+    ruleProcedureCodes: t.rule_procedure_codes ?? [],
     isDefault: t.is_default,
     isLocked: t.is_locked,
     createdAt: t.created_at,
@@ -743,9 +755,10 @@ export const staffApi = {
       return (await res.json()) as ApiFormTemplate;
     },
     duplicateTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/duplicate`),
-    copyTemplates: (templateIds: string[], locationIds: string[]) =>
-      api.post<{ copied: number }>("/api/forms/templates/copy", {
+    copyTemplates: (templateIds: string[], locationIds: string[], packetIds: string[] = []) =>
+      api.post<{ copied: number; forms_copied: number; packets_copied: number }>("/api/forms/templates/copy", {
         template_ids: templateIds,
+        packet_ids: packetIds,
         location_ids: locationIds,
       }),
     archiveTemplate: (id: string) => api.post<ApiFormTemplate>(`/api/forms/templates/${id}/archive`),
@@ -774,6 +787,7 @@ export const staffApi = {
       update: (id: string, body: { name: string; form_template_ids: string[] }) =>
         api.patch<ApiFormPacket>(`/api/forms/packets/${id}`, body),
       delete: (id: string) => api.delete(`/api/forms/packets/${id}`),
+      duplicate: (id: string) => api.post<ApiFormPacket>(`/api/forms/packets/${id}/duplicate`),
       publicAccess: (id: string) => api.post<ApiFormPacket>(`/api/forms/packets/${id}/public-access`),
     },
     publicSubmissions: {
@@ -782,7 +796,7 @@ export const staffApi = {
         api.post<{ message: string }>(`/api/forms/public-submissions/${id}/assign`, { patient_id: patientId }),
     },
     requests: {
-      list: (tab: "active" | "expired" | "synced" | "all" = "all") =>
+      list: (tab: "active" | "expired" | "synced" | "deleted" | "all" = "all") =>
         api.get<ApiFormRequestBatch[]>(`/api/forms/requests?tab=${tab}`),
       reactivate: (requestIds: string[], expiresAt: string) =>
         api.post<{ message: string }>("/api/forms/requests/reactivate", {

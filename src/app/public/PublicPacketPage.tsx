@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, ChevronRight, FileText } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { publicPacketsApi } from "../lib/public-forms-api";
 import type { PublicApiError } from "../lib/public-forms-api";
-import { toastError, toastSuccess } from "../lib/toast";
 import type { PublicPacketForm, PublicPacketInfo } from "../types";
-import { BrandedShell, PublicFieldInput, isFieldVisible, validateFormPage, type Answers, type FieldValue } from "./sharedPublicUi";
+import { DobInput } from "./DobInput";
+import {
+  BrandedShell,
+  PublicConfirmScreen,
+  PublicFieldInput,
+  PublicFormFillCard,
+  isFieldVisible,
+  validateFormPage,
+  type Answers,
+  type FieldValue,
+} from "./sharedPublicUi";
 
 type Step = "loading" | "invalid" | "identify" | "list" | "fill" | "submitting" | "done";
 
@@ -117,14 +126,11 @@ export function PublicPacketPage({ code }: { code: string }) {
         submissions: forms.map((f) => ({ templateId: f.templateId, answers: answers[f.templateId] ?? {} })),
       })
       .then(() => {
-        toastSuccess("Forms submitted");
         setStep("done");
       })
       .catch((err: unknown) => {
         const apiErr = err as PublicApiError;
-        const msg = apiErr?.detail || "Could not submit these forms — please try again.";
-        setFillError(msg);
-        toastError(msg);
+        setFillError(apiErr?.detail || "Could not submit these forms — please try again.");
         setStep("fill");
       })
       .finally(() => setSubmitting(false));
@@ -145,7 +151,7 @@ export function PublicPacketPage({ code }: { code: string }) {
     return (
       <BrandedShell branding={null}>
         <div className="text-center py-6 space-y-2">
-          <p className="text-base font-bold text-gray-900">This link isn't available</p>
+          <p className="text-base font-bold text-gray-900">This link isn&apos;t available</p>
           <p className="text-sm text-gray-500">{invalidReason}</p>
         </div>
       </BrandedShell>
@@ -155,39 +161,60 @@ export function PublicPacketPage({ code }: { code: string }) {
   if (step === "identify" && info) {
     return (
       <BrandedShell branding={info}>
-        <h1 className="text-lg font-bold text-gray-900 text-center mb-1">{info.packetName}</h1>
+        <h1 className="text-lg font-bold text-gray-900 text-center mb-1">Verify patient details</h1>
         <p className="text-sm text-gray-500 text-center mb-5">Please tell us who you are to get started.</p>
         {identifyError && (
           <div className="mb-4 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{identifyError}</div>
         )}
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-800 mb-1.5">First name</label>
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400" autoComplete="given-name" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-800 mb-1.5">Last name</label>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400" autoComplete="family-name" />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-800 mb-1.5">Patient first name</label>
+            <input
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400"
+              autoComplete="given-name"
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1.5">Date of birth</label>
-            <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400" autoComplete="bday" />
+            <label className="block text-sm font-medium text-gray-800 mb-1.5">Patient last name</label>
+            <input
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400"
+              autoComplete="family-name"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-800 mb-1.5">Patient date of birth</label>
+            <DobInput value={dob} onChange={setDob} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-800 mb-1.5">Phone number</label>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400" autoComplete="tel" />
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400"
+              autoComplete="tel"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-800 mb-1.5">Email address</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400" autoComplete="email" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400"
+              autoComplete="email"
+            />
           </div>
           <button
             onClick={handleIdentify}
-            className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors"
+            disabled={!firstName.trim() || !lastName.trim() || !dob || (!phone.trim() && !email.trim())}
+            className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
           >
-            Continue
+            Submit
           </button>
         </div>
       </BrandedShell>
@@ -198,7 +225,7 @@ export function PublicPacketPage({ code }: { code: string }) {
     return (
       <BrandedShell branding={info}>
         <h1 className="text-lg font-bold text-gray-900 text-center mb-1">Fill out your forms</h1>
-        <p className="text-sm text-gray-500 text-center mb-5">Save time by completing all forms in this packet.</p>
+        <p className="text-sm text-gray-500 text-center mb-5">Save time on the day of your appointment by completing all forms.</p>
         {forms.length === 0 ? (
           <p className="text-sm text-gray-500 text-center py-6">There are no forms in this packet right now.</p>
         ) : (
@@ -206,7 +233,9 @@ export function PublicPacketPage({ code }: { code: string }) {
             onClick={startFilling}
             className="w-full flex items-center justify-between px-4 py-3.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors"
           >
-            <span className="text-sm font-semibold">Forms for {firstName} {lastName}</span>
+            <span className="text-sm font-semibold">
+              Forms for {firstName} {lastName}
+            </span>
             <span className="flex items-center gap-1.5 text-sm">
               {completedIds.size} of {forms.length}
               <ChevronRight size={16} />
@@ -221,58 +250,47 @@ export function PublicPacketPage({ code }: { code: string }) {
     const fields = activeForm.fields.filter((f) => f.page === page && isFieldVisible(f, activeAnswers));
     const isLastPageOfLastForm = page === activeForm.pageCount && activeFormIdx === forms.length - 1;
     return (
-      <BrandedShell branding={info}>
-        <div className="flex items-center gap-2 mb-4">
-          <button onClick={handleFillBack} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors">
-            <ArrowLeft size={13} /> Back
+      <PublicFormFillCard
+        branding={info}
+        formName={activeForm.name}
+        page={page}
+        pageCount={activeForm.pageCount}
+        onBack={handleFillBack}
+        footer={
+          <button
+            onClick={handleFillNext}
+            disabled={submitting}
+            className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            {submitting ? "Submitting…" : isLastPageOfLastForm ? "Submit" : "Next"}
           </button>
-        </div>
-        <div className="flex items-center gap-2 mb-4">
-          <FileText size={15} className="text-gray-400 flex-shrink-0" />
-          <h1 className="text-base font-bold text-gray-900 truncate">{activeForm.name}</h1>
-        </div>
-        {activeForm.pageCount > 1 && (
-          <p className="text-xs font-semibold text-gray-400 mb-3">Page {page} of {activeForm.pageCount}</p>
-        )}
+        }
+      >
         {fillError && (
           <div className="mb-4 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{fillError}</div>
         )}
-        <div className="space-y-4 mb-6">
+        <div className="grid grid-cols-2 gap-4">
           {fields.length === 0 ? (
-            <p className="text-sm text-gray-400">Nothing to fill out on this page.</p>
+            <p className="text-sm text-gray-400 col-span-2">Nothing to fill out on this page.</p>
           ) : (
             fields.map((f) => (
-              <PublicFieldInput
-                key={f.id}
-                field={f}
-                value={activeAnswers[f.id]}
-                medicalAlerts={activeForm.medicalAlerts}
-                onChange={(v) => setFieldValue(activeForm.templateId, f.id, v)}
-              />
+              <div key={f.id} className={f.width === "half" ? "col-span-1" : "col-span-2"}>
+                <PublicFieldInput
+                  field={f}
+                  value={activeAnswers[f.id]}
+                  medicalAlerts={activeForm.medicalAlerts}
+                  onChange={(v) => setFieldValue(activeForm.templateId, f.id, v)}
+                />
+              </div>
             ))
           )}
         </div>
-        <button
-          onClick={handleFillNext}
-          disabled={submitting}
-          className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
-        >
-          {submitting ? "Submitting…" : isLastPageOfLastForm ? "Submit" : "Next"}
-        </button>
-      </BrandedShell>
+      </PublicFormFillCard>
     );
   }
 
   if (step === "done") {
-    return (
-      <BrandedShell branding={info}>
-        <div className="text-center py-4 space-y-3">
-          <CheckCircle2 size={40} className="text-emerald-500 mx-auto" />
-          <p className="text-base font-bold text-gray-900">You're all set</p>
-          <p className="text-sm text-gray-500">Please reach out if you have any questions.</p>
-        </div>
-      </BrandedShell>
-    );
+    return <PublicConfirmScreen branding={info} />;
   }
 
   return null;

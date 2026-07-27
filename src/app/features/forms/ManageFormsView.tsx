@@ -10,6 +10,7 @@ import { PublicPacketAccessModal } from "./PublicPacketAccessModal";
 import { CopyToLocationsModal } from "./CopyToLocationsModal";
 import { ArchivedFormsView } from "./ArchivedFormsView";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
+import { openTemplatePrintView } from "./formTemplatePrint";
 import { useAuth } from "../../auth/AuthContext";
 import { mapFormPacket, staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
@@ -51,6 +52,10 @@ export function ManageFormsView({
   const newFormRef = useRef<HTMLDivElement>(null);
 
   function handlePublicAccess(pkt: FormPacket) {
+    if (pkt.publicCode) {
+      setPublicAccessPacket(pkt);
+      return;
+    }
     setPublicAccessBusy(pkt.id);
     staffApi.forms.packets
       .publicAccess(pkt.id)
@@ -90,6 +95,15 @@ export function ManageFormsView({
     }
   }
 
+  async function handleDownload(t: FormTemplate) {
+    setEllipsisOpen(null);
+    if (t.status === "digitizing") {
+      toastError("This form is still being digitized — download isn't available yet.");
+      return;
+    }
+    openTemplatePrintView(t);
+  }
+
   async function handleArchive(t: FormTemplate) {
     if (!isAdmin) return;
     setEllipsisOpen(null);
@@ -124,6 +138,19 @@ export function ManageFormsView({
     return pkt.formTemplateIds
       .map(id => templates.find(t => t.id === id)?.name)
       .filter((n): n is string => Boolean(n));
+  }
+
+  async function handleDuplicatePacket(pkt: FormPacket) {
+    if (!isAdmin) return;
+    setEllipsisOpen(null);
+    try {
+      await staffApi.forms.packets.duplicate(pkt.id);
+      toastSuccess("Your duplicated packet is ready!");
+      onRefreshPackets();
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      toastError(apiErr?.detail || "Could not duplicate this packet — please try again.");
+    }
   }
 
   async function handleDeletePacket() {
@@ -280,6 +307,11 @@ export function ManageFormsView({
                           <RefreshCw size={10} className="animate-spin" /> Digitizing…
                         </IconButton>
                       )}
+                      {hasMedicalAlerts(t) && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100 flex-shrink-0">
+                          Medical History
+                        </span>
+                      )}
                       {hasMedicalAlerts(t) && t.isDefault && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 flex-shrink-0">
                           Default
@@ -316,18 +348,18 @@ export function ManageFormsView({
                     {ellipsisOpen === t.id && (
                       <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
                         <button
+                          onClick={() => { if (isAdmin && t.source === "build") { setEllipsisOpen(null); onEdit(t); } }}
+                          disabled={!isAdmin || t.source !== "build"}
+                          title={t.source !== "build" ? "Digitized forms are edited by our form-building team" : undefined}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
+                          <Edit size={14} />Edit details
+                        </button>
+                        <button
                           onClick={() => { setEllipsisOpen(null); setPreviewing(t); }}
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           <Eye size={14} />Preview
-                        </button>
-                        <button
-                          onClick={() => { if (isAdmin && t.source === "build") { setEllipsisOpen(null); onEdit(t); } }}
-                          disabled={!isAdmin || t.source !== "build"}
-                          title={t.source !== "build" ? "Digitized forms don't have editable fields yet" : undefined}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                        >
-                          <Edit size={14} />Edit details
                         </button>
                         <IconButton
                           label={isAdmin ? "Duplicate this form" : "You need the Admin permission level for the Forms feature"}
@@ -347,10 +379,13 @@ export function ManageFormsView({
                             <Star size={14} />Mark as default
                           </IconButton>
                         )}
-                        <IconButton label="Not available in this demo yet" onClick={noop} disabled
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                        <button
+                          onClick={() => handleDownload(t)}
+                          disabled={t.status === "digitizing"}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
                           <Download size={14} />Download
-                        </IconButton>
+                        </button>
                         <IconButton
                           label={isAdmin ? "Copy this form to other locations" : "You need the Admin permission level for the Forms feature"}
                           onClick={() => { if (isAdmin) { setEllipsisOpen(null); setCopying({ preselectedFormId: t.id }); } }}
@@ -429,8 +464,12 @@ export function ManageFormsView({
                               >
                                 <Edit size={14} />Edit
                               </IconButton>
-                              <IconButton label="Not available in this demo yet" onClick={noop} disabled
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed">
+                              <IconButton
+                                label={isAdmin ? "Duplicate this packet" : "You need the Admin permission level for the Forms feature"}
+                                onClick={() => handleDuplicatePacket(pkt)}
+                                disabled={!isAdmin}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                              >
                                 <Copy size={14} />Duplicate
                               </IconButton>
                               <IconButton
@@ -498,9 +537,13 @@ export function ManageFormsView({
     {copying && (
       <CopyToLocationsModal
         templates={templates}
+        packets={packets}
         preselectedFormId={copying.preselectedFormId}
         onClose={() => setCopying(null)}
-        onCopied={onRefresh}
+        onCopied={() => {
+          onRefresh();
+          onRefreshPackets();
+        }}
       />
     )}
     </>

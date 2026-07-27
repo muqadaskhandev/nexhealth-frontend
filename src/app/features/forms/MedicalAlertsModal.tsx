@@ -274,10 +274,10 @@ export function MedicalAlertsModal({ onClose }: { onClose: () => void }) {
             })
           )}
           <p className="text-xs text-gray-400">
-            Unchecking an item hides it from patients without deleting its history. Flash-alert items (
-            <Zap size={10} className="inline text-amber-500" />) are flagged for staff as clinically significant. Real
-            NexHealth reads this list directly from your health record system — here, this is the practice-managed
-            equivalent.
+            Unchecking an item hides it from patients (greyed out here) without deleting its history. Flash-alert items (
+            <Zap size={10} className="inline text-amber-500" />) are flagged for staff as clinically significant. Options
+            are read from your health record system — correct misspellings in your practice management system first, then
+            contact Support to regenerate the form if needed.
           </p>
         </div>
       </div>

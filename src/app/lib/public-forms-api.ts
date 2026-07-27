@@ -56,7 +56,32 @@ type ApiField = {
   max_length: number | null;
   conditional_field_id: string | null;
   conditional_value: string;
+  label_position?: "top" | "left";
+  sync_target?: string | null;
+  placeholder?: string;
+  default_value?: string;
+  width?: "full" | "half";
 };
+
+function mapField(field: ApiField) {
+  return {
+    id: field.id,
+    type: field.type,
+    label: field.label,
+    required: field.required,
+    options: field.options,
+    page: field.page,
+    minLength: field.min_length,
+    maxLength: field.max_length,
+    conditionalFieldId: field.conditional_field_id,
+    conditionalValue: field.conditional_value,
+    labelPosition: field.label_position,
+    syncTarget: field.sync_target,
+    placeholder: field.placeholder,
+    defaultValue: field.default_value,
+    width: field.width,
+  };
+}
 
 type ApiForm = {
   request_id: string;
@@ -94,18 +119,7 @@ function mapForm(f: ApiForm): PublicForm {
     expiresAt: f.expires_at,
     medicalAlerts: mapMedicalAlertCatalog(f.medical_alerts),
     prefillAnswers: f.prefill_answers ?? {},
-    fields: f.fields.map((field) => ({
-      id: field.id,
-      type: field.type,
-      label: field.label,
-      required: field.required,
-      options: field.options,
-      page: field.page,
-      minLength: field.min_length,
-      maxLength: field.max_length,
-      conditionalFieldId: field.conditional_field_id,
-      conditionalValue: field.conditional_value,
-    })),
+    fields: f.fields.map(mapField),
   };
 }
 
@@ -127,18 +141,7 @@ function mapPacketForm(f: ApiPacketForm): PublicPacketForm {
     displayType: f.display_type,
     pageCount: f.page_count,
     medicalAlerts: mapMedicalAlertCatalog(f.medical_alerts),
-    fields: f.fields.map((field) => ({
-      id: field.id,
-      type: field.type,
-      label: field.label,
-      required: field.required,
-      options: field.options,
-      page: field.page,
-      minLength: field.min_length,
-      maxLength: field.max_length,
-      conditionalFieldId: field.conditional_field_id,
-      conditionalValue: field.conditional_value,
-    })),
+    fields: f.fields.map(mapField),
   };
 }
 

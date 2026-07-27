@@ -117,8 +117,11 @@ export type FormFieldType =
   | "checkbox" | "select_boxes" | "dropdown" | "radio"
   | "date" | "date_entry" | "address" | "file" | "signature"
   | "insurance" | "preferred_language" | "payment"
-  | "content" | "location_logo"
+  | "content" | "location_logo" | "columns" | "panel"
   | "medical_alerts_dropdown" | "medical_alerts_radio";
+
+export type FormFieldLabelPosition = "top" | "left";
+export type FormFieldWidth = "full" | "half";
 
 export type MedicalAlertCategory = "condition" | "allergy" | "medication";
 
@@ -145,6 +148,11 @@ export type FormField = {
   maxLength: number | null;
   conditionalFieldId: string | null;
   conditionalValue: string;
+  labelPosition: FormFieldLabelPosition;
+  syncTarget: string | null;
+  placeholder: string;
+  defaultValue: string;
+  width: FormFieldWidth;
 };
 
 export type FormTemplateSource = "build" | "digitize";
@@ -170,6 +178,7 @@ export type FormTemplate = {
   ruleMinAge: number | null;
   ruleMaxAge: number | null;
   ruleAppointmentTypeIds: string[];
+  ruleProcedureCodes: string[];
   isDefault: boolean;
   isLocked: boolean;
   createdAt: string;
@@ -357,6 +366,11 @@ export type PublicFormField = {
   maxLength: number | null;
   conditionalFieldId: string | null;
   conditionalValue: string;
+  labelPosition?: FormFieldLabelPosition;
+  syncTarget?: string | null;
+  placeholder?: string;
+  defaultValue?: string;
+  width?: FormFieldWidth;
 };
 
 export type PublicForm = {

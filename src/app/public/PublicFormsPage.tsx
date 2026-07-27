@@ -1,9 +1,19 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, ChevronRight, FileText } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { publicFormsApi, type PublicApiError } from "../lib/public-forms-api";
-import { toastError, toastSuccess } from "../lib/toast";
 import type { PublicBranding, PublicForm, PublicVerifyResult } from "../types";
-import { BrandedShell, PublicFieldInput, fmtRelative, isFieldVisible, validateFormPage, type Answers, type FieldValue } from "./sharedPublicUi";
+import { DobInput } from "./DobInput";
+import {
+  BrandedShell,
+  PublicConfirmScreen,
+  PublicFieldInput,
+  PublicFormFillCard,
+  fmtRelative,
+  isFieldVisible,
+  validateFormPage,
+  type Answers,
+  type FieldValue,
+} from "./sharedPublicUi";
 
 type Step = "loading" | "invalid" | "verify" | "list" | "fill" | "done";
 
@@ -124,7 +134,6 @@ export function PublicFormsPage({ token }: { token: string }) {
     publicFormsApi
       .submit(token, { lastName: lastName.trim(), dob, formRequestId: activeForm.requestId, answers: activeAnswers })
       .then(() => {
-        toastSuccess("Form submitted");
         const updatedForms = result.forms.map((f, i) => (i === activeFormIdx ? { ...f, completed: true } : f));
         const updatedResult = { ...result, forms: updatedForms };
         setResult(updatedResult);
@@ -139,9 +148,7 @@ export function PublicFormsPage({ token }: { token: string }) {
       })
       .catch((err: unknown) => {
         const apiErr = err as PublicApiError;
-        const msg = apiErr?.detail || "Could not submit this form — please try again.";
-        setFillError(msg);
-        toastError(msg);
+        setFillError(apiErr?.detail || "Could not submit this form — please try again.");
       })
       .finally(() => setSubmitting(false));
   }
@@ -161,7 +168,7 @@ export function PublicFormsPage({ token }: { token: string }) {
     return (
       <BrandedShell branding={null}>
         <div className="text-center py-6 space-y-2">
-          <p className="text-base font-bold text-gray-900">This link isn't available</p>
+          <p className="text-base font-bold text-gray-900">This link isn&apos;t available</p>
           <p className="text-sm text-gray-500">{invalidReason}</p>
         </div>
       </BrandedShell>
@@ -171,8 +178,7 @@ export function PublicFormsPage({ token }: { token: string }) {
   if (step === "verify") {
     return (
       <BrandedShell branding={branding}>
-        <h1 className="text-lg font-bold text-gray-900 text-center mb-1">Verify patient details</h1>
-        <p className="text-sm text-gray-500 text-center mb-5">Please confirm who you are to view your forms.</p>
+        <h1 className="text-lg font-bold text-gray-900 text-center mb-5">Verify patient details</h1>
         {verifyError && (
           <div className="mb-4 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{verifyError}</div>
         )}
@@ -188,18 +194,12 @@ export function PublicFormsPage({ token }: { token: string }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-800 mb-1.5">Patient date of birth</label>
-            <input
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400"
-              autoComplete="bday"
-            />
+            <DobInput value={dob} onChange={setDob} disabled={verifying} />
           </div>
           <button
             onClick={handleVerify}
-            disabled={verifying}
-            className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
+            disabled={verifying || !lastName.trim() || !dob}
+            className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
           >
             {verifying ? "Verifying…" : "Submit"}
           </button>
@@ -219,6 +219,7 @@ export function PublicFormsPage({ token }: { token: string }) {
         {soonest && (
           <p className="text-sm text-gray-500 text-center mb-5">These forms will expire in {fmtRelative(soonest.expiresAt)}</p>
         )}
+        {!soonest && <div className="mb-5" />}
         {total === 0 ? (
           <p className="text-sm text-gray-500 text-center py-6">You have no forms to complete right now.</p>
         ) : (
@@ -240,58 +241,47 @@ export function PublicFormsPage({ token }: { token: string }) {
   if (step === "fill" && activeForm) {
     const fields = activeForm.fields.filter((f) => f.page === page && isFieldVisible(f, activeAnswers));
     return (
-      <BrandedShell branding={result}>
-        <div className="flex items-center gap-2 mb-4">
-          <button onClick={handleFillBack} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors">
-            <ArrowLeft size={13} /> Back
+      <PublicFormFillCard
+        branding={result}
+        formName={activeForm.name}
+        page={page}
+        pageCount={activeForm.pageCount}
+        onBack={handleFillBack}
+        footer={
+          <button
+            onClick={handleFillNext}
+            disabled={submitting}
+            className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            {submitting ? "Submitting…" : page < activeForm.pageCount ? "Next" : "Submit"}
           </button>
-        </div>
-        <div className="flex items-center gap-2 mb-4">
-          <FileText size={15} className="text-gray-400 flex-shrink-0" />
-          <h1 className="text-base font-bold text-gray-900 truncate">{activeForm.name}</h1>
-        </div>
-        {activeForm.pageCount > 1 && (
-          <p className="text-xs font-semibold text-gray-400 mb-3">Page {page} of {activeForm.pageCount}</p>
-        )}
+        }
+      >
         {fillError && (
           <div className="mb-4 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{fillError}</div>
         )}
-        <div className="space-y-4 mb-6">
+        <div className="grid grid-cols-2 gap-4">
           {fields.length === 0 ? (
-            <p className="text-sm text-gray-400">Nothing to fill out on this page.</p>
+            <p className="text-sm text-gray-400 col-span-2">Nothing to fill out on this page.</p>
           ) : (
             fields.map((f) => (
-              <PublicFieldInput
-                key={f.id}
-                field={f}
-                value={activeAnswers[f.id]}
-                medicalAlerts={activeForm.medicalAlerts}
-                onChange={(v) => setFieldValue(activeForm.requestId, f.id, v)}
-              />
+              <div key={f.id} className={f.width === "half" ? "col-span-1" : "col-span-2"}>
+                <PublicFieldInput
+                  field={f}
+                  value={activeAnswers[f.id]}
+                  medicalAlerts={activeForm.medicalAlerts}
+                  onChange={(v) => setFieldValue(activeForm.requestId, f.id, v)}
+                />
+              </div>
             ))
           )}
         </div>
-        <button
-          onClick={handleFillNext}
-          disabled={submitting}
-          className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors"
-        >
-          {submitting ? "Submitting…" : page < activeForm.pageCount ? "Next" : "Submit"}
-        </button>
-      </BrandedShell>
+      </PublicFormFillCard>
     );
   }
 
   if (step === "done") {
-    return (
-      <BrandedShell branding={result}>
-        <div className="text-center py-4 space-y-3">
-          <CheckCircle2 size={40} className="text-emerald-500 mx-auto" />
-          <p className="text-base font-bold text-gray-900">You're all set</p>
-          <p className="text-sm text-gray-500">Please reach out if you have any questions.</p>
-        </div>
-      </BrandedShell>
-    );
+    return <PublicConfirmScreen branding={result} />;
   }
 
   return null;

@@ -100,7 +100,7 @@ export function FormsListView({
   templates?: FormTemplate[];
   packets?: FormPacket[];
 }) {
-  const [activeTab, setActiveTab] = useState<"active" | "synced" | "expired" | "pending" | "all">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "expired" | "deleted" | "synced" | "pending" | "all">("active");
   const [search, setSearch] = useState("");
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestBatches, setRequestBatches] = useState<FormRequestBatch[]>([]);
@@ -184,7 +184,7 @@ export function FormsListView({
       .finally(() => setArchivingBusy(false));
   }
 
-  const usesBatches = activeTab === "active" || activeTab === "expired";
+  const usesBatches = activeTab === "active" || activeTab === "expired" || activeTab === "deleted";
 
   function refreshBatches() {
     if (!usesBatches) return;
@@ -220,7 +220,7 @@ export function FormsListView({
           <button onClick={onSettings} className="px-3.5 py-1.5 text-sm font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors text-gray-700">
             Settings
           </button>
-          <button className="px-3.5 py-1.5 text-sm font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors text-gray-700">
+          <button onClick={onManage} className="px-3.5 py-1.5 text-sm font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors text-gray-700">
             Templates
           </button>
           <button onClick={() => setShowRequestModal(true)} className="px-4 py-1.5 text-sm font-semibold bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors whitespace-nowrap">
@@ -232,9 +232,9 @@ export function FormsListView({
       {/* Tab bar + filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-1 bg-white border border-border rounded-lg p-1 overflow-x-auto">
-          {(["active", "synced", "expired", "pending", "all"] as const).map(tab => (
+          {(["active", "expired", "deleted", "synced", "pending", "all"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize flex-shrink-0 ${activeTab === tab ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === "deleted" ? "Deleted" : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -316,7 +316,7 @@ export function FormsListView({
               loadingBatches ? (
                 <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">Loading…</td></tr>
               ) : filteredBatches.length === 0 ? (
-                <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">No {activeTab} form requests.</td></tr>
+                <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">No {activeTab === "deleted" ? "deleted" : activeTab} form requests.</td></tr>
               ) : filteredBatches.map(b => {
                 const key = `${b.patientId}-${b.sentAt}`;
                 return (
@@ -375,7 +375,7 @@ export function FormsListView({
                     </IconButton>
                     {ellipsisOpen === key && (
                       <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
-                        {b.status === "expired" && (
+                        {activeTab !== "deleted" && b.status === "expired" && (
                           <button
                             onClick={() => { setEllipsisOpen(null); setReactivating(b); }}
                             className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -383,7 +383,7 @@ export function FormsListView({
                             Move to active
                           </button>
                         )}
-                        {b.completedStatus === "complete" && (
+                        {activeTab !== "deleted" && b.completedStatus === "complete" && (
                           <>
                             <button
                               onClick={() => handleMarkSynced(key, b)}
@@ -399,12 +399,14 @@ export function FormsListView({
                             </button>
                           </>
                         )}
-                        <button
-                          onClick={() => { setEllipsisOpen(null); setArchiving(b); }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
-                          Archive
-                        </button>
+                        {activeTab !== "deleted" && (
+                          <button
+                            onClick={() => { setEllipsisOpen(null); setArchiving(b); }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            Archive
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>

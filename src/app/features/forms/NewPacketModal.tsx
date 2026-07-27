@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Search, Check, FileText, ChevronUp, ChevronDown } from "lucide-react";
+import { X, Search, Check, FileText, GripVertical } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
@@ -37,13 +37,15 @@ export function NewPacketModal({
   function selectAll()   { setSelectedIds(templates.map(t => t.id)); }
   function deselectAll() { setSelectedIds([]); }
 
-  function move(id: string, dir: -1 | 1) {
-    setSelectedIds(prev => {
-      const idx = prev.indexOf(id);
-      const swapWith = idx + dir;
-      if (swapWith < 0 || swapWith >= prev.length) return prev;
+  function reorderForms(dragId: string, targetId: string) {
+    if (dragId === targetId) return;
+    setSelectedIds((prev) => {
+      const from = prev.indexOf(dragId);
+      const to = prev.indexOf(targetId);
+      if (from === -1 || to === -1) return prev;
       const next = [...prev];
-      [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
       return next;
     });
   }
@@ -104,19 +106,17 @@ export function NewPacketModal({
           {/* Selected order */}
           {selectedTemplates.length > 0 && (
             <div className="mb-5">
-              <label className="text-sm font-bold text-gray-900 mb-2 block">Packet order</label>
+              <label className="text-sm font-bold text-gray-900 mb-1 block">Packet order</label>
+              <p className="text-xs text-gray-400 mb-2">Drag forms to set the order patients will see them.</p>
               <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
                 {selectedTemplates.map((t, i) => (
-                  <div key={t.id} className="flex items-center gap-2 px-3 py-2">
-                    <span className="text-xs text-gray-400 w-4 flex-shrink-0">{i + 1}</span>
-                    <FileText size={14} className="text-gray-400 flex-shrink-0" />
-                    <span className="text-sm text-gray-800 flex-1 min-w-0 truncate">{t.name}</span>
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                      <IconButton label="Move up" onClick={() => move(t.id, -1)} disabled={i === 0} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronUp size={13} /></IconButton>
-                      <IconButton label="Move down" onClick={() => move(t.id, 1)} disabled={i === selectedTemplates.length - 1} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronDown size={13} /></IconButton>
-                      <IconButton label="Remove from packet" onClick={() => toggle(t.id)} className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-500"><X size={13} /></IconButton>
-                    </div>
-                  </div>
+                  <PacketOrderRow
+                    key={t.id}
+                    template={t}
+                    index={i}
+                    onRemove={() => toggle(t.id)}
+                    onReorder={reorderForms}
+                  />
                 ))}
               </div>
             </div>
@@ -176,6 +176,66 @@ export function NewPacketModal({
           <button onClick={onClose} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Cancel</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PacketOrderRow({
+  template,
+  index,
+  onRemove,
+  onReorder,
+}: {
+  template: FormTemplate;
+  index: number;
+  onRemove: () => void;
+  onReorder: (dragId: string, targetId: string) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const dragId = e.dataTransfer.getData("application/x-nex-packet-form-id");
+        if (dragId) onReorder(dragId, template.id);
+      }}
+      className={`flex items-center gap-2 px-3 py-2 transition-colors ${
+        dragOver ? "bg-teal-50" : "bg-white"
+      }`}
+    >
+      <div
+        draggable
+        title="Drag to reorder"
+        onDragStart={(e) => {
+          e.dataTransfer.setData("application/x-nex-packet-form-id", template.id);
+          e.dataTransfer.effectAllowed = "move";
+          setDragging(true);
+        }}
+        onDragEnd={() => {
+          setDragging(false);
+          setDragOver(false);
+        }}
+        className={`w-6 h-6 flex items-center justify-center text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 ${
+          dragging ? "opacity-40" : ""
+        }`}
+      >
+        <GripVertical size={14} />
+      </div>
+      <span className="text-xs text-gray-400 w-4 flex-shrink-0">{index + 1}</span>
+      <FileText size={14} className="text-gray-400 flex-shrink-0" />
+      <span className="text-sm text-gray-800 flex-1 min-w-0 truncate">{template.name}</span>
+      <IconButton label="Remove from packet" onClick={onRemove} className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-500 flex-shrink-0">
+        <X size={13} />
+      </IconButton>
     </div>
   );
 }

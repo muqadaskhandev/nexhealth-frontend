@@ -1,50 +1,22 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Copy, Plus, Stethoscope, X, Zap } from "lucide-react";
+import { ChevronDown, Stethoscope, X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import { FormAutomationRulesPanel } from "./FormAutomationRulesPanel";
 import { MedicalAlertsModal } from "./MedicalAlertsModal";
+import { FormBuilderFieldCard } from "./FormBuilderFieldCard";
+import { FormFieldEditorModal } from "./FormFieldEditorModal";
+import {
+  DRAG_FIELD_TYPE,
+  FIELD_LABEL,
+  LAYOUT,
+  MEDICAL_ALERTS_TYPES,
+  MEDICAL_HISTORY_FIELDS,
+  QUESTIONS,
+  makeFieldId,
+} from "./formBuilderConstants";
 import { mapAppointmentType, staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { AppointmentType, FormField, FormFieldType, FormTemplate, RulePatientStatus } from "../../types";
-
-const QUESTIONS: { type: FormFieldType; icon: string; label: string }[] = [
-  { type: "text", icon: ">_", label: "Text Field" },
-  { type: "textarea", icon: "A", label: "Text Area" },
-  { type: "email", icon: "@", label: "Email" },
-  { type: "number", icon: "#", label: "Number" },
-  { type: "phone", icon: "☎", label: "Phone Number" },
-  { type: "checkbox", icon: "☑", label: "Checkbox" },
-  { type: "select_boxes", icon: "⊞", label: "Select Boxes" },
-  { type: "dropdown", icon: "▾", label: "Dropdown" },
-  { type: "radio", icon: "◉", label: "Radio" },
-  { type: "date", icon: "📅", label: "Date" },
-  { type: "date_entry", icon: "📆", label: "Date Entry" },
-  { type: "address", icon: "📍", label: "Address" },
-  { type: "file", icon: "📎", label: "File" },
-  { type: "signature", icon: "✎", label: "Signature" },
-  { type: "insurance", icon: "🛡", label: "Insurance" },
-  { type: "preferred_language", icon: "🌐", label: "Preferred Language" },
-  { type: "payment", icon: "💳", label: "Payment Method" },
-];
-
-const LAYOUT: { type: FormFieldType; icon: string; label: string }[] = [
-  { type: "content", icon: "¶", label: "Content" },
-  { type: "location_logo", icon: "🖼", label: "Location Logo" },
-];
-
-const MEDICAL_HISTORY_FIELDS: { type: FormFieldType; icon: string; label: string }[] = [
-  { type: "medical_alerts_dropdown", icon: "🩺", label: "Medical Alerts (Dropdown)" },
-  { type: "medical_alerts_radio", icon: "🩹", label: "Medical Alerts (Radio)" },
-];
-
-const FIELD_LABEL: Record<FormFieldType, string> = Object.fromEntries(
-  [...QUESTIONS, ...LAYOUT, ...MEDICAL_HISTORY_FIELDS].map((q) => [q.type, q.label])
-) as Record<FormFieldType, string>;
-
-const MEDICAL_ALERTS_TYPES: FormFieldType[] = ["medical_alerts_dropdown", "medical_alerts_radio"];
-
-const OPTIONS_TYPES: FormFieldType[] = ["select_boxes", "dropdown", "radio"];
-const VALIDATION_TYPES: FormFieldType[] = ["text", "textarea", "email", "number", "phone"];
-const LAYOUT_TYPES: FormFieldType[] = ["content", "location_logo"];
 
 type StarterField = { type: FormFieldType; label: string; required: boolean; options: string[] };
 type StarterTemplate = { name: string; documentType: string; fields: StarterField[] };
@@ -126,8 +98,35 @@ const STARTER_TEMPLATES: StarterTemplate[] = [
   },
 ];
 
-function makeFieldId(): string {
-  return `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+function newField(type: FormFieldType, page: number): FormField {
+  return {
+    id: makeFieldId(),
+    type,
+    label: FIELD_LABEL[type],
+    required: false,
+    options: ["select_boxes", "dropdown", "radio"].includes(type) ? ["Option 1"] : [],
+    page,
+    minLength: null,
+    maxLength: null,
+    conditionalFieldId: null,
+    conditionalValue: "",
+    labelPosition: "top",
+    syncTarget: null,
+    placeholder: "",
+    defaultValue: "",
+    width: "full",
+  };
+}
+
+function normalizeField(f: FormField): FormField {
+  return {
+    ...f,
+    labelPosition: f.labelPosition ?? "top",
+    syncTarget: f.syncTarget ?? null,
+    placeholder: f.placeholder ?? "",
+    defaultValue: f.defaultValue ?? "",
+    width: f.width ?? "full",
+  };
 }
 
 export function FormBuilderView({
@@ -143,11 +142,14 @@ export function FormBuilderView({
   const [template, setTemplate] = useState("");
   const [documentType, setDocumentType] = useState(initial?.documentType ?? "");
   const [displayType, setDisplayType] = useState<"wizard" | "single_page">(initial?.displayType ?? "wizard");
-  const [fields, setFields] = useState<FormField[]>(initial?.fields ?? []);
+  const [fields, setFields] = useState<FormField[]>((initial?.fields ?? []).map(normalizeField));
   const [pageCount, setPageCount] = useState(initial?.pageCount ?? 1);
   const [activePage, setActivePage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
+  const [dragOverCanvas, setDragOverCanvas] = useState(false);
 
   const [sendAutomatically, setSendAutomatically] = useState(initial?.sendAutomatically ?? false);
   const [rulePatientStatus, setRulePatientStatus] = useState<RulePatientStatus>(initial?.rulePatientStatus ?? "any");
@@ -155,6 +157,7 @@ export function FormBuilderView({
   const [ruleMinAge, setRuleMinAge] = useState<number | null>(initial?.ruleMinAge ?? null);
   const [ruleMaxAge, setRuleMaxAge] = useState<number | null>(initial?.ruleMaxAge ?? null);
   const [ruleAppointmentTypeIds, setRuleAppointmentTypeIds] = useState<string[]>(initial?.ruleAppointmentTypeIds ?? []);
+  const [ruleProcedureCodes, setRuleProcedureCodes] = useState<string[]>(initial?.ruleProcedureCodes ?? []);
   const [appointmentTypes, setAppointmentTypes] = useState<AppointmentType[]>([]);
   const [showMedicalAlerts, setShowMedicalAlerts] = useState(false);
 
@@ -165,11 +168,10 @@ export function FormBuilderView({
       .catch(() => setAppointmentTypes([]));
   }, []);
 
-  function toggleRuleAppointmentType(id: string) {
-    setRuleAppointmentTypeIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
-  }
-
   const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
+  const editingField = editingFieldId ? fields.find((f) => f.id === editingFieldId) ?? null : null;
+  const activeFields = fields.filter((f) => f.page === activePage);
+  const isLocked = initial?.isLocked ?? false;
 
   function applyTemplate(name: string) {
     setTemplate(name);
@@ -178,27 +180,39 @@ export function FormBuilderView({
     setTitle(tpl.name);
     setDocumentType(tpl.documentType);
     setFields(tpl.fields.map((f) => ({
-      ...f, id: makeFieldId(), page: 1,
-      minLength: null, maxLength: null, conditionalFieldId: null, conditionalValue: "",
+      ...newField(f.type, 1),
+      label: f.label,
+      required: f.required,
+      options: f.options.length ? [...f.options] : newField(f.type, 1).options,
     })));
     setPageCount(1);
     setActivePage(1);
   }
 
-  function addField(type: FormFieldType) {
-    const field: FormField = {
-      id: makeFieldId(),
-      type,
-      label: FIELD_LABEL[type],
-      required: false,
-      options: OPTIONS_TYPES.includes(type) ? ["Option 1"] : [],
-      page: activePage,
-      minLength: null,
-      maxLength: null,
-      conditionalFieldId: null,
-      conditionalValue: "",
-    };
-    setFields((prev) => [...prev, field]);
+  function insertFieldAt(type: FormFieldType, index?: number) {
+    if (type === "columns") {
+      const col1 = { ...newField("text", activePage), label: "Column 1", width: "half" as const };
+      const col2 = { ...newField("text", activePage), label: "Column 2", width: "half" as const };
+      setFields((prev) => {
+        const pageFields = prev.filter((f) => f.page === activePage);
+        const others = prev.filter((f) => f.page !== activePage);
+        const insertAt = index ?? pageFields.length;
+        const nextPage = [...pageFields];
+        nextPage.splice(insertAt, 0, col1, col2);
+        return [...others, ...nextPage];
+      });
+      return;
+    }
+
+    const field = newField(type, activePage);
+    setFields((prev) => {
+      const pageFields = prev.filter((f) => f.page === activePage);
+      const others = prev.filter((f) => f.page !== activePage);
+      const insertAt = index ?? pageFields.length;
+      const nextPage = [...pageFields];
+      nextPage.splice(insertAt, 0, field);
+      return [...others, ...nextPage];
+    });
   }
 
   function duplicateField(id: string) {
@@ -220,42 +234,46 @@ export function FormBuilderView({
     setFields((prev) =>
       prev.filter((f) => f.id !== id).map((f) => (f.conditionalFieldId === id ? { ...f, conditionalFieldId: null, conditionalValue: "" } : f))
     );
+    if (editingFieldId === id) setEditingFieldId(null);
   }
 
-  function moveField(id: string, dir: -1 | 1) {
+  function reorderField(dragId: string, targetId: string) {
+    if (dragId === targetId) return;
     setFields((prev) => {
-      const idxs = prev.map((f, i) => (f.page === activePage ? i : -1)).filter((i) => i !== -1);
-      const pos = idxs.findIndex((i) => prev[i].id === id);
-      const swapWith = idxs[pos + dir];
-      if (swapWith === undefined) return prev;
-      const next = [...prev];
-      const a = idxs[pos];
-      [next[a], next[swapWith]] = [next[swapWith], next[a]];
-      return next;
+      const pageFields = prev.filter((f) => f.page === activePage);
+      const others = prev.filter((f) => f.page !== activePage);
+      const from = pageFields.findIndex((f) => f.id === dragId);
+      const to = pageFields.findIndex((f) => f.id === targetId);
+      if (from === -1 || to === -1) return prev;
+      const nextPage = [...pageFields];
+      const [moved] = nextPage.splice(from, 1);
+      nextPage.splice(to, 0, moved);
+      return [...others, ...nextPage];
     });
   }
 
-  function addOption(id: string) {
-    setFields((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, options: [...f.options, `Option ${f.options.length + 1}`] } : f))
-    );
+  function handlePaletteDragStart(e: React.DragEvent, type: FormFieldType) {
+    e.dataTransfer.setData(DRAG_FIELD_TYPE, type);
+    e.dataTransfer.effectAllowed = "copy";
   }
 
-  function updateOption(id: string, index: number, value: string) {
-    setFields((prev) =>
-      prev.map((f) =>
-        f.id === id ? { ...f, options: f.options.map((o, i) => (i === index ? value : o)) } : f
-      )
-    );
+  function handleCanvasDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOverCanvas(true);
   }
 
-  function removeOption(id: string, index: number) {
-    setFields((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, options: f.options.filter((_, i) => i !== index) } : f))
-    );
+  function handleCanvasDrop(e: React.DragEvent, index?: number) {
+    e.preventDefault();
+    setDragOverCanvas(false);
+    const type = e.dataTransfer.getData(DRAG_FIELD_TYPE) as FormFieldType;
+    if (type) {
+      insertFieldAt(type, index);
+      return;
+    }
+    const dragId = e.dataTransfer.getData("application/x-nex-form-field-id");
+    const targetId = (e.currentTarget as HTMLElement).dataset.fieldId;
+    if (dragId && targetId) reorderField(dragId, targetId);
   }
-
-  const isLocked = initial?.isLocked ?? false;
 
   function handleSave() {
     if (submitting || isLocked) return;
@@ -296,9 +314,21 @@ export function FormBuilderView({
       display_type: displayType,
       page_count: pageCount,
       fields: fields.map((f) => ({
-        id: f.id, type: f.type, label: f.label.trim(), required: f.required, options: f.options, page: f.page,
-        min_length: f.minLength, max_length: f.maxLength,
-        conditional_field_id: f.conditionalFieldId, conditional_value: f.conditionalValue,
+        id: f.id,
+        type: f.type,
+        label: f.label.trim(),
+        required: f.required,
+        options: f.options,
+        page: f.page,
+        min_length: f.minLength,
+        max_length: f.maxLength,
+        conditional_field_id: f.conditionalFieldId,
+        conditional_value: f.conditionalValue,
+        label_position: f.labelPosition,
+        sync_target: f.syncTarget,
+        placeholder: f.placeholder,
+        default_value: f.defaultValue,
+        width: f.width,
       })),
       send_automatically: sendAutomatically,
       rule_patient_status: rulePatientStatus,
@@ -306,6 +336,7 @@ export function FormBuilderView({
       rule_min_age: sendAutomatically ? ruleMinAge : null,
       rule_max_age: sendAutomatically ? ruleMaxAge : null,
       rule_appointment_type_ids: sendAutomatically ? ruleAppointmentTypeIds : [],
+      rule_procedure_codes: sendAutomatically ? ruleProcedureCodes : [],
     };
     const request = initial
       ? staffApi.forms.updateTemplate(initial.id, body)
@@ -324,13 +355,13 @@ export function FormBuilderView({
       .finally(() => setSubmitting(false));
   }
 
-  const activeFields = fields.filter((f) => f.page === activePage);
-
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col">
-      {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 border-b border-border flex-shrink-0">
-        <h2 className="text-base font-bold text-gray-900">Form Builder</h2>
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Form builder</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Build forms for patients to fill out and sync to your health record system.</p>
+        </div>
         <div className="flex items-center gap-2">
           <IconButton
             label={isLocked ? "This form has real patient submissions and can't be edited — duplicate it to make changes." : "Save and exit"}
@@ -355,19 +386,18 @@ export function FormBuilderView({
         <div className="mx-4 sm:mx-6 mt-3 px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex-shrink-0">{error}</div>
       )}
 
-      {/* Config row */}
       <div className="flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border bg-gray-50/50 flex-shrink-0 flex-wrap">
         {!initial && (
           <div className="relative">
-            <select value={template} onChange={e => applyTemplate(e.target.value)} className="pl-3 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none bg-white appearance-none min-w-[180px] focus:border-teal-400">
+            <select value={template} onChange={(e) => applyTemplate(e.target.value)} className="pl-3 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none bg-white appearance-none min-w-[180px] focus:border-teal-400">
               <option value="">Select a Template</option>
-              {STARTER_TEMPLATES.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+              {STARTER_TEMPLATES.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
             </select>
             <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
         )}
         <div className="relative">
-          <select value={documentType} onChange={e => setDocumentType(e.target.value)} className="pl-3 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none bg-white appearance-none min-w-[150px] focus:border-teal-400">
+          <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className="pl-3 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none bg-white appearance-none min-w-[150px] focus:border-teal-400">
             <option value="">Document Type</option>
             <option>Medical</option><option>Dental</option><option>Insurance</option><option>Consent</option><option>Payment</option>
           </select>
@@ -376,7 +406,7 @@ export function FormBuilderView({
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-gray-500 font-medium">Display Type</span>
           <div className="relative">
-            <select value={displayType} onChange={e => setDisplayType(e.target.value as "wizard" | "single_page")} className="pl-3 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none bg-white appearance-none focus:border-teal-400">
+            <select value={displayType} onChange={(e) => setDisplayType(e.target.value as "wizard" | "single_page")} className="pl-3 pr-8 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none bg-white appearance-none focus:border-teal-400">
               <option value="wizard">Wizard</option><option value="single_page">Single Page</option>
             </select>
             <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -384,9 +414,9 @@ export function FormBuilderView({
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-gray-500 font-medium">Title</span>
-          <input value={title} onChange={e => setTitle(e.target.value)} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 bg-white min-w-[160px]" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 bg-white min-w-[160px]" />
         </div>
-        {fields.some(f => MEDICAL_ALERTS_TYPES.includes(f.type)) && (
+        {fields.some((f) => MEDICAL_ALERTS_TYPES.includes(f.type)) && (
           <button
             onClick={() => setShowMedicalAlerts(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors text-gray-700 ml-auto"
@@ -396,91 +426,18 @@ export function FormBuilderView({
         )}
       </div>
 
-      {/* Automation */}
-      <div className="px-4 sm:px-6 py-3 border-b border-border bg-white flex-shrink-0">
-        <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 cursor-pointer w-fit">
-          <input type="checkbox" checked={sendAutomatically} onChange={e => setSendAutomatically(e.target.checked)} className="accent-teal-500" />
-          <Zap size={14} className="text-teal-500" />
-          Send automatically
-        </label>
-        {sendAutomatically && (
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Patient status</label>
-              <select
-                value={rulePatientStatus}
-                onChange={e => setRulePatientStatus(e.target.value as RulePatientStatus)}
-                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm bg-white outline-none focus:border-teal-400"
-              >
-                <option value="any">Any</option>
-                <option value="new">New patients</option>
-                <option value="existing">Existing patients</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Frequency (months)</label>
-              <input
-                type="number"
-                min={1}
-                value={ruleFrequencyMonths ?? ""}
-                onChange={e => setRuleFrequencyMonths(e.target.value === "" ? null : Number(e.target.value))}
-                placeholder="Every time"
-                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Min age</label>
-              <input
-                type="number"
-                min={0}
-                value={ruleMinAge ?? ""}
-                onChange={e => setRuleMinAge(e.target.value === "" ? null : Number(e.target.value))}
-                placeholder="No minimum"
-                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Max age</label>
-              <input
-                type="number"
-                min={0}
-                value={ruleMaxAge ?? ""}
-                onChange={e => setRuleMaxAge(e.target.value === "" ? null : Number(e.target.value))}
-                placeholder="No maximum"
-                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400"
-              />
-            </div>
-            <div className="sm:col-span-2 lg:col-span-4">
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Appointment types</label>
-              {appointmentTypes.length === 0 ? (
-                <p className="text-xs text-gray-400">No appointment types configured — this rule will match any appointment type.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {appointmentTypes.map(at => (
-                    <button
-                      key={at.id}
-                      type="button"
-                      onClick={() => toggleRuleAppointmentType(at.id)}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${ruleAppointmentTypeIds.includes(at.id) ? "bg-teal-500 border-teal-500 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-teal-300"}`}
-                    >
-                      {at.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Body */}
-      <div className="flex flex-1 overflow-hidden flex-col sm:flex-row">
-        {/* Questions + Layout sidebar */}
+      <div className="flex flex-1 overflow-hidden flex-col sm:flex-row min-h-0">
         <div className="w-full sm:w-48 border-b sm:border-b-0 sm:border-r border-border bg-white flex-shrink-0 overflow-x-auto sm:overflow-y-auto sm:max-h-full">
           <div className="flex sm:block">
             <p className="hidden sm:block px-4 py-3 text-sm font-bold text-gray-900 border-b border-border">Questions</p>
-            {QUESTIONS.map(q => (
-              <button key={q.label} onClick={() => addField(q.type)} className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap">
+            {QUESTIONS.map((q) => (
+              <button
+                key={q.label}
+                draggable
+                onDragStart={(e) => handlePaletteDragStart(e, q.type)}
+                onClick={() => insertFieldAt(q.type)}
+                className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap cursor-grab active:cursor-grabbing"
+              >
                 <span className="text-gray-400 w-5 text-center font-mono text-xs">{q.icon}</span>
                 {q.label}
               </button>
@@ -488,8 +445,14 @@ export function FormBuilderView({
           </div>
           <div className="flex sm:block">
             <p className="hidden sm:block px-4 py-3 text-sm font-bold text-gray-900 border-b border-t border-border">Layout</p>
-            {LAYOUT.map(q => (
-              <button key={q.label} onClick={() => addField(q.type)} className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap">
+            {LAYOUT.map((q) => (
+              <button
+                key={q.label}
+                draggable
+                onDragStart={(e) => handlePaletteDragStart(e, q.type)}
+                onClick={() => insertFieldAt(q.type)}
+                className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap cursor-grab active:cursor-grabbing"
+              >
                 <span className="text-gray-400 w-5 text-center font-mono text-xs">{q.icon}</span>
                 {q.label}
               </button>
@@ -497,8 +460,14 @@ export function FormBuilderView({
           </div>
           <div className="flex sm:block">
             <p className="hidden sm:block px-4 py-3 text-sm font-bold text-gray-900 border-b border-t border-border">Medical History</p>
-            {MEDICAL_HISTORY_FIELDS.map(q => (
-              <button key={q.label} onClick={() => addField(q.type)} className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap">
+            {MEDICAL_HISTORY_FIELDS.map((q) => (
+              <button
+                key={q.label}
+                draggable
+                onDragStart={(e) => handlePaletteDragStart(e, q.type)}
+                onClick={() => insertFieldAt(q.type)}
+                className="flex-shrink-0 sm:w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b-0 sm:border-b border-gray-50 last:border-0 whitespace-nowrap cursor-grab active:cursor-grabbing"
+              >
                 <span className="text-gray-400 w-5 text-center font-mono text-xs">{q.icon}</span>
                 {q.label}
               </button>
@@ -506,9 +475,7 @@ export function FormBuilderView({
           </div>
         </div>
 
-        {/* Canvas */}
         <div className="flex-1 bg-gray-100 overflow-y-auto">
-          {/* Page tabs */}
           <div className="flex items-center gap-2 px-4 sm:px-6 py-3 bg-white border-b border-border overflow-x-auto">
             {pages.map((page) => (
               <button
@@ -524,114 +491,82 @@ export function FormBuilderView({
             </button>
           </div>
 
-          {/* Field list for active page */}
           <div className="p-4 sm:p-6">
-            <p className="text-sm font-semibold text-gray-600 mb-2">Page {activePage}</p>
-            <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+            <div
+              onDragOver={handleCanvasDragOver}
+              onDragLeave={() => setDragOverCanvas(false)}
+              onDrop={(e) => handleCanvasDrop(e)}
+              className={`bg-white rounded-xl border p-4 min-h-[280px] transition-colors ${
+                dragOverCanvas ? "border-teal-400 border-2 bg-teal-50/30" : "border-border"
+              }`}
+            >
               {activeFields.length === 0 ? (
-                <div className="border-2 border-dashed border-gray-200 rounded-lg px-6 py-10 text-center text-sm text-gray-400">
-                  Click a question type on the left to add it to this page
+                <div className="border-2 border-dashed border-gray-200 rounded-lg px-6 py-16 text-center text-sm text-gray-400">
+                  Drag and Drop a form component
                 </div>
               ) : (
-                activeFields.map((f, i) => (
-                  <div key={f.id} className="border border-gray-200 rounded-lg p-3 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-gray-400 flex-shrink-0 w-24 truncate">{FIELD_LABEL[f.type]}</span>
-                      <input
-                        value={f.label}
-                        onChange={e => updateField(f.id, { label: e.target.value })}
-                        placeholder="Question label"
-                        className="flex-1 min-w-0 px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400"
+                <div className="grid grid-cols-2 gap-3">
+                  {activeFields.map((f) => (
+                    <div key={f.id} data-field-id={f.id} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleCanvasDrop(e)}>
+                      <FormBuilderFieldCard
+                        field={f}
+                        isDragging={draggingFieldId === f.id}
+                        onEdit={() => setEditingFieldId(f.id)}
+                        onDuplicate={() => duplicateField(f.id)}
+                        onRemove={() => removeField(f.id)}
+                        onDragStart={() => setDraggingFieldId(f.id)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.stopPropagation();
+                          handleCanvasDrop(e);
+                          setDraggingFieldId(null);
+                        }}
                       />
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <IconButton label="Move up" onClick={() => moveField(f.id, -1)} disabled={i === 0} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronUp size={14} /></IconButton>
-                        <IconButton label="Move down" onClick={() => moveField(f.id, 1)} disabled={i === activeFields.length - 1} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronDown size={14} /></IconButton>
-                        <IconButton label="Duplicate question" onClick={() => duplicateField(f.id)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700"><Copy size={13} /></IconButton>
-                        <IconButton label="Remove question" onClick={() => removeField(f.id)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600"><X size={14} /></IconButton>
-                      </div>
                     </div>
-
-                    {!LAYOUT_TYPES.includes(f.type) && (
-                      <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
-                        <input type="checkbox" checked={f.required} onChange={e => updateField(f.id, { required: e.target.checked })} />
-                        Required
-                      </label>
-                    )}
-
-                    {OPTIONS_TYPES.includes(f.type) && (
-                      <div className="pl-1 space-y-1.5">
-                        {f.options.map((opt, oi) => (
-                          <div key={oi} className="flex items-center gap-1.5">
-                            <input
-                              value={opt}
-                              onChange={e => updateOption(f.id, oi, e.target.value)}
-                              className="flex-1 min-w-0 px-2.5 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400"
-                            />
-                            <IconButton label="Remove option" onClick={() => removeOption(f.id, oi)} className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-500"><X size={12} /></IconButton>
-                          </div>
-                        ))}
-                        <button onClick={() => addOption(f.id)} className="flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors">
-                          <Plus size={12} /> Add option
-                        </button>
-                      </div>
-                    )}
-
-                    {VALIDATION_TYPES.includes(f.type) && (
-                      <div className="pl-1 pt-1 border-t border-gray-50">
-                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Validation</p>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min={0}
-                            value={f.minLength ?? ""}
-                            onChange={e => updateField(f.id, { minLength: e.target.value === "" ? null : Number(e.target.value) })}
-                            placeholder="Min length"
-                            className="w-24 px-2.5 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400"
-                          />
-                          <input
-                            type="number"
-                            min={0}
-                            value={f.maxLength ?? ""}
-                            onChange={e => updateField(f.id, { maxLength: e.target.value === "" ? null : Number(e.target.value) })}
-                            placeholder="Max length"
-                            className="w-24 px-2.5 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {fields.length > 1 && (
-                      <div className="pl-1 pt-1 border-t border-gray-50">
-                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Conditional</p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <select
-                            value={f.conditionalFieldId ?? ""}
-                            onChange={e => updateField(f.id, { conditionalFieldId: e.target.value || null, conditionalValue: e.target.value ? f.conditionalValue : "" })}
-                            className="px-2.5 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400 bg-white max-w-[180px]"
-                          >
-                            <option value="">Always show</option>
-                            {fields.filter(other => other.id !== f.id).map(other => (
-                              <option key={other.id} value={other.id}>Show only if "{other.label || FIELD_LABEL[other.type]}"…</option>
-                            ))}
-                          </select>
-                          {f.conditionalFieldId && (
-                            <input
-                              value={f.conditionalValue}
-                              onChange={e => updateField(f.id, { conditionalValue: e.target.value })}
-                              placeholder="…equals this value"
-                              className="flex-1 min-w-[120px] px-2.5 py-1 border border-gray-200 rounded-md text-xs text-gray-700 outline-none focus:border-teal-400"
-                            />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           </div>
         </div>
+
+        <FormAutomationRulesPanel
+          formName={title}
+          folder={documentType || "Custom"}
+          sendAutomatically={sendAutomatically}
+          onSendAutomaticallyChange={setSendAutomatically}
+          rulePatientStatus={rulePatientStatus}
+          onRulePatientStatusChange={setRulePatientStatus}
+          ruleFrequencyMonths={ruleFrequencyMonths}
+          onRuleFrequencyMonthsChange={setRuleFrequencyMonths}
+          ruleMinAge={ruleMinAge}
+          onRuleMinAgeChange={setRuleMinAge}
+          ruleMaxAge={ruleMaxAge}
+          onRuleMaxAgeChange={setRuleMaxAge}
+          ruleProcedureCodes={ruleProcedureCodes}
+          onRuleProcedureCodesChange={setRuleProcedureCodes}
+          ruleAppointmentTypeIds={ruleAppointmentTypeIds}
+          onRuleAppointmentTypeIdsChange={setRuleAppointmentTypeIds}
+          appointmentTypes={appointmentTypes}
+          disabled={isLocked}
+        />
       </div>
+
+      {editingField && (
+        <FormFieldEditorModal
+          field={editingField}
+          allFields={fields}
+          onSave={(patch) => {
+            updateField(editingField.id, patch);
+            setEditingFieldId(null);
+          }}
+          onRemove={() => {
+            removeField(editingField.id);
+            setEditingFieldId(null);
+          }}
+          onCancel={() => setEditingFieldId(null)}
+        />
+      )}
 
       {showMedicalAlerts && <MedicalAlertsModal onClose={() => setShowMedicalAlerts(false)} />}
     </div>

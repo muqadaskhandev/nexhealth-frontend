@@ -141,6 +141,54 @@ export function FormsSettingsView({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden max-w-2xl mt-5">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-border">
+          <p className="text-sm font-semibold text-gray-900">Integrated Medical History forms</p>
+          <p className="text-xs text-gray-500 mt-0.5">Dynamic forms that collect conditions, allergies, and medications from your health record system.</p>
+        </div>
+        <div className="px-4 sm:px-5 py-4 space-y-3 text-sm text-gray-600">
+          <p>
+            Medical alert options are managed in the form builder via <strong>Manage medical alerts</strong>. Inactive
+            alerts appear greyed out and won&apos;t show to patients.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3 text-xs">
+            <div className="px-3.5 py-3 bg-gray-50 border border-gray-100 rounded-lg">
+              <p className="font-semibold text-gray-900 mb-1">Dropdown format (default)</p>
+              <p className="text-gray-500">Search-and-select for conditions, allergies, and medications. Patients can write in items not listed.</p>
+            </div>
+            <div className="px-3.5 py-3 bg-gray-50 border border-gray-100 rounded-lg">
+              <p className="font-semibold text-gray-900 mb-1">Radio button format</p>
+              <p className="text-gray-500">Yes/No for each alert with a &quot;Set unanswered to No&quot; shortcut and separate write-in fields.</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            Mark one Medical History form as <strong>Default</strong> from Manage forms. After a patient completes a
+            Medical History form, subsequent requests are pre-filled with their prior answers so they only update what changed.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-border overflow-hidden max-w-2xl mt-5">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-border">
+          <p className="text-sm font-semibold text-gray-900">Automatic form sending</p>
+          <p className="text-xs text-gray-500 mt-0.5">Smart form automation sends forms when patients confirm appointments.</p>
+        </div>
+        <div className="px-4 sm:px-5 py-4 space-y-3 text-sm text-gray-600">
+          <p>Configure sending rules per form in <strong>Manage forms</strong> → open a form → toggle <strong>Send automatically</strong> in the right panel.</p>
+          <div className="px-3.5 py-3 bg-teal-50 border border-teal-100 rounded-lg text-xs text-teal-900 leading-relaxed">
+            <p className="font-semibold mb-1">Before forms send automatically, confirm:</p>
+            <ul className="list-disc pl-4 space-y-1">
+              <li>Your Reminders template includes the <code className="text-[11px] bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code> smart command.</li>
+              <li>At least one form has a sending rule that matches the patient&apos;s appointment.</li>
+              <li>The patient has no existing form request expiring on the same date as their appointment.</li>
+            </ul>
+          </div>
+          <p className="text-xs text-gray-500">
+            Automated requests use the appointment date as the due date. To cancel a request when a patient completed paper forms instead, search for the patient under Forms and choose <strong>Archive</strong> from the ellipsis menu.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-border overflow-hidden max-w-2xl mt-5">
         <div className="px-4 sm:px-5 py-3.5 border-b border-border flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">

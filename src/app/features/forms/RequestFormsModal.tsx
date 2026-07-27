@@ -91,10 +91,17 @@ export function RequestFormsModal({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const patientMatches = patients.filter(p =>
-    !p.archived && patientSearch.length > 0 &&
-    `${p.firstName} ${p.lastName}`.toLowerCase().includes(patientSearch.toLowerCase())
-  );
+  const patientMatches = patients.filter(p => {
+    if (p.archived || patientSearch.length === 0) return false;
+    const q = patientSearch.toLowerCase();
+    const name = `${p.firstName} ${p.lastName}`.toLowerCase();
+    return (
+      name.includes(q) ||
+      p.dob.includes(q) ||
+      p.email.toLowerCase().includes(q) ||
+      p.phone.replace(/\D/g, "").includes(q.replace(/\D/g, ""))
+    );
+  });
 
   const sortedTemplates = [...templates].sort((a, b) => a.name.localeCompare(b.name));
   const formMatches = sortedTemplates.filter(t =>
@@ -166,7 +173,7 @@ export function RequestFormsModal({
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-6 pb-3 flex-shrink-0">
           <div>
-            <h2 className="text-base font-bold text-gray-900">New form request</h2>
+            <h2 className="text-base font-bold text-gray-900">Send forms</h2>
             <p className="text-xs text-gray-500 mt-1 leading-relaxed">
               Patients will receive an email and text message with a link to fill out these forms.
             </p>
@@ -304,7 +311,7 @@ export function RequestFormsModal({
                 </div>
               )}
               {showCalendar && (
-                <button onClick={() => { setExpiryDate(defaultExpiry); setShowCalendar(false); }} className="text-xs text-gray-400 hover:text-gray-600 mt-1 transition-colors">Reset</button>
+                <button onClick={() => { setExpiryDate(defaultExpiry); setShowCalendar(false); }} className="text-xs text-teal-600 hover:text-teal-700 mt-1 transition-colors">Reset</button>
               )}
             </div>
           </div>

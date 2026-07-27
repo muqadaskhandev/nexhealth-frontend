@@ -25,6 +25,7 @@ function validateFile(file: File): string | null {
 }
 
 export function DigitizeModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [step, setStep] = useState<1 | 2>(1);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
@@ -44,13 +45,15 @@ export function DigitizeModal({ onClose, onSaved }: { onClose: () => void; onSav
     if (!name.trim()) setName(f.name.replace(/\.[^.]+$/, ""));
   }
 
-  async function handleSubmit() {
-    if (submitting) return;
+  function handleContinue() {
+    if (!file) return;
     setError(null);
-    if (!file) {
-      setError("Attach a file to digitize.");
-      return;
-    }
+    setStep(2);
+  }
+
+  async function handleSubmit() {
+    if (submitting || !file) return;
+    setError(null);
     if (!name.trim()) {
       setError("Give this form a name.");
       return;
@@ -58,7 +61,7 @@ export function DigitizeModal({ onClose, onSaved }: { onClose: () => void; onSav
     setSubmitting(true);
     try {
       await staffApi.forms.digitizeTemplate(file, name.trim(), notes.trim());
-      toastSuccess("Form submitted for digitization");
+      toastSuccess("Form submitted for digitization — our team will notify you when it's ready.");
       onSaved();
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
@@ -81,61 +84,92 @@ export function DigitizeModal({ onClose, onSaved }: { onClose: () => void; onSav
           <IconButton label="Close" onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><X size={15} /></IconButton>
         </div>
         <div className="overflow-y-auto px-6 pb-2 flex-1 space-y-4">
-          <p className="text-sm text-gray-600">Upload your documents to digitize them. We support PDF, JPG, PNG, DOC, and DOCX files up to 10MB each.</p>
+          {step === 1 ? (
+            <>
+              <p className="text-sm text-gray-600">Upload your documents to digitize them. We support PDF, JPG, PNG, DOC, and DOCX files up to 10MB each.</p>
 
-          {error && (
-            <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{error}</div>
+              {error && (
+                <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{error}</div>
+              )}
+
+              <div
+                onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={e => {
+                  e.preventDefault();
+                  setDragging(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) pickFile(f);
+                }}
+                className={`border-2 border-dashed rounded-xl px-6 py-10 text-center transition-colors ${dragging ? "border-teal-400 bg-teal-50" : file ? "border-teal-400 bg-teal-50/30" : "border-gray-200 bg-gray-50/30"}`}
+              >
+                {file ? <FileText size={28} className="mx-auto mb-3 text-teal-500" /> : <Upload size={28} className="mx-auto mb-3 text-gray-400" />}
+                <p className="text-sm font-semibold text-gray-700 mb-1">{file ? file.name : "Drag and drop files here"}</p>
+                {!file && <p className="text-xs text-gray-400 mb-4">or click to browse from your computer</p>}
+                {file ? (
+                  <button onClick={() => setFile(null)} className="text-xs font-medium text-gray-500 hover:text-red-600 transition-colors">Remove file</button>
+                ) : (
+                  <label className="inline-block cursor-pointer">
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }}
+                    />
+                    <span className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Select Files</span>
+                  </label>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-600">Enter any special instructions for our form-building team, then submit your request.</p>
+
+              {error && (
+                <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{error}</div>
+              )}
+
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+                <FileText size={15} className="text-teal-500 flex-shrink-0" />
+                <span className="truncate">{file?.name}</span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Name</label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. New Patient Intake" className={inputCls} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Instructions for our form-building team (optional)</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Anything we should know — e.g. combine with another form, keep the original layout…" className={`${inputCls} resize-none`} />
+              </div>
+            </>
           )}
-
-          <div
-            onDragOver={e => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={e => {
-              e.preventDefault();
-              setDragging(false);
-              const f = e.dataTransfer.files?.[0];
-              if (f) pickFile(f);
-            }}
-            className={`border-2 border-dashed rounded-xl px-6 py-10 text-center transition-colors ${dragging ? "border-teal-400 bg-teal-50" : file ? "border-teal-400 bg-teal-50/30" : "border-gray-200 bg-gray-50/30"}`}
-          >
-            {file ? <FileText size={28} className="mx-auto mb-3 text-teal-500" /> : <Upload size={28} className="mx-auto mb-3 text-gray-400" />}
-            <p className="text-sm font-semibold text-gray-700 mb-1">{file ? file.name : "Drag and drop files here"}</p>
-            {!file && <p className="text-xs text-gray-400 mb-4">or click to browse from your computer</p>}
-            {file ? (
-              <button onClick={() => setFile(null)} className="text-xs font-medium text-gray-500 hover:text-red-600 transition-colors">Remove file</button>
-            ) : (
-              <label className="inline-block cursor-pointer">
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }}
-                />
-                <span className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Select Files</span>
-              </label>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. New Patient Intake" className={inputCls} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Instructions for our form-building team (optional)</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Anything we should know — e.g. combine with another form, keep the original layout…" className={`${inputCls} resize-none`} />
-          </div>
         </div>
 
         <div className="flex items-center gap-4 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-          <button onClick={onClose} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Cancel</button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="px-5 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors ml-auto"
-          >
-            {submitting ? "Submitting…" : "Submit"}
-          </button>
+          {step === 2 ? (
+            <button onClick={() => setStep(1)} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Back</button>
+          ) : (
+            <button onClick={onClose} className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">Cancel</button>
+          )}
+          {step === 1 ? (
+            <button
+              onClick={handleContinue}
+              disabled={!file}
+              className="px-5 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors ml-auto"
+            >
+              Continue
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="px-5 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-semibold rounded-lg transition-colors ml-auto"
+            >
+              {submitting ? "Submitting…" : "Submit"}
+            </button>
+          )}
         </div>
       </div>
     </div>
