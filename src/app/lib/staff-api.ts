@@ -863,6 +863,18 @@ export const staffApi = {
       pending_forms: number;
       pending_payments: number;
     }>("/api/dashboard/stats"),
+  activity: (limit = 75) =>
+    api.get<
+      {
+        id: string;
+        patient_id: string;
+        patient_name: string;
+        activity_type: string;
+        title: string;
+        body: string;
+        created_at: string;
+      }[]
+    >(`/api/activity?limit=${limit}`),
   medicalAlerts: {
     list: () => api.get<ApiMedicalAlert[]>("/api/medical-alerts"),
     create: (body: { category: string; label: string; flash?: boolean; snomed_code?: string | null }) =>

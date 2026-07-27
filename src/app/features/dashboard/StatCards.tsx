@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Calendar, CheckCircle2, Users } from "lucide-react";
 import { staffApi } from "../../lib/staff-api";
+import { useAuth } from "../../auth/AuthContext";
 
 type Stats = {
   appointments_today: number;
@@ -11,11 +12,23 @@ type Stats = {
 };
 
 export function StatCards() {
+  const { activeLocation } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
-    staffApi.dashboard().then(setStats).catch(() => setStats(null));
-  }, []);
+    let cancelled = false;
+    staffApi
+      .dashboard()
+      .then((s) => {
+        if (!cancelled) setStats(s);
+      })
+      .catch(() => {
+        if (!cancelled) setStats(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeLocation?.id]);
 
   const cards = [
     {
@@ -24,8 +37,8 @@ export function StatCards() {
       label: "Appointments today",
       period: "Active location",
       description: `${stats?.confirmed_count ?? 0} confirmed`,
-      color: "#d946ef",
-      bg: "#fdf4ff",
+      color: "#0d9488",
+      bg: "#f0fdfa",
       icon: <CheckCircle2 size={20} />,
     },
     {
@@ -34,7 +47,7 @@ export function StatCards() {
       label: "Patients on waitlist",
       period: "Active location",
       description: "Ready to fill open slots",
-      color: "#38bdf8",
+      color: "#0284c7",
       bg: "#f0f9ff",
       icon: <Users size={20} />,
     },
@@ -44,7 +57,7 @@ export function StatCards() {
       label: "Pending forms & payments",
       period: "Active location",
       description: `${stats?.pending_forms ?? 0} forms · ${stats?.pending_payments ?? 0} payments`,
-      color: "#fb923c",
+      color: "#ea580c",
       bg: "#fff7ed",
       icon: <Calendar size={20} />,
     },
@@ -55,18 +68,18 @@ export function StatCards() {
       {cards.map((card) => (
         <div
           key={card.id}
-          className="bg-card rounded-lg border border-border overflow-hidden shadow-sm"
+          className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm"
           style={{ borderTop: `3px solid ${card.color}` }}
         >
           <div className="p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-3xl font-bold text-foreground leading-none">{card.value}</p>
+                <p className="text-3xl font-bold text-foreground leading-none tabular-nums">{card.value}</p>
                 <p className="text-sm font-semibold text-gray-800 mt-2 leading-snug">{card.label}</p>
                 <p className="text-xs text-muted-foreground mt-1">{card.period}</p>
               </div>
               <div
-                className="p-2.5 rounded-lg flex-shrink-0"
+                className="p-2.5 rounded-xl flex-shrink-0"
                 style={{ backgroundColor: card.bg, color: card.color }}
               >
                 {card.icon}

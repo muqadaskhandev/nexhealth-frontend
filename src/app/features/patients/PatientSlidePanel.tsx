@@ -100,37 +100,48 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/20 z-30" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/25 backdrop-blur-[1px] z-30" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed inset-y-0 right-0 w-[540px] bg-white shadow-2xl z-40 flex flex-col overflow-hidden">
+      <div className="fixed inset-y-0 right-0 w-full max-w-[560px] bg-[#f8fafb] shadow-2xl z-40 flex flex-col overflow-hidden border-l border-gray-200">
 
         {/* ── Patient header ── */}
-        <div className="px-5 pt-5 pb-4 border-b border-border flex-shrink-0">
+        <div className="px-5 pt-5 pb-4 border-b border-teal-100/80 flex-shrink-0 bg-gradient-to-br from-teal-50 via-white to-white">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3 min-w-0">
+            <div className="flex items-start gap-3.5 min-w-0">
               <PatientAvatar initials={patient.initials} size="lg" />
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-base font-bold text-gray-900 leading-tight">{patient.firstName} {patient.lastName}</h2>
+                  <h2 className="text-lg font-bold text-gray-900 leading-tight tracking-tight">
+                    {patient.firstName} {patient.lastName}
+                  </h2>
                   {patient.archived && (
-                    <span className="px-2 py-0.5 text-xs font-medium border border-pink-400 text-pink-600 rounded flex-shrink-0">Archived</span>
+                    <span className="px-2 py-0.5 text-xs font-medium border border-pink-300 text-pink-600 bg-pink-50 rounded-md flex-shrink-0">
+                      Archived
+                    </span>
                   )}
                   {!patient.synced && <SyncTooltip />}
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">{patient.dob} · {patient.gender}</p>
-                <p className="text-xs text-gray-500">{patient.email}</p>
-                <p className="text-xs text-gray-500">{patient.phone}</p>
-                <p className="text-xs text-gray-500">Language: {patient.language}</p>
+                {patient.preferredName && patient.preferredName !== `${patient.firstName} ${patient.lastName}` && (
+                  <p className="text-xs text-teal-700 font-medium mt-0.5">Preferred: {patient.preferredName}</p>
+                )}
+                <div className="mt-2 space-y-0.5 text-xs text-gray-500">
+                  <p>
+                    {patient.dob}
+                    {patient.gender ? ` · ${patient.gender}` : ""}
+                    {patient.language ? ` · ${patient.language}` : ""}
+                  </p>
+                  <p className="truncate">{patient.email || "No email"}</p>
+                  <p>{patient.phone || "No phone"}</p>
+                </div>
               </div>
             </div>
 
-            {/* Actions + Unarchive + Close */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <div ref={actionsRef} className="relative">
                 <button
                   onClick={() => setActionsOpen(v => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border rounded-lg transition-colors ${actionsOpen ? "border-teal-400 bg-teal-50 text-teal-700" : "border-gray-200 hover:border-gray-300 text-gray-700"}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border rounded-xl transition-colors ${actionsOpen ? "border-teal-400 bg-teal-50 text-teal-700" : "border-gray-200 bg-white hover:border-teal-300 text-gray-700"}`}
                 >
                   Actions <ChevronDown size={13} />
                 </button>
@@ -148,7 +159,7 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
                   </div>
                 )}
               </div>
-              <IconButton label="Close" onClick={onClose} className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+              <IconButton label="Close" onClick={onClose} className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-xl text-gray-500 hover:bg-white bg-white transition-colors">
                 <X size={15} />
               </IconButton>
             </div>
@@ -159,7 +170,7 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
         <div className="flex-1 overflow-y-auto">
 
           {/* Accordion sections */}
-          <div className="mx-4 mb-4 bg-white border border-border rounded-xl overflow-hidden">
+          <div className="mx-4 mt-4 mb-4 bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
             {/* Insurance Eligibility — rich component */}
             <div className="border-b border-border">
               <InsuranceAccordion patient={patient} onSavePatient={onSavePatient} />
@@ -216,39 +227,36 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
           </div>
 
           {/* Tabs */}
-          <div className="px-4">
+          <div className="px-4 pb-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+              <div className="flex items-center gap-0.5 bg-white border border-border rounded-xl p-0.5 shadow-sm">
                 {(["history", "messages", "appointments"] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${activeTab === tab ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+                    className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors capitalize ${activeTab === tab ? "bg-teal-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                   >
                     {tab.charAt(0).toUpperCase() + tab.slice(1)}
                   </button>
                 ))}
               </div>
-              <button className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors">
-                Filter by <ChevronDown size={13} />
-              </button>
             </div>
 
             {/* Tab content */}
             {activeTab === "history" && (
               activity.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 text-sm">No activity yet</div>
+                <div className="py-10 text-center text-gray-400 text-sm bg-white rounded-2xl border border-dashed border-gray-200">No activity yet</div>
               ) : (
-                <div className="space-y-1 pb-4">
+                <div className="space-y-0 pb-2 bg-white rounded-2xl border border-border overflow-hidden shadow-sm divide-y divide-border">
                   {activity.map(item => {
                     const Icon = ACTIVITY_ICON[item.type] ?? StickyNote;
                     return (
-                      <div key={item.id} className="flex items-start gap-3 py-3 border-b border-border last:border-0">
-                        <div className="w-8 h-8 rounded-full bg-teal-50 border-2 border-teal-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Icon size={15} className="text-teal-500" />
+                      <div key={item.id} className="flex items-start gap-3 px-4 py-3.5">
+                        <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Icon size={15} className="text-teal-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-800">{item.title}</p>
+                          <p className="text-sm text-gray-800 font-medium">{item.title}</p>
                           {item.body && <p className="text-sm text-gray-500 mt-0.5">{item.body}</p>}
                           <p className="text-xs text-gray-400 mt-1">{formatDateTime(item.createdAt)}</p>
                         </div>
@@ -260,12 +268,12 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
             )}
             {activeTab === "messages" && (
               messages.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 text-sm">No messages yet</div>
+                <div className="py-10 text-center text-gray-400 text-sm bg-white rounded-2xl border border-dashed border-gray-200">No messages yet</div>
               ) : (
-                <div className="space-y-3 pb-4">
+                <div className="space-y-3 pb-2">
                   {messages.map(m => (
                     <div key={m.id} className={`flex ${m.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[80%] rounded-xl px-3 py-2 ${m.direction === "outbound" ? "bg-teal-50 border border-teal-200" : "bg-gray-100"}`}>
+                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${m.direction === "outbound" ? "bg-teal-50 border border-teal-200" : "bg-white border border-border"}`}>
                         <p className="text-sm text-gray-800">{m.body}</p>
                         <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
                           <span className="uppercase">{m.channel}</span>·{formatDateTime(m.sentAt)}
@@ -278,13 +286,13 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
             )}
             {activeTab === "appointments" && (
               appointments.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 text-sm">No upcoming appointments</div>
+                <div className="py-10 text-center text-gray-400 text-sm bg-white rounded-2xl border border-dashed border-gray-200">No upcoming appointments</div>
               ) : (
-                <div className="space-y-1 pb-4">
+                <div className="space-y-0 bg-white rounded-2xl border border-border overflow-hidden shadow-sm divide-y divide-border">
                   {appointments.map(a => (
-                    <div key={a.id} className="flex items-start justify-between gap-3 py-3 border-b border-border last:border-0">
+                    <div key={a.id} className="flex items-start justify-between gap-3 px-4 py-3.5">
                       <div className="min-w-0">
-                        <p className="text-sm text-gray-800">{a.appointment_type} with {a.provider_name}</p>
+                        <p className="text-sm text-gray-800 font-medium">{a.appointment_type} with {a.provider_name}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(a.starts_at)} · {a.duration_minutes} minutes</p>
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded-full border font-medium flex-shrink-0 ${APPT_STATUS_CLASS[a.status] ?? APPT_STATUS_CLASS.unconfirmed}`}>

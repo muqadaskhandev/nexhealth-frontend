@@ -10,6 +10,7 @@ import { SettingsSection, type SettingsTab } from "./settings/SettingsSection";
 import { TopBar } from "./components/layout/TopBar";
 import { Sidebar } from "./components/layout/Sidebar";
 import { HomeDashboard } from "./features/dashboard/HomeDashboard";
+import { ActivityView } from "./features/dashboard/ActivityView";
 import { PatientsSection } from "./features/patients/PatientsSection";
 import { PatientSlidePanel } from "./features/patients/PatientSlidePanel";
 import { FormsSection } from "./features/forms/FormsSection";
@@ -117,6 +118,11 @@ export default function App() {
             setActiveNav("home");
           }}
         />
+      );
+    }
+    if (activeNav === "activity") {
+      return (
+        <ActivityView patients={staff.patients} onOpenPanel={setPanelPatient} />
       );
     }
     if (activeNav === "patients") {

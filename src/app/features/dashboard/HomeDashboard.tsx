@@ -20,7 +20,7 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
 
   useEffect(() => {
     staffApi.dashboard().then((s) => setWaitlistCount(s.waitlist_count)).catch(() => setWaitlistCount(0));
-  }, []);
+  }, [activeLocation?.id]);
 
   useEffect(() => {
     const d = new Date();
