@@ -122,6 +122,9 @@ export type ApiTemplateConfiguration = {
   sending_hours_start: string;
   sending_hours_end: string;
   customize_by_appointment_type: boolean;
+  family_messaging_enabled: boolean;
+  use_family_messaging_for_reminders: boolean;
+  family_messaging_age_limit: number | null;
   updated_at: string;
 };
 
@@ -173,6 +176,10 @@ export function mapTemplateConfiguration(c: ApiTemplateConfiguration): TemplateC
     sendingHoursStart: c.sending_hours_start,
     sendingHoursEnd: c.sending_hours_end,
     customizeByAppointmentType: !!c.customize_by_appointment_type,
+    familyMessagingEnabled: !!c.family_messaging_enabled,
+    useFamilyMessagingForReminders: !!c.use_family_messaging_for_reminders,
+    familyMessagingAgeLimit:
+      c.family_messaging_age_limit == null ? null : c.family_messaging_age_limit,
     updatedAt: c.updated_at,
   };
 }
@@ -942,11 +949,16 @@ export const staffApi = {
       api.get<
         {
           id: string;
+          thread_id: string;
           body: string;
           direction: string;
           channel: string;
           sent_at: string;
+          patient_id: string | null;
           patient_name: string;
+          patient_first_name: string;
+          patient_last_name: string;
+          patient_phone: string;
         }[]
       >(`/api/messages${patientId ? `?patient_id=${patientId}` : ""}`),
     send: (patientId: string, body: string, channel = "sms") =>
@@ -989,6 +1001,9 @@ export const staffApi = {
       sending_hours_start?: string;
       sending_hours_end?: string;
       customize_by_appointment_type?: boolean;
+      family_messaging_enabled?: boolean;
+      use_family_messaging_for_reminders?: boolean;
+      family_messaging_age_limit?: number | null;
     }) => api.patch<ApiTemplateConfiguration>("/api/template-configurations", body),
   },
   payments: {

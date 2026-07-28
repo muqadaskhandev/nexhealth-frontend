@@ -470,6 +470,9 @@ export type TemplateConfiguration = {
   sendingHoursStart: string;
   sendingHoursEnd: string;
   customizeByAppointmentType: boolean;
+  familyMessagingEnabled: boolean;
+  useFamilyMessagingForReminders: boolean;
+  familyMessagingAgeLimit: number | null;
   updatedAt: string;
 };
 

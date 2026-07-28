@@ -32,20 +32,26 @@ export function TemplatesSettingsTab({
   onConfigChange: (c: TemplateConfiguration) => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const [ageDraft, setAgeDraft] = useState("");
   const on = !!config?.customizeByAppointmentType;
+  const familyOn = !!config?.familyMessagingEnabled;
+  const familyRemindersOn = !!config?.useFamilyMessagingForReminders;
 
-  async function setCustomize(next: boolean) {
+  useEffect(() => {
+    setAgeDraft(
+      config?.familyMessagingAgeLimit == null ? "" : String(config.familyMessagingAgeLimit)
+    );
+  }, [config?.familyMessagingAgeLimit]);
+
+  async function patchConfig(
+    body: Parameters<typeof staffApi.templateConfig.update>[0],
+    success: string
+  ) {
     setSaving(true);
     try {
-      const row = await staffApi.templateConfig.update({
-        customize_by_appointment_type: next,
-      });
+      const row = await staffApi.templateConfig.update(body);
       onConfigChange(mapTemplateConfiguration(row));
-      toastSuccess(
-        next
-          ? "Customize by appointment type enabled"
-          : "Customize by appointment type disabled"
-      );
+      toastSuccess(success);
     } catch {
       toastError("Could not update setting.");
     } finally {
@@ -53,9 +59,184 @@ export function TemplatesSettingsTab({
     }
   }
 
+  async function setCustomize(next: boolean) {
+    await patchConfig(
+      { customize_by_appointment_type: next },
+      next
+        ? "Customize by appointment type enabled"
+        : "Customize by appointment type disabled"
+    );
+  }
+
+  async function setFamilyMessaging(next: boolean) {
+    await patchConfig(
+      { family_messaging_enabled: next },
+      next ? "Family messaging enabled" : "Family messaging disabled"
+    );
+  }
+
+  async function setFamilyReminders(next: boolean) {
+    await patchConfig(
+      { use_family_messaging_for_reminders: next },
+      next
+        ? "Family messaging for Reminders enabled"
+        : "Family messaging for Reminders disabled"
+    );
+  }
+
+  async function saveAgeLimit() {
+    const trimmed = ageDraft.trim();
+    const value = trimmed === "" ? null : Number(trimmed);
+    if (value != null && (!Number.isInteger(value) || value < 0 || value > 120)) {
+      toastError("Enter a whole age between 0 and 120, or leave blank.");
+      return;
+    }
+    await patchConfig(
+      { family_messaging_age_limit: value },
+      "Messaging age limit saved"
+    );
+  }
+
   return (
     <div className="space-y-8 max-w-2xl">
       <div>
+        <h2 className="text-xl font-bold text-gray-900">Enable family messaging</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          When family messaging is enabled, Reminders for multiple family members scheduled on the
+          same day are condensed into a single message to the guarantor, head of household, or
+          responsible party. If that person does not have valid contact information, the Reminder
+          will not be sent.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        This feature is especially beneficial for practices that serve many pediatric patients.
+      </div>
+
+      <div className="bg-white rounded-xl border border-border px-5 py-4 flex items-center justify-between gap-4">
+        <div>
+          <p className="font-semibold text-gray-900 text-sm">Family messaging</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Can be set institution-wide or by location. Adjust the messaging age limit below.
+          </p>
+        </div>
+        <Toggle
+          on={familyOn}
+          disabled={saving || !config}
+          onChange={setFamilyMessaging}
+        />
+      </div>
+
+      {familyOn && (
+        <>
+          <div className="bg-white rounded-xl border border-border px-5 py-4 space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">
+                  Use Family Messaging for Reminders
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Turn on at the location level once family messaging is enabled. Requires
+                  Setup-level permissions (Settings → Roles and permissions) to access Templates →
+                  Settings.
+                </p>
+              </div>
+              <Toggle
+                on={familyRemindersOn}
+                disabled={saving || !config}
+                onChange={setFamilyReminders}
+              />
+            </div>
+            <ol className="list-decimal list-inside text-xs text-gray-600 space-y-1">
+              <li>Go to Templates → Settings.</li>
+              <li>Toggle on Use Family Messaging for Reminders.</li>
+            </ol>
+          </div>
+
+          <div className="bg-white rounded-xl border border-border px-5 py-4 flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[12rem]">
+              <label className="block text-sm font-semibold text-gray-900 mb-1">
+                Messaging age limit
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Optional. Leave blank for no age limit.
+              </p>
+              <input
+                type="number"
+                min={0}
+                max={120}
+                value={ageDraft}
+                onChange={(e) => setAgeDraft(e.target.value)}
+                placeholder="e.g. 18"
+                className="w-full max-w-[8rem] px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+              />
+            </div>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={saveAgeLimit}
+              className="px-4 py-2 text-sm font-semibold text-white bg-teal-500 hover:bg-teal-600 rounded-lg disabled:opacity-50"
+            >
+              Save
+            </button>
+          </div>
+
+          <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-950">
+            Family messaging is supported for the following health record systems: Athena, Cloud9,
+            Dentrix, Dolphin, eCW, Open Dental, Orthotrac, Eaglesoft, Curve, Dentrix Ascend,
+            Denticon, PracticeWorks, Dentrix Enterprise, and ModMed.
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 space-y-2">
+            <p className="font-semibold text-gray-900">Example with NexHealth Reminders</p>
+            <p>
+              Family Messaging combines reminder messages so the head of household or guarantor
+              receives a single reminder when multiple family members have appointments on the same
+              day. When they reply to confirm, NexHealth confirms{" "}
+              <span className="font-semibold">all</span> appointments listed.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 space-y-2">
+            <p>
+              <span className="font-semibold">Unsubscribing applies to all patients sharing the
+              same phone number.</span>{" "}
+              When one patient unsubscribes, the entire phone number is unsubscribed to comply with
+              TCPA regulations. If the number is resubscribed, all linked profiles are re-opted in
+              collectively.
+            </p>
+            <p>
+              If a response confirms one patient but declines another, update confirmation status
+              manually in your practice management system and contact the head of household to
+              reschedule.{" "}
+              <span className="font-semibold">
+                NexHealth cannot process more than one type of response — it will confirm all Y or
+                all N.
+              </span>
+            </p>
+          </div>
+
+          <p className="text-sm text-gray-500">
+            In production, enable family messaging with{" "}
+            <a
+              href="mailto:support@nexhealth.com"
+              className="text-teal-600 hover:underline font-medium"
+            >
+              Support
+            </a>
+            . This demo lets you turn it on for the current location.
+          </p>
+        </>
+      )}
+
+      {!familyOn && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          The Settings menu and the <span className="font-semibold">Use Family Messaging for
+          Reminders</span> option only appear if family messaging has been enabled.
+        </div>
+      )}
+
+      <div className="border-t border-border pt-8">
         <h2 className="text-xl font-bold text-gray-900">Appointment Journeys</h2>
         <p className="text-sm text-gray-500 mt-1">
           Build appointment-specific messages customized by appointment type. Requires appointment
