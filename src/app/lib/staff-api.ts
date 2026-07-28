@@ -994,6 +994,30 @@ export const staffApi = {
       api.post<ApiCommunicationTemplateStep>(`/api/communication-templates/${templateId}/steps`, body),
     deleteStep: (templateId: string, stepId: string) =>
       api.delete(`/api/communication-templates/${templateId}/steps/${stepId}`),
+    history: (
+      templateId: string,
+      params?: { q?: string; sent_from?: string; sent_to?: string }
+    ) => {
+      const qs = new URLSearchParams();
+      if (params?.q) qs.set("q", params.q);
+      if (params?.sent_from) qs.set("sent_from", params.sent_from);
+      if (params?.sent_to) qs.set("sent_to", params.sent_to);
+      const q = qs.toString();
+      return api.get<
+        {
+          id: string;
+          template_id: string;
+          patient_id: string | null;
+          patient_name: string;
+          patient_dob: string | null;
+          communication_label: string;
+          channel: string;
+          sent_at: string;
+          provider_name: string;
+          appointment_at: string | null;
+        }[]
+      >(`/api/communication-templates/${templateId}/history${q ? `?${q}` : ""}`);
+    },
   },
   templateConfig: {
     get: () => api.get<ApiTemplateConfiguration>("/api/template-configurations"),
@@ -1030,6 +1054,7 @@ export const staffApi = {
       use_family_messaging_for_reminders?: boolean;
       appointment_journeys_enabled?: boolean;
       date?: string;
+      on_date?: string;
       appointments?: {
         patient_id: string;
         patient_name: string;
@@ -1040,8 +1065,9 @@ export const staffApi = {
         appointment_type?: string;
         journey_key?: string | null;
       }[];
-    }) =>
-      api.post<{
+    }) => {
+      const { date, on_date, ...rest } = body;
+      return api.post<{
         consolidation_supported: boolean;
         family_messaging_active: boolean;
         groups: {
@@ -1054,7 +1080,11 @@ export const staffApi = {
           notes: string[];
           confirm_applies_to_all: boolean;
         }[];
-      }>("/api/message-grouping/preview", body),
+      }>("/api/message-grouping/preview", {
+        ...rest,
+        on_date: on_date ?? date,
+      });
+    },
   },
   payments: {
     list: () =>

@@ -226,6 +226,12 @@ export function TemplatesListView({
 
   return (
     <div className="px-4 sm:px-6 space-y-4">
+      <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-950">
+        To see who received an automation, open a template (or an appointment-type sequence under
+        Custom), then choose the <span className="font-semibold">History</span> tab. Search by
+        recipient and filter by date.
+      </div>
+
       <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white border border-border rounded-xl max-w-md shadow-sm">
         <Search size={15} className="text-gray-400" />
         <input

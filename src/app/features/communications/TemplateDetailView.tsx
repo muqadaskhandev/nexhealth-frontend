@@ -25,6 +25,7 @@ import type {
 import { applySmartCommandPreview, reminderContentSupportsConsolidation } from "./smartCommands";
 import { SmartCommandsPanel } from "./SmartCommandsPanel";
 import { MessageGroupingRulesPanel } from "./MessageGroupingRulesPanel";
+import { TemplateHistoryPanel } from "./TemplateHistoryPanel";
 
 type DetailTab = "actions" | "grouping" | "performance" | "history";
 type EditTarget =
@@ -143,8 +144,10 @@ export function TemplateDetailView({
   const consolidates = reminderContentSupportsConsolidation(reminderBodies);
 
   const tabCls = (active: boolean) =>
-    `px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-      active ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"
+    `px-1 pb-2 text-sm font-medium border-b-2 transition-colors ${
+      active
+        ? "border-gray-900 text-gray-900"
+        : "border-transparent text-gray-400 hover:text-gray-600"
     }`;
 
   return (
@@ -211,7 +214,7 @@ export function TemplateDetailView({
           </div>
         )}
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-5 border-b border-border -mb-px">
           <button type="button" className={tabCls(tab === "actions")} onClick={() => setTab("actions")}>
             Actions
           </button>
@@ -328,11 +331,7 @@ export function TemplateDetailView({
             </div>
           )}
 
-          {tab === "history" && (
-            <div className="max-w-lg mx-auto text-center py-16">
-              <p className="text-sm text-gray-500">No recent send history for this template.</p>
-            </div>
-          )}
+          {tab === "history" && <TemplateHistoryPanel templateId={template.id} />}
         </div>
 
         {edit && (
