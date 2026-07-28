@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
-import { Search, ChevronDown, Info, FileText, MoreHorizontal, RotateCcw, WifiOff } from "lucide-react";
-import { IconButton } from "../../components/shared/IconButton";
+import { Search, ChevronDown, FileText, MoreHorizontal, RotateCcw, WifiOff } from "lucide-react";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { RequestFormsModal } from "./RequestFormsModal";
 import { ReactivateFormModal } from "./ReactivateFormModal";
+import { AgentSessionModal } from "./AgentSessionModal";
 import { AssignPacketSubmissionModal } from "./AssignPacketSubmissionModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 import { staffApi, mapFormRequestBatch, mapPublicPacketSubmission } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { FormSyncStatus, FormSubmission, FormTemplate, FormPacket, FormRequestBatch, PublicPacketSubmission } from "../../types";
@@ -105,13 +111,15 @@ export function FormsListView({
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestBatches, setRequestBatches] = useState<FormRequestBatch[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
-  const [ellipsisOpen, setEllipsisOpen] = useState<string | null>(null);
   const [reactivating, setReactivating] = useState<FormRequestBatch | null>(null);
   const [archiving, setArchiving] = useState<FormRequestBatch | null>(null);
   const [archivingBusy, setArchivingBusy] = useState(false);
+  const [deleting, setDeleting] = useState<FormRequestBatch | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
   const [pendingSubmissions, setPendingSubmissions] = useState<PublicPacketSubmission[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
   const [assigning, setAssigning] = useState<PublicPacketSubmission | null>(null);
+  const [agentSessionView, setAgentSessionView] = useState<{ sessionId: string; patientName: string } | null>(null);
   const [syncBusyKey, setSyncBusyKey] = useState<string | null>(null);
 
   function handleSyncNow(key: string, batch: FormRequestBatch) {
@@ -130,7 +138,6 @@ export function FormsListView({
   }
 
   function handleMarkSynced(key: string, batch: FormRequestBatch) {
-    setEllipsisOpen(null);
     setSyncBusyKey(key);
     staffApi.forms.requests
       .markSynced(batch.requestIds)
@@ -145,8 +152,24 @@ export function FormsListView({
       .finally(() => setSyncBusyKey(null));
   }
 
+  function handleViewAgentIntake(batch: FormRequestBatch) {
+    staffApi.forms.requests
+      .submissions(batch.requestIds)
+      .then((rows) => {
+        const agentRow = rows.find((r) => r.agent_session_id);
+        if (!agentRow?.agent_session_id) {
+          toastError("No chat intake session found for this request.");
+          return;
+        }
+        setAgentSessionView({ sessionId: agentRow.agent_session_id, patientName: batch.patientName });
+      })
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        toastError(apiErr?.detail || "Could not load chat intake.");
+      });
+  }
+
   function handleDownloadPdf(batch: FormRequestBatch) {
-    setEllipsisOpen(null);
     staffApi.forms.requests
       .submissions(batch.requestIds)
       .then((rows) => openSubmissionPrintView(batch.patientName, rows))
@@ -184,7 +207,29 @@ export function FormsListView({
       .finally(() => setArchivingBusy(false));
   }
 
-  const usesBatches = activeTab === "active" || activeTab === "expired" || activeTab === "deleted";
+  function handleDelete() {
+    if (!deleting) return;
+    setDeletingBusy(true);
+    staffApi.forms.requests
+      .delete(deleting.requestIds)
+      .then(() => {
+        toastSuccess("Form request permanently deleted");
+        setDeleting(null);
+        refreshBatches();
+      })
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        toastError(apiErr?.detail || "Could not delete this form request — please try again.");
+      })
+      .finally(() => setDeletingBusy(false));
+  }
+
+  const usesBatches =
+    activeTab === "active" ||
+    activeTab === "expired" ||
+    activeTab === "deleted" ||
+    activeTab === "synced" ||
+    activeTab === "all";
 
   function refreshBatches() {
     if (!usesBatches) return;
@@ -197,9 +242,6 @@ export function FormsListView({
 
   useEffect(refreshBatches, [activeTab]);
 
-  const filteredSubmissions = submissions.filter(s =>
-    !search || s.patient.toLowerCase().includes(search.toLowerCase())
-  );
   const filteredBatches = requestBatches.filter(b =>
     !search || b.patientName.toLowerCase().includes(search.toLowerCase())
   );
@@ -250,8 +292,8 @@ export function FormsListView({
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-xl border border-border">
+        <div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-gray-50/50">
@@ -316,7 +358,13 @@ export function FormsListView({
               loadingBatches ? (
                 <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">Loading…</td></tr>
               ) : filteredBatches.length === 0 ? (
-                <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">No {activeTab === "deleted" ? "deleted" : activeTab} form requests.</td></tr>
+                <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">
+                  {activeTab === "all"
+                    ? "No form requests yet."
+                    : activeTab === "deleted"
+                      ? "No deleted form requests."
+                      : `No ${activeTab} form requests.`}
+                </td></tr>
               ) : filteredBatches.map(b => {
                 const key = `${b.patientId}-${b.sentAt}`;
                 return (
@@ -350,6 +398,11 @@ export function FormsListView({
                   <td className="px-4 py-3">
                     {b.status === "expired" ? (
                       <StatusBadge status="expired" />
+                    ) : b.status === "synced" ? (
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <span className="text-xs text-gray-500 font-medium">Complete</span>
+                        <span className="text-xs font-medium text-emerald-600">Synced</span>
+                      </div>
                     ) : (
                       <div className="flex flex-col gap-1.5 items-start">
                         <span className="text-xs text-gray-500 font-medium">{COMPLETED_STATUS_LABEL[b.completedStatus]}</span>
@@ -365,95 +418,54 @@ export function FormsListView({
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-3 relative">
-                    <IconButton
-                      label="More"
-                      onClick={() => setEllipsisOpen(ellipsisOpen === key ? null : key)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === key ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
-                    >
-                      <MoreHorizontal size={15} />
-                    </IconButton>
-                    {ellipsisOpen === key && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
-                        {activeTab !== "deleted" && b.status === "expired" && (
-                          <button
-                            onClick={() => { setEllipsisOpen(null); setReactivating(b); }}
-                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
+                  <td className="px-3 py-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="More"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors text-gray-400 hover:bg-gray-100 data-[state=open]:bg-teal-500 data-[state=open]:text-white"
+                        >
+                          <MoreHorizontal size={15} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" side="bottom" className="w-52 min-w-52">
+                        {(activeTab === "expired" || (activeTab === "all" && b.status === "expired")) && (
+                          <DropdownMenuItem onSelect={() => setReactivating(b)}>
                             Move to active
-                          </button>
+                          </DropdownMenuItem>
                         )}
                         {activeTab !== "deleted" && b.completedStatus === "complete" && (
                           <>
-                            <button
-                              onClick={() => handleMarkSynced(key, b)}
-                              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
+                            <DropdownMenuItem onSelect={() => handleViewAgentIntake(b)}>
+                              View chat intake
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleMarkSynced(key, b)}>
                               Mark as synced
-                            </button>
-                            <button
-                              onClick={() => handleDownloadPdf(b)}
-                              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleDownloadPdf(b)}>
                               Download PDF
-                            </button>
+                            </DropdownMenuItem>
                           </>
                         )}
                         {activeTab !== "deleted" && (
-                          <button
-                            onClick={() => { setEllipsisOpen(null); setArchiving(b); }}
-                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
+                          <DropdownMenuItem onSelect={() => setArchiving(b)}>
                             Archive
-                          </button>
+                          </DropdownMenuItem>
                         )}
-                      </div>
-                    )}
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600"
+                          onSelect={() => setDeleting(b)}
+                        >
+                          Delete permanently
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                 </tr>
                 );
               })
-            ) : (
-              filteredSubmissions.length === 0 ? (
-                <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">No {activeTab === "all" ? "" : activeTab} forms yet.</td></tr>
-              ) : filteredSubmissions.map(row => (
-              <tr key={row.id} className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors">
-                <td className="px-4 py-3">
-                  <input type="checkbox" className="w-4 h-4 rounded accent-teal-500" />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                      {row.initials}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{row.patient}</p>
-                      <p className="text-xs text-gray-400">{row.submitted}</p>
-                      <p className="text-xs text-gray-400">{row.device}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-gray-400 text-xs">{row.expiration || "—"}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5 text-xs text-blue-600">
-                    <FileText size={13} className="text-blue-400" />
-                    {row.formName}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 font-medium">{row.completedStatus}</span>
-                    <SyncBadge status={row.syncStatus} label={row.syncLabel} />
-                  </div>
-                </td>
-                <td className="px-3 py-3">
-                  <button title="More" className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
-                    <MoreHorizontal size={15} />
-                  </button>
-                </td>
-              </tr>
-              ))
-            )}
+            ) : null}
           </tbody>
         </table>
         </div>
@@ -481,12 +493,23 @@ export function FormsListView({
     {archiving && (
       <ConfirmModal
         title="Archive this form request?"
-        message={`The form request for ${archiving.patientName} will be removed from this list — use this if the patient filled out paper forms instead.`}
+        message={`The form request for ${archiving.patientName} will be moved to Deleted — use this for a soft delete if the patient filled out paper forms instead.`}
         confirmLabel="Yes, archive"
         danger
         submitting={archivingBusy}
         onConfirm={handleArchive}
         onCancel={() => setArchiving(null)}
+      />
+    )}
+    {deleting && (
+      <ConfirmModal
+        title="Delete permanently?"
+        message={`This permanently deletes the form request for ${deleting.patientName} and any related answers. This cannot be undone.`}
+        confirmLabel="Yes, delete forever"
+        danger
+        submitting={deletingBusy}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleting(null)}
       />
     )}
     {assigning && (
@@ -498,6 +521,13 @@ export function FormsListView({
           setAssigning(null);
           refreshPending();
         }}
+      />
+    )}
+    {agentSessionView && (
+      <AgentSessionModal
+        sessionId={agentSessionView.sessionId}
+        patientName={agentSessionView.patientName}
+        onClose={() => setAgentSessionView(null)}
       />
     )}
     </>

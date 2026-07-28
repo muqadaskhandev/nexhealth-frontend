@@ -378,6 +378,30 @@ export type ApiFormSubmissionDetail = {
   form_name: string;
   answers: Record<string, unknown>;
   submitted_at: string;
+  intake_source?: string;
+  ai_generated?: boolean;
+  agent_session_id?: string | null;
+};
+
+export type ApiAgentSessionDetail = {
+  session_id: string;
+  status: string;
+  form_request_id: string;
+  form_name: string;
+  patient_name: string;
+  intake_source: string;
+  turns: { role: string; content: string; field_id: string | null; created_at: string }[];
+  answers: {
+    field_id: string;
+    field_label: string;
+    raw_patient_text: string;
+    parsed_value: unknown;
+    ai_generated: boolean;
+    status: string;
+    sync_target: string | null;
+  }[];
+  draft_answers: Record<string, unknown>;
+  progress: { answered: number; total: number } | null;
 };
 
 export type ApiInsertionRule = { id: string; code_type: string; codes: string[] };
@@ -778,13 +802,15 @@ export const staffApi = {
       expiresAt?: string;
       message?: string;
       emailNote?: string;
+      intakeMode?: "agent" | "form" | "both";
     }) =>
-      api.post<{ message: string; count: number }>("/api/forms/send", {
+      api.post<{ message: string; count: number; intake_mode?: string }>("/api/forms/send", {
         patient_id: params.patientId,
         form_template_ids: params.formTemplateIds,
         expires_at: params.expiresAt,
         message: params.message,
         email_note: params.emailNote,
+        intake_mode: params.intakeMode ?? "agent",
       }),
     packets: {
       list: () => api.get<ApiFormPacket[]>("/api/forms/packets"),
@@ -813,6 +839,10 @@ export const staffApi = {
         api.post<{ message: string }>("/api/forms/requests/archive", {
           request_ids: requestIds,
         }),
+      delete: (requestIds: string[]) =>
+        api.post<{ message: string }>("/api/forms/requests/delete", {
+          request_ids: requestIds,
+        }),
       sync: (requestIds: string[]) =>
         api.post<{ message: string }>("/api/forms/requests/sync", {
           request_ids: requestIds,
@@ -825,6 +855,9 @@ export const staffApi = {
         api.get<ApiFormSubmissionDetail[]>(
           `/api/forms/requests/submissions?${requestIds.map((id) => `request_ids=${id}`).join("&")}`
         ),
+    },
+    agentSessions: {
+      get: (sessionId: string) => api.get<ApiAgentSessionDetail>(`/api/forms/agent-sessions/${sessionId}`),
     },
   },
   messages: {

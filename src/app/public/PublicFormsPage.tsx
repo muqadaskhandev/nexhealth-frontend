@@ -65,6 +65,19 @@ export function PublicFormsPage({ token }: { token: string }) {
       .then((r) => {
         setResult(r);
         setBranding(r);
+        const pending = r.forms.filter((f) => !f.completed);
+        if (pending.length === 0) {
+          setStep("done");
+          return;
+        }
+        if (pending.length === 1) {
+          ensurePrefilled(pending[0]);
+          setActiveFormIdx(r.forms.findIndex((f) => f.requestId === pending[0].requestId));
+          setPage(1);
+          setFillError(null);
+          setStep("fill");
+          return;
+        }
         setStep("list");
       })
       .catch((err: unknown) => {
@@ -234,6 +247,12 @@ export function PublicFormsPage({ token }: { token: string }) {
             </span>
           </button>
         )}
+        <p className="text-sm text-gray-500 mt-6 text-center">
+          Prefer a conversation?{" "}
+          <a href={`/agent/${token}`} className="text-teal-600 font-semibold hover:underline">
+            Try chat intake
+          </a>
+        </p>
       </BrandedShell>
     );
   }

@@ -23,6 +23,7 @@ import { PublicBookingPage } from "./public/PublicBookingPage";
 import { PublicBookingThankYouPage } from "./public/PublicBookingThankYouPage";
 import { PublicWaitlistPage } from "./public/PublicWaitlistPage";
 import { PublicFormsPage } from "./public/PublicFormsPage";
+import { PublicAgentPage } from "./public/PublicAgentPage";
 import { PublicPacketPage } from "./public/PublicPacketPage";
 import { useStaffData } from "./hooks/useStaffData";
 import { LoadingScreen } from "./components/shared/LoadingBounce";
@@ -68,6 +69,7 @@ export default function App() {
     window.location.pathname === "/sso-2fa" ||
     window.location.pathname.endsWith("/sso-2fa");
 
+  const publicAgentMatch = window.location.pathname.match(/\/agent\/([^/]+)\/?$/);
   const publicFormsMatch = window.location.pathname.match(/\/forms\/([^/]+)\/?$/);
   const publicPacketMatch = window.location.pathname.match(/\/p\/([^/]+)\/?$/);
 
@@ -77,6 +79,7 @@ export default function App() {
     window.location.pathname === "/booking/thank-you" ||
     window.location.pathname.endsWith("/booking/thank-you");
 
+  if (publicAgentMatch) return <PublicAgentPage token={publicAgentMatch[1]} />;
   if (publicFormsMatch) return <PublicFormsPage token={publicFormsMatch[1]} />;
   if (publicWaitlistMatch) return <PublicWaitlistPage token={publicWaitlistMatch[1]} />;
   if (isBookingThankYou) return <PublicBookingThankYouPage />;

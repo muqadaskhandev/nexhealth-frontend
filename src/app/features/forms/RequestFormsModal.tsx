@@ -134,6 +134,7 @@ export function RequestFormsModal({
   const [customizeMsg, setCustomizeMsg] = useState(false);
   const [smsMsg, setSmsMsg] = useState("");
   const [emailMsg, setEmailMsg] = useState("");
+  const [intakeMode, setIntakeMode] = useState<"agent" | "form" | "both">("agent");
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -208,6 +209,7 @@ export function RequestFormsModal({
         expiresAt: expiresAtDate.toISOString(),
         message: customizeMsg && smsMsg.trim() ? smsMsg.trim() : undefined,
         emailNote: customizeMsg && emailMsg.trim() ? emailMsg.trim() : undefined,
+        intakeMode,
       });
       toastSuccess(
         `Sent ${selectedForms.length} form${selectedForms.length !== 1 ? "s" : ""} to ${selectedPatient.firstName} ${selectedPatient.lastName}`
@@ -515,6 +517,45 @@ export function RequestFormsModal({
                   </button>
                 </div>
               )}
+            </div>
+          </section>
+
+          {/* Intake delivery */}
+          <section className="rounded-2xl border border-teal-200 bg-teal-50/40 p-4">
+            <p className="text-sm font-semibold text-gray-900 mb-1">How should the patient complete this?</p>
+            <p className="text-xs text-gray-500 mb-3">
+              Email is sent automatically via SES when the patient has an email on file.
+            </p>
+            <div className="space-y-2">
+              {(
+                [
+                  ["agent", "Chat intake (Angelina)", "Recommended — guided conversation"],
+                  ["form", "Classic form", "Traditional multi-field form"],
+                  ["both", "Chat + classic form", "Send both links"],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <label
+                  key={value}
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    intakeMode === value
+                      ? "border-teal-500 bg-white shadow-sm"
+                      : "border-gray-200 bg-white/70 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="intakeMode"
+                    value={value}
+                    checked={intakeMode === value}
+                    onChange={() => setIntakeMode(value)}
+                    className="mt-1 accent-teal-500"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-900">{label}</span>
+                    <span className="block text-xs text-gray-500">{hint}</span>
+                  </span>
+                </label>
+              ))}
             </div>
           </section>
 

@@ -4,6 +4,12 @@ import {
   Info, FileText, MoreHorizontal, Edit, Eye, Download, MapPinned, ClipboardList, Zap, Link2, Lock, Star,
 } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 import { NewPacketModal } from "./NewPacketModal";
 import { PreviewFormModal } from "./PreviewFormModal";
 import { PublicPacketAccessModal } from "./PublicPacketAccessModal";
@@ -41,7 +47,6 @@ export function ManageFormsView({
   const [activeTab, setActiveTab] = useState<"forms" | "packets">("forms");
   const [search, setSearch] = useState("");
   const [newFormOpen, setNewFormOpen] = useState(false);
-  const [ellipsisOpen, setEllipsisOpen] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<FormTemplate | null>(null);
   const [copying, setCopying] = useState<{ preselectedFormId?: string } | null>(null);
   const [editingPacket, setEditingPacket] = useState<FormPacket | "new" | null>(null);
@@ -84,7 +89,6 @@ export function ManageFormsView({
 
   async function handleDuplicate(t: FormTemplate) {
     if (!isAdmin) return;
-    setEllipsisOpen(null);
     try {
       await staffApi.forms.duplicateTemplate(t.id);
       toastSuccess("Your duplicated form is ready!");
@@ -96,7 +100,6 @@ export function ManageFormsView({
   }
 
   async function handleDownload(t: FormTemplate) {
-    setEllipsisOpen(null);
     if (t.status === "digitizing") {
       toastError("This form is still being digitized — download isn't available yet.");
       return;
@@ -106,7 +109,6 @@ export function ManageFormsView({
 
   async function handleArchive(t: FormTemplate) {
     if (!isAdmin) return;
-    setEllipsisOpen(null);
     try {
       await staffApi.forms.archiveTemplate(t.id);
       toastSuccess(`"${t.name}" archived`);
@@ -123,7 +125,6 @@ export function ManageFormsView({
 
   async function handleSetDefault(t: FormTemplate) {
     if (!isAdmin) return;
-    setEllipsisOpen(null);
     try {
       await staffApi.forms.setDefaultTemplate(t.id);
       toastSuccess(`"${t.name}" is now the default Medical History form`);
@@ -142,7 +143,6 @@ export function ManageFormsView({
 
   async function handleDuplicatePacket(pkt: FormPacket) {
     if (!isAdmin) return;
-    setEllipsisOpen(null);
     try {
       await staffApi.forms.packets.duplicate(pkt.id);
       toastSuccess("Your duplicated packet is ready!");
@@ -272,7 +272,7 @@ export function ManageFormsView({
 
         {/* Forms tab — table */}
         {activeTab === "forms" && (
-          <div className="overflow-x-auto">
+          <div>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -337,73 +337,63 @@ export function ManageFormsView({
                       <span className="text-gray-400 text-xs">No</span>
                     )}
                   </td>
-                  <td className="px-3 py-3 relative">
-                    <IconButton
-                      label="More"
-                      onClick={() => setEllipsisOpen(ellipsisOpen === t.id ? null : t.id)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === t.id ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
-                    >
-                      <MoreHorizontal size={15} />
-                    </IconButton>
-                    {ellipsisOpen === t.id && (
-                      <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
+                  <td className="px-3 py-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <button
-                          onClick={() => { if (isAdmin && t.source === "build") { setEllipsisOpen(null); onEdit(t); } }}
+                          type="button"
+                          aria-label="More"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors text-gray-400 hover:bg-gray-100 data-[state=open]:bg-teal-500 data-[state=open]:text-white"
+                        >
+                          <MoreHorizontal size={15} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" side="bottom" className="w-52 min-w-52">
+                        <DropdownMenuItem
                           disabled={!isAdmin || t.source !== "build"}
                           title={t.source !== "build" ? "Digitized forms are edited by our form-building team" : undefined}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          onSelect={() => { if (isAdmin && t.source === "build") onEdit(t); }}
                         >
                           <Edit size={14} />Edit details
-                        </button>
-                        <button
-                          onClick={() => { setEllipsisOpen(null); setPreviewing(t); }}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setPreviewing(t)}>
                           <Eye size={14} />Preview
-                        </button>
-                        <IconButton
-                          label={isAdmin ? "Duplicate this form" : "You need the Admin permission level for the Forms feature"}
-                          onClick={() => handleDuplicate(t)}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           disabled={!isAdmin}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          onSelect={() => { if (isAdmin) handleDuplicate(t); }}
                         >
                           <Copy size={14} />Duplicate
-                        </IconButton>
+                        </DropdownMenuItem>
                         {hasMedicalAlerts(t) && !t.isDefault && (
-                          <IconButton
-                            label={isAdmin ? "Make this the default Medical History form" : "You need the Admin permission level for the Forms feature"}
-                            onClick={() => handleSetDefault(t)}
+                          <DropdownMenuItem
                             disabled={!isAdmin}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                            onSelect={() => { if (isAdmin) handleSetDefault(t); }}
                           >
                             <Star size={14} />Mark as default
-                          </IconButton>
+                          </DropdownMenuItem>
                         )}
-                        <button
-                          onClick={() => handleDownload(t)}
+                        <DropdownMenuItem
                           disabled={t.status === "digitizing"}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          onSelect={() => handleDownload(t)}
                         >
                           <Download size={14} />Download
-                        </button>
-                        <IconButton
-                          label={isAdmin ? "Copy this form to other locations" : "You need the Admin permission level for the Forms feature"}
-                          onClick={() => { if (isAdmin) { setEllipsisOpen(null); setCopying({ preselectedFormId: t.id }); } }}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           disabled={!isAdmin}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          onSelect={() => { if (isAdmin) setCopying({ preselectedFormId: t.id }); }}
                         >
                           <MapPinned size={14} />Copy to locations
-                        </IconButton>
-                        <IconButton
-                          label={isAdmin ? "Archive this form" : "You need the Admin permission level for the Forms feature"}
-                          onClick={() => handleArchive(t)}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           disabled={!isAdmin}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          className="text-red-600 focus:text-red-600"
+                          onSelect={() => { if (isAdmin) handleArchive(t); }}
                         >
                           <Archive size={14} />Archive
-                        </IconButton>
-                      </div>
-                    )}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                 </tr>
               ))}
@@ -418,7 +408,7 @@ export function ManageFormsView({
             {packets.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase())).length === 0 ? (
               <div className="py-12 text-center text-sm text-gray-400">No packets yet. Click "New packet" to create one.</div>
             ) : (
-              <div className="overflow-x-auto">
+              <div>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
@@ -446,50 +436,45 @@ export function ManageFormsView({
                           <span className="text-xs text-gray-500">{names.length} form{names.length !== 1 ? "s" : ""}</span>
                           <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{names.slice(0, 3).join(", ")}{names.length > 3 ? "…" : ""}</p>
                         </td>
-                        <td className="px-3 py-3 relative">
-                          <IconButton
-                            label="More"
-                            onClick={() => setEllipsisOpen(ellipsisOpen === pkt.id ? null : pkt.id)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${ellipsisOpen === pkt.id ? "bg-teal-500 text-white" : "text-gray-400 hover:bg-gray-100 opacity-0 group-hover:opacity-100"}`}
-                          >
-                            <MoreHorizontal size={15} />
-                          </IconButton>
-                          {ellipsisOpen === pkt.id && (
-                            <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
-                              <IconButton
-                                label={isAdmin ? "Edit this packet" : "You need the Admin permission level for the Forms feature"}
-                                onClick={() => { if (isAdmin) { setEllipsisOpen(null); setEditingPacket(pkt); } }}
+                        <td className="px-3 py-3">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="More"
+                                className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors text-gray-400 hover:bg-gray-100 data-[state=open]:bg-teal-500 data-[state=open]:text-white"
+                              >
+                                <MoreHorizontal size={15} />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" side="bottom" className="w-52 min-w-52">
+                              <DropdownMenuItem
                                 disabled={!isAdmin}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                onSelect={() => { if (isAdmin) setEditingPacket(pkt); }}
                               >
                                 <Edit size={14} />Edit
-                              </IconButton>
-                              <IconButton
-                                label={isAdmin ? "Duplicate this packet" : "You need the Admin permission level for the Forms feature"}
-                                onClick={() => handleDuplicatePacket(pkt)}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 disabled={!isAdmin}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                onSelect={() => { if (isAdmin) handleDuplicatePacket(pkt); }}
                               >
                                 <Copy size={14} />Duplicate
-                              </IconButton>
-                              <IconButton
-                                label={isAdmin ? "Get a shareable public URL for this packet" : "You need the Admin permission level for the Forms feature"}
-                                onClick={() => { if (isAdmin) { setEllipsisOpen(null); handlePublicAccess(pkt); } }}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 disabled={!isAdmin || publicAccessBusy === pkt.id}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                onSelect={() => { if (isAdmin) handlePublicAccess(pkt); }}
                               >
                                 <Link2 size={14} />{publicAccessBusy === pkt.id ? "Loading…" : "Public packet access"}
-                              </IconButton>
-                              <IconButton
-                                label={isAdmin ? "Delete this packet" : "You need the Admin permission level for the Forms feature"}
-                                onClick={() => { if (isAdmin) { setEllipsisOpen(null); setDeletingPacket(pkt); } }}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 disabled={!isAdmin}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                                className="text-red-600 focus:text-red-600"
+                                onSelect={() => { if (isAdmin) setDeletingPacket(pkt); }}
                               >
                                 <Archive size={14} />Delete
-                              </IconButton>
-                            </div>
-                          )}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                       );

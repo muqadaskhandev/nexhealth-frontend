@@ -37,7 +37,7 @@ export function isFieldVisible(field: PublicFormField, values: Answers): boolean
   return fieldValueMatches(values[field.conditionalFieldId], field.conditionalValue);
 }
 
-function isMedicalAlertsComplete(value: MedicalAlertsValue | undefined, medicalAlerts: MedicalAlertCatalog | null | undefined): boolean {
+export function isMedicalAlertsComplete(value: MedicalAlertsValue | undefined, medicalAlerts: MedicalAlertCatalog | null | undefined): boolean {
   if (!medicalAlerts) return true;
   for (const category of Object.keys(medicalAlerts) as MedicalAlertCategory[]) {
     const alerts = medicalAlerts[category] ?? [];
