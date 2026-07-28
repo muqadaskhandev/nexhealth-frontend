@@ -8,6 +8,8 @@ import type {
   BookingFieldType,
   BookingFormField,
   BookingInsurance,
+  CommunicationTemplate,
+  CommunicationTemplateStep,
   FormDisplayType,
   FormField,
   FormFieldType,
@@ -32,6 +34,9 @@ import type {
   PublicPacketSubmission,
   RepeatMode,
   RulePatientStatus,
+  TemplateCategory,
+  TemplateConfiguration,
+  TemplateStepKind,
   WaitlistEntry,
   WaitlistPatientCandidate,
   WaitlistRequest,
@@ -77,6 +82,87 @@ export type ApiAppointment = {
   patient_email: string;
   patient_phone: string;
 };
+
+export type ApiCommunicationTemplateStep = {
+  id: string;
+  kind: TemplateStepKind;
+  title: string;
+  subtitle: string;
+  body: string;
+  subject: string;
+  timing_value: number | null;
+  timing_unit: string | null;
+  condition_label: string | null;
+  position: number;
+  meta?: Record<string, unknown>;
+};
+
+export type ApiCommunicationTemplate = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  category: TemplateCategory;
+  is_active: boolean;
+  total_sent: number;
+  recipients: number;
+  multi_location: boolean;
+  location_name: string;
+  created_at: string;
+  updated_at: string;
+  steps: ApiCommunicationTemplateStep[];
+};
+
+export type ApiTemplateConfiguration = {
+  id: string;
+  location_id: string;
+  sending_hours_start: string;
+  sending_hours_end: string;
+  updated_at: string;
+};
+
+export function mapCommunicationTemplateStep(s: ApiCommunicationTemplateStep): CommunicationTemplateStep {
+  return {
+    id: s.id,
+    kind: s.kind,
+    title: s.title,
+    subtitle: s.subtitle || "",
+    body: s.body || "",
+    subject: s.subject || "",
+    timingValue: s.timing_value,
+    timingUnit: s.timing_unit,
+    conditionLabel: s.condition_label,
+    position: s.position,
+  };
+}
+
+export function mapCommunicationTemplate(t: ApiCommunicationTemplate): CommunicationTemplate {
+  return {
+    id: t.id,
+    slug: t.slug,
+    name: t.name,
+    description: t.description || "",
+    category: t.category,
+    isActive: t.is_active,
+    totalSent: t.total_sent,
+    recipients: t.recipients,
+    multiLocation: t.multi_location,
+    locationName: t.location_name || "",
+    createdAt: t.created_at,
+    updatedAt: t.updated_at,
+    steps: (t.steps || []).map(mapCommunicationTemplateStep),
+  };
+}
+
+export function mapTemplateConfiguration(c: ApiTemplateConfiguration): TemplateConfiguration {
+  return {
+    id: c.id,
+    locationId: c.location_id,
+    sendingHoursStart: c.sending_hours_start,
+    sendingHoursEnd: c.sending_hours_end,
+    updatedAt: c.updated_at,
+  };
+}
 
 const AVATAR_COLORS = ["#6366f1", "#0ea5e9", "#f59e0b", "#ec4899", "#10b981", "#8b5cf6"];
 
@@ -841,6 +927,32 @@ export const staffApi = {
       >(`/api/messages${patientId ? `?patient_id=${patientId}` : ""}`),
     send: (patientId: string, body: string, channel = "sms") =>
       api.post("/api/messages", { patient_id: patientId, body, channel }),
+  },
+  communicationTemplates: {
+    list: () => api.get<ApiCommunicationTemplate[]>("/api/communication-templates"),
+    get: (id: string) => api.get<ApiCommunicationTemplate>(`/api/communication-templates/${id}`),
+    bySlug: (slug: string) =>
+      api.get<ApiCommunicationTemplate>(`/api/communication-templates/by-slug/${slug}`),
+    update: (id: string, body: { is_active?: boolean; description?: string }) =>
+      api.patch<ApiCommunicationTemplate>(`/api/communication-templates/${id}`, body),
+    updateStep: (
+      templateId: string,
+      stepId: string,
+      body: Record<string, unknown>
+    ) =>
+      api.patch<ApiCommunicationTemplateStep>(
+        `/api/communication-templates/${templateId}/steps/${stepId}`,
+        body
+      ),
+    addStep: (templateId: string, body: { kind: string; title: string; body?: string; subject?: string }) =>
+      api.post<ApiCommunicationTemplateStep>(`/api/communication-templates/${templateId}/steps`, body),
+    deleteStep: (templateId: string, stepId: string) =>
+      api.delete(`/api/communication-templates/${templateId}/steps/${stepId}`),
+  },
+  templateConfig: {
+    get: () => api.get<ApiTemplateConfiguration>("/api/template-configurations"),
+    update: (body: { sending_hours_start: string; sending_hours_end: string }) =>
+      api.patch<ApiTemplateConfiguration>("/api/template-configurations", body),
   },
   payments: {
     list: () =>

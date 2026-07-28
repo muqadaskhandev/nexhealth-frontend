@@ -10,6 +10,7 @@ import {
   KeyRound,
   Link2,
   MapPin,
+  MessageSquare,
   RefreshCw,
   Shield,
   User,
@@ -35,6 +36,7 @@ import { OnlineBookingLinksView } from "../features/scheduling/OnlineBookingLink
 import { ReserveWithGoogleView } from "../features/scheduling/ReserveWithGoogleView";
 import { OnlineBookingSection } from "../features/scheduling/OnlineBookingSection";
 import { toastError, toastSuccess } from "../lib/toast";
+import { TemplateConfigurationsPanel } from "../features/communications/TemplateConfigurationsPanel";
 
 export type SettingsTab =
   | "account"
@@ -46,7 +48,8 @@ export type SettingsTab =
   | "online-booking-links"
   | "appointment-types"
   | "booking-insurance"
-  | "reserve-with-google";
+  | "reserve-with-google"
+  | "template-configurations";
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all bg-white";
@@ -74,6 +77,16 @@ function SettingsNav({
         { id: "users", label: "Users", icon: <Users size={16} />, admin: true },
         { id: "synchronizer", label: "Synchronizer", icon: <RefreshCw size={16} />, admin: true },
         { id: "locations", label: "Locations", icon: <MapPin size={16} /> },
+      ],
+    },
+    {
+      title: "Communications",
+      items: [
+        {
+          id: "template-configurations",
+          label: "Template configurations",
+          icon: <MessageSquare size={16} />,
+        },
       ],
     },
     {
@@ -1022,6 +1035,7 @@ export function SettingsSection({
           {tab === "appointment-types" && <OnlineBookingSection embedded />}
           {tab === "booking-insurance" && <BookingInsuranceView embedded />}
           {tab === "reserve-with-google" && <ReserveWithGoogleView embedded />}
+          {tab === "template-configurations" && <TemplateConfigurationsPanel />}
         </div>
       </div>
     </div>

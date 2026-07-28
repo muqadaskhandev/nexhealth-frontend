@@ -15,6 +15,7 @@ import { PatientsSection } from "./features/patients/PatientsSection";
 import { PatientSlidePanel } from "./features/patients/PatientSlidePanel";
 import { FormsSection } from "./features/forms/FormsSection";
 import { CommunicationsSection } from "./features/communications/CommunicationsSection";
+import { TemplatesSection } from "./features/communications/TemplatesSection";
 import { PaymentsSection } from "./features/payments/PaymentsSection";
 import { VerificationSection } from "./features/verification/VerificationSection";
 import { WaitlistSection } from "./features/scheduling/WaitlistSection";
@@ -139,8 +140,16 @@ export default function App() {
     if (activeNav === "forms") return <FormsSection />;
     if (activeNav === "payments") return <PaymentsSection />;
     if (activeNav === "verification") return <VerificationSection />;
-    if (activeNav === "messages" || activeNav === "communications") {
-      return <CommunicationsSection />;
+    if (activeNav === "templates") return <TemplatesSection />;
+    if (
+      activeNav === "messages" ||
+      activeNav === "communications" ||
+      activeNav === "campaigns" ||
+      activeNav === "reminders" ||
+      activeNav === "recalls" ||
+      activeNav === "reviews"
+    ) {
+      return <CommunicationsSection activeNav={activeNav} />;
     }
     if (activeNav === "waitlist" || activeNav === "scheduling") {
       return <WaitlistSection />;

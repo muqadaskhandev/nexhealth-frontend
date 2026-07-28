@@ -421,3 +421,51 @@ export type PublicPacketSubmission = {
   formNames: string[];
   createdAt: string;
 };
+
+// ── Communications / Templates ─────────────────────────────────────────────────
+
+export type TemplateCategory =
+  | "appointment_journey"
+  | "daily"
+  | "post_appointment"
+  | "patient_based"
+  | "manual";
+
+export type TemplateStepKind = "trigger" | "email" | "sms" | "condition";
+
+export type CommunicationTemplateStep = {
+  id: string;
+  kind: TemplateStepKind;
+  title: string;
+  subtitle: string;
+  body: string;
+  subject: string;
+  timingValue: number | null;
+  timingUnit: string | null;
+  conditionLabel: string | null;
+  position: number;
+};
+
+export type CommunicationTemplate = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  category: TemplateCategory;
+  isActive: boolean;
+  totalSent: number;
+  recipients: number;
+  multiLocation: boolean;
+  locationName: string;
+  createdAt: string;
+  updatedAt: string;
+  steps: CommunicationTemplateStep[];
+};
+
+export type TemplateConfiguration = {
+  id: string;
+  locationId: string;
+  sendingHoursStart: string;
+  sendingHoursEnd: string;
+  updatedAt: string;
+};

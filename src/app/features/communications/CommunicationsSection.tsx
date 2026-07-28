@@ -1,51 +1,39 @@
-import { useEffect, useState } from "react";
-import { staffApi } from "../../lib/staff-api";
+import { MessagesView } from "./MessagesView";
+import { TemplatesSection } from "./TemplatesSection";
+import { PlaceholderView } from "../../components/shared/PlaceholderView";
 
-export function CommunicationsSection() {
-  const [messages, setMessages] = useState<
-    { id: string; patient_name: string; body: string; channel: string; sent_at: string }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
+const SLUG_BY_NAV: Record<string, string> = {
+  reminders: "reminders",
+  recalls: "recalls",
+  reviews: "reviews",
+};
 
-  useEffect(() => {
-    staffApi.messages
-      .list()
-      .then(setMessages)
-      .finally(() => setLoading(false));
-  }, []);
+export function CommunicationsSection({ activeNav = "messages" }: { activeNav?: string }) {
+  if (activeNav === "messages" || activeNav === "communications") {
+    return <MessagesView />;
+  }
 
-  return (
-    <div className="px-6 py-5 space-y-5">
-      <h1 className="text-2xl font-bold text-gray-900">Communications</h1>
-      <p className="text-sm text-gray-500">Messages, reminders, and patient engagement.</p>
-      {loading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
-      ) : (
-        <div className="bg-white rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-gray-50">
-                <th className="text-left px-5 py-3 font-semibold">Patient</th>
-                <th className="text-left px-5 py-3 font-semibold">Message</th>
-                <th className="text-left px-5 py-3 font-semibold">Channel</th>
-                <th className="text-left px-5 py-3 font-semibold">Sent</th>
-              </tr>
-            </thead>
-            <tbody>
-              {messages.map((m) => (
-                <tr key={m.id} className="border-b border-border last:border-0">
-                  <td className="px-5 py-3 font-medium">{m.patient_name}</td>
-                  <td className="px-5 py-3 text-gray-600">{m.body}</td>
-                  <td className="px-5 py-3 uppercase text-xs text-gray-500">{m.channel}</td>
-                  <td className="px-5 py-3 text-gray-500">
-                    {new Date(m.sent_at).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+  if (activeNav === "campaigns") {
+    return (
+      <div className="px-4 sm:px-6 py-5 space-y-3">
+        <h1 className="text-2xl font-bold text-gray-900">Campaigns</h1>
+        <p className="text-sm text-gray-500">
+          One-off outreach campaigns. Use Templates for recurring automations.
+        </p>
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center">
+          <p className="text-sm font-medium text-gray-700">No campaigns yet</p>
+          <p className="text-sm text-gray-400 mt-1">
+            Campaign builder will land in a follow-up milestone.
+          </p>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  const slug = SLUG_BY_NAV[activeNav];
+  if (slug) {
+    return <TemplatesSection initialSlug={slug} />;
+  }
+
+  return <PlaceholderView title="Communications" />;
 }
