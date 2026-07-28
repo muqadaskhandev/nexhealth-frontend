@@ -14,6 +14,7 @@ import {
 } from "../lib/public-booking-api";
 import { PublicBookingDetailsForm } from "./PublicBookingDetailsForm";
 import { validateFormField } from "./PublicBookingFormFieldInput";
+import { Skeleton } from "../components/ui/skeleton";
 
 type Step = "loading" | "invalid" | "location" | "kind" | "bookingFor" | "type" | "time" | "details" | "done";
 type PatientKind = "new" | "existing";
@@ -91,6 +92,8 @@ export function PublicBookingPage({ slug }: { slug: string }) {
   const [patientNotFound, setPatientNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState("");
+  const [typesLoading, setTypesLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   const location = info?.locations.find((l) => l.id === locationId) ?? null;
   const separateByType = info && locationId ? locationUsesPatientTypeSplit(info, locationId) : info?.separate_by_patient_type ?? false;
@@ -121,16 +124,53 @@ export function PublicBookingPage({ slug }: { slug: string }) {
   useEffect(() => {
     if (!locationId || step === "loading" || step === "invalid" || step === "location" || step === "kind" || step === "bookingFor") return;
     if (step !== "type" && step !== "time" && step !== "details") return;
-    publicBookingApi.types(slug, locationId, patientKind, lid, appointmentTypeIds).then(setTypes).catch(() => setTypes([]));
+    let cancelled = false;
+    setTypesLoading(true);
+    publicBookingApi
+      .types(slug, locationId, patientKind, lid, appointmentTypeIds)
+      .then((rows) => {
+        if (!cancelled) setTypes(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setTypes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTypesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [slug, locationId, patientKind, lid, appointmentTypeIds, step]);
 
   useEffect(() => {
-    if (!locationId || !typeId) return;
-    publicBookingApi.providers(slug, locationId, typeId, lid, providerIds).then(setProviders).catch(() => setProviders([]));
-    publicBookingApi
-      .openings(slug, locationId, typeId, { lid, providerIds, days: 14 })
-      .then(setOpenings)
-      .catch(() => setOpenings([]));
+    if (!locationId || !typeId) {
+      setSlotsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setSlotsLoading(true);
+    setOpenings([]);
+    Promise.all([
+      publicBookingApi.providers(slug, locationId, typeId, lid, providerIds),
+      publicBookingApi.openings(slug, locationId, typeId, { lid, providerIds, days: 14 }),
+    ])
+      .then(([providerRows, openingRows]) => {
+        if (cancelled) return;
+        setProviders(providerRows);
+        setOpenings(openingRows);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProviders([]);
+          setOpenings([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSlotsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [slug, locationId, typeId, lid, providerIds]);
 
   useEffect(() => {
@@ -165,12 +205,16 @@ export function PublicBookingPage({ slug }: { slug: string }) {
     setBookingFor(value);
     setTypeId("");
     setSelectedSlot(null);
+    setTypes([]);
+    setTypesLoading(true);
     setStep("type");
   }
 
   function pickType(id: string) {
     setTypeId(id);
     setSelectedSlot(null);
+    setOpenings([]);
+    setSlotsLoading(true);
     setStep("time");
   }
 
@@ -199,6 +243,8 @@ export function PublicBookingPage({ slug }: { slug: string }) {
     setError(null);
     setTypeId("");
     setSelectedSlot(null);
+    setTypes([]);
+    setTypesLoading(true);
     setStep("type");
   }
 
@@ -441,7 +487,9 @@ export function PublicBookingPage({ slug }: { slug: string }) {
             <div className="px-5 py-4 border-b border-gray-100">
               <h2 className="text-base font-bold text-gray-900">Select an appointment type</h2>
             </div>
-            {types.length === 0 ? (
+            {typesLoading ? (
+              <AppointmentTypesSkeleton />
+            ) : types.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-gray-400">No appointment types are available online right now.</p>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -471,7 +519,9 @@ export function PublicBookingPage({ slug }: { slug: string }) {
                 </p>
               )}
             </div>
-            {openings.length === 0 ? (
+            {slotsLoading ? (
+              <TimeSlotsSkeleton />
+            ) : openings.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-gray-400">No openings in the next two weeks.</p>
             ) : (
               <div className="p-5 space-y-5">
@@ -603,6 +653,39 @@ export function PublicBookingPage({ slug }: { slug: string }) {
           </section>
         )}
       </main>
+    </div>
+  );
+}
+
+function AppointmentTypesSkeleton() {
+  return (
+    <div className="divide-y divide-gray-100">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center justify-between gap-3 px-5 py-4">
+          <Skeleton className="h-4 w-40 bg-gray-100" />
+          <Skeleton className="h-3 w-12 bg-gray-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TimeSlotsSkeleton() {
+  return (
+    <div className="p-5 space-y-5">
+      {[1, 2].map((day) => (
+        <div key={day}>
+          <div className="flex items-center gap-2 mb-3">
+            <Skeleton className="h-4 w-4 rounded bg-gray-100" />
+            <Skeleton className="h-4 w-36 bg-gray-100" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[1, 2, 3, 4, 5, 6].map((slot) => (
+              <Skeleton key={slot} className="h-10 w-full rounded-lg bg-gray-100" />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

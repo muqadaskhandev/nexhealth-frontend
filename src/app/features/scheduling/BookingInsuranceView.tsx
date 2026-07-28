@@ -28,17 +28,24 @@ export function BookingInsuranceView({
   const [copyToAllLocations, setCopyToAllLocations] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const askForInsurance = activeLocation?.ask_for_insurance ?? false;
 
   function refresh() {
     setLoading(true);
+    setLoadError(null);
     staffApi.bookingInsurances
       .list()
       .then((rows) => setInsurances(rows.map(mapBookingInsurance)))
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        setInsurances([]);
+        setLoadError(apiErr?.detail || "Could not load insurances. Try refreshing the page.");
+      })
       .finally(() => setLoading(false));
   }
-  useEffect(refresh, []);
+  useEffect(refresh, [activeLocation?.id]);
 
   async function toggleAskForInsurance(value: boolean) {
     if (!activeLocation || savingAskToggle) return;
@@ -68,8 +75,14 @@ export function BookingInsuranceView({
     if (names.length === 0 || adding) return;
     setAdding(true);
     try {
-      await staffApi.bookingInsurances.bulkCreate(names, copyToAllLocations);
-      toastSuccess("Insurance(s) added");
+      const created = await staffApi.bookingInsurances.bulkCreate(names, copyToAllLocations);
+      if (created.length === 0) {
+        toastError("Those insurances are already on the list.");
+      } else {
+        toastSuccess(
+          created.length === 1 ? "Insurance added" : `${created.length} insurances added`
+        );
+      }
       refresh();
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
@@ -164,6 +177,17 @@ export function BookingInsuranceView({
         <div className="px-4 sm:px-5 py-3.5 border-b border-border space-y-3">
           {loading ? (
             <p className="text-sm text-gray-400 py-2">Loading…</p>
+          ) : loadError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              {loadError}
+              <button
+                type="button"
+                onClick={refresh}
+                className="ml-2 font-semibold text-red-900 underline"
+              >
+                Retry
+              </button>
+            </div>
           ) : insurances.length === 0 ? (
             <p className="text-sm text-gray-400 py-2">No insurances added yet.</p>
           ) : (
