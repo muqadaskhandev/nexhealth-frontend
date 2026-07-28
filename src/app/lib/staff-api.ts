@@ -945,10 +945,21 @@ export const staffApi = {
     },
   },
   messages: {
-    list: (patientId?: string, includeArchived = false) => {
+    list: (
+      patientId?: string,
+      opts?: boolean | {
+        includeArchived?: boolean;
+        archivedOnly?: boolean;
+        unreadOnly?: boolean;
+      }
+    ) => {
+      const options =
+        typeof opts === "boolean" ? { includeArchived: opts } : opts || {};
       const qs = new URLSearchParams();
       if (patientId) qs.set("patient_id", patientId);
-      if (includeArchived) qs.set("include_archived", "true");
+      if (options.includeArchived) qs.set("include_archived", "true");
+      if (options.archivedOnly) qs.set("archived_only", "true");
+      if (options.unreadOnly) qs.set("unread_only", "true");
       const q = qs.toString();
       return api.get<
         {
@@ -988,6 +999,52 @@ export const staffApi = {
         `/api/message-threads/${threadId}`,
         body
       ),
+  },
+  savedResponses: {
+    list: (q?: string) =>
+      api.get<
+        {
+          id: string;
+          location_id: string;
+          title: string;
+          body: string;
+          shared_location_ids: string[];
+          created_at: string;
+          updated_at: string;
+        }[]
+      >(`/api/saved-responses${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+    create: (body: {
+      title: string;
+      body?: string;
+      shared_location_ids?: string[];
+    }) =>
+      api.post<{
+        id: string;
+        location_id: string;
+        title: string;
+        body: string;
+        shared_location_ids: string[];
+        created_at: string;
+        updated_at: string;
+      }>("/api/saved-responses", body),
+    update: (
+      id: string,
+      body: {
+        title?: string;
+        body?: string;
+        shared_location_ids?: string[];
+      }
+    ) =>
+      api.patch<{
+        id: string;
+        location_id: string;
+        title: string;
+        body: string;
+        shared_location_ids: string[];
+        created_at: string;
+        updated_at: string;
+      }>(`/api/saved-responses/${id}`, body),
+    remove: (id: string) => api.delete(`/api/saved-responses/${id}`),
   },
   communicationTemplates: {
     list: (scope: "default" | "variants" | "all" = "default") =>

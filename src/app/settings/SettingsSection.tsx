@@ -38,6 +38,7 @@ import { OnlineBookingSection } from "../features/scheduling/OnlineBookingSectio
 import { toastError, toastSuccess } from "../lib/toast";
 import { TemplateConfigurationsPanel } from "../features/communications/TemplateConfigurationsPanel";
 import { SmartCommandsSettingsPanel } from "../features/communications/SmartCommandsSettingsPanel";
+import { MessagesSettingsPanel } from "../features/communications/SavedResponsesSettingsPanel";
 
 export type SettingsTab =
   | "account"
@@ -51,7 +52,8 @@ export type SettingsTab =
   | "booking-insurance"
   | "reserve-with-google"
   | "template-configurations"
-  | "smart-commands";
+  | "smart-commands"
+  | "messages";
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all bg-white";
@@ -84,6 +86,11 @@ function SettingsNav({
     {
       title: "Communications",
       items: [
+        {
+          id: "messages",
+          label: "Messages",
+          icon: <MessageSquare size={16} />,
+        },
         {
           id: "template-configurations",
           label: "Template configurations",
@@ -1042,6 +1049,7 @@ export function SettingsSection({
           {tab === "appointment-types" && <OnlineBookingSection embedded />}
           {tab === "booking-insurance" && <BookingInsuranceView embedded />}
           {tab === "reserve-with-google" && <ReserveWithGoogleView embedded />}
+          {tab === "messages" && <MessagesSettingsPanel />}
           {tab === "template-configurations" && <TemplateConfigurationsPanel />}
           {tab === "smart-commands" && <SmartCommandsSettingsPanel />}
         </div>

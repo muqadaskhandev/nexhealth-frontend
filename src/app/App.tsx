@@ -53,6 +53,15 @@ export default function App() {
     setActiveNav("settings");
   }
 
+  useEffect(() => {
+    function onOpenSettings(e: Event) {
+      const detail = (e as CustomEvent<{ tab?: SettingsTab }>).detail;
+      openSettings(detail?.tab);
+    }
+    window.addEventListener("nexhealth:open-settings", onOpenSettings);
+    return () => window.removeEventListener("nexhealth:open-settings", onOpenSettings);
+  }, []);
+
   const isResetPassword =
     window.location.pathname === "/reset-password" ||
     window.location.pathname.endsWith("/reset-password");

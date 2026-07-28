@@ -102,6 +102,12 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
         preview: "Alex Rivera",
       },
       {
+        token: "PATIENT_EMAIL",
+        label: "Patient email address",
+        description: "Inserts the patient's email address. Available in Saved responses.",
+        preview: "alex@example.com",
+      },
+      {
         token: "PATIENT_FORM_BUTTON",
         label: "Button with a link to a patient form",
         description: "Insert a button linking to the patient form. Used with Forms.",

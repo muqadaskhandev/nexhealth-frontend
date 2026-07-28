@@ -7,14 +7,21 @@ import {
   Paperclip,
   Search,
   Send,
+  Settings,
   Smile,
   Users,
   MessageSquare,
   XCircle,
+  Zap,
 } from "lucide-react";
+import { useAuth } from "../../auth/AuthContext";
 import { mapTemplateConfiguration, staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { TemplateConfiguration } from "../../types";
+import {
+  SavedResponseEditorModal,
+  type SavedResponseRow,
+} from "./SavedResponsesSettingsPanel";
 
 type Msg = {
   id: string;
@@ -68,6 +75,32 @@ const EMOJIS = [
   "🤔", "😐", "😴", "😢", "😭", "😡", "👍", "👎", "👏", "🙏",
   "🎉", "❤️", "💙", "💚", "✅", "❌", "⭐", "🔥", "💯", "📌",
 ];
+
+function applySavedTokens(
+  text: string,
+  ctx: {
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+    email?: string;
+    locationPhone?: string;
+    locationAddress?: string;
+    bookingLink?: string;
+  }
+): string {
+  const map: Record<string, string> = {
+    PATIENT_FIRST_NAME: ctx.firstName || "",
+    PATIENT_LAST_NAME: ctx.lastName || "",
+    PATIENT_FULL_NAME: ctx.fullName || "",
+    PATIENT_EMAIL: ctx.email || "",
+    LOCATION_PHONE: ctx.locationPhone || "",
+    LOCATION_ADDRESS: ctx.locationAddress || "",
+    LOCATION_BOOKING_APPOINTMENT: ctx.bookingLink || "[Book appointment]",
+  };
+  return text.replace(/\{\{\s*([A-Z0-9_]+)\s*\}\}/g, (match, token: string) =>
+    token in map ? map[token] : match
+  );
+}
 
 function normalizePhone(phone: string): string {
   return (phone || "").replace(/\D/g, "");
@@ -158,6 +191,7 @@ function FamilyAvatar({ family }: { family: boolean }) {
 }
 
 export function MessagesView() {
+  const { activeLocation } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [config, setConfig] = useState<TemplateConfiguration | null>(null);
   const [loading, setLoading] = useState(true);
@@ -167,12 +201,18 @@ export function MessagesView() {
   const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  /** null = inbox; archived = Archived only; unread = Unread only */
+  const [inboxFilter, setInboxFilter] = useState<"all" | "archived" | "unread">("all");
+  const [filterOpen, setFilterOpen] = useState(false);
   const [menuKey, setMenuKey] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [emojiQuery, setEmojiQuery] = useState("");
   const [attachmentName, setAttachmentName] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [savedRows, setSavedRows] = useState<SavedResponseRow[]>([]);
+  const [savedQuery, setSavedQuery] = useState("");
+  const [createSaved, setCreateSaved] = useState(false);
   const [draftPatient, setDraftPatient] = useState<{
     id: string;
     name: string;
@@ -180,10 +220,22 @@ export function MessagesView() {
   } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const savedRef = useRef<HTMLDivElement>(null);
+
+  const searching = search.trim().length >= 2;
 
   function refresh() {
+    const opts =
+      inboxFilter === "archived"
+        ? { archivedOnly: true }
+        : inboxFilter === "unread"
+          ? { unreadOnly: true }
+          : searching
+            ? { includeArchived: true }
+            : {};
     return Promise.all([
-      staffApi.messages.list(undefined, showArchived),
+      staffApi.messages.list(undefined, opts),
       staffApi.templateConfig.get().then(mapTemplateConfiguration).catch(() => null),
     ]).then(([msgs, cfg]) => {
       setMessages(msgs as Msg[]);
@@ -193,7 +245,7 @@ export function MessagesView() {
 
   useEffect(() => {
     refresh().finally(() => setLoading(false));
-  }, [showArchived]);
+  }, [inboxFilter, searching]);
 
   useEffect(() => {
     const q = search.trim();
@@ -220,15 +272,21 @@ export function MessagesView() {
   }, [search]);
 
   useEffect(() => {
-    if (!menuKey) return;
+    if (!menuKey && !filterOpen && !savedOpen) return;
     const onDown = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuKey(null);
       }
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+      if (savedRef.current && !savedRef.current.contains(e.target as Node)) {
+        setSavedOpen(false);
+      }
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
-  }, [menuKey]);
+  }, [menuKey, filterOpen, savedOpen]);
 
   const familyEnabled = !!config?.familyMessagingEnabled;
   const conversations = useMemo(() => {
@@ -264,7 +322,14 @@ export function MessagesView() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = conversations;
-    if (!showArchived) list = list.filter((c) => !c.archived);
+    if (inboxFilter === "archived") {
+      list = list.filter((c) => c.archived);
+    } else if (inboxFilter === "unread") {
+      list = list.filter((c) => c.unread && !c.archived);
+    } else if (!searching) {
+      list = list.filter((c) => !c.archived);
+    }
+    // Searching: include archived matches so archives are reachable by name
     if (!q) return list;
     return list.filter(
       (c) =>
@@ -273,7 +338,7 @@ export function MessagesView() {
         c.members.some((m) => m.fullName.toLowerCase().includes(q)) ||
         c.phone.includes(q)
     );
-  }, [conversations, search, showArchived]);
+  }, [conversations, search, inboxFilter, searching]);
 
   useEffect(() => {
     if (!selectedKey && filtered.length > 0) {
@@ -321,7 +386,11 @@ export function MessagesView() {
       if (sent.delivery_status === "failed") {
         toastError(sent.failure_reason || "Message failed to send");
       } else {
-        toastSuccess("Message sent");
+        toastSuccess(
+          selected?.archived
+            ? "Message sent — conversation unarchived"
+            : "Message sent"
+        );
       }
       setDraftPatient(null);
       await refresh();
@@ -352,14 +421,109 @@ export function MessagesView() {
   async function archiveThread(c: Conversation) {
     if (!c.threadId) return;
     setMenuKey(null);
+    const nextArchived = !c.archived;
     try {
-      await staffApi.messages.updateThread(c.threadId, { archived: !c.archived });
-      toastSuccess(c.archived ? "Thread restored" : "Thread archived");
+      await staffApi.messages.updateThread(c.threadId, { archived: nextArchived });
+      toastSuccess(
+        nextArchived
+          ? "Conversation archived — removed from the main inbox"
+          : "Conversation unarchived"
+      );
       await refresh();
+      if (nextArchived && inboxFilter !== "archived") {
+        setSelectedKey(null);
+      }
     } catch {
       toastError("Could not update thread.");
     }
   }
+
+  async function openSavedPicker() {
+    setEmojiOpen(false);
+    setSavedOpen(true);
+    try {
+      const rows = await staffApi.savedResponses.list();
+      setSavedRows(rows);
+    } catch {
+      setSavedRows([]);
+      toastError("Could not load saved responses.");
+    }
+  }
+
+  useEffect(() => {
+    if (!savedOpen) return;
+    const t = window.setTimeout(() => {
+      staffApi.savedResponses
+        .list(savedQuery.trim() || undefined)
+        .then(setSavedRows)
+        .catch(() => undefined);
+    }, 200);
+    return () => window.clearTimeout(t);
+  }, [savedQuery, savedOpen]);
+
+  async function tokenContextForActive() {
+    const member = selected?.members.find((m) => m.id === activeMemberId) || selected?.members[0];
+    let email = "";
+    if (member?.id) {
+      try {
+        const p = await staffApi.patients.get(member.id);
+        email = p.email || "";
+      } catch {
+        /* ignore */
+      }
+    }
+    const loc = activeLocation;
+    const address = loc
+      ? [loc.address, loc.city, loc.state, loc.zip_code].filter(Boolean).join(", ")
+      : "";
+    return {
+      firstName: member?.firstName || "",
+      lastName: member?.lastName || "",
+      fullName: member?.fullName || "",
+      email,
+      locationPhone: loc?.phone || "",
+      locationAddress: address,
+      bookingLink: "[Book appointment]",
+    };
+  }
+
+  async function insertSaved(row: SavedResponseRow) {
+    const ctx = await tokenContextForActive();
+    const text = applySavedTokens(row.body, ctx);
+    setDraft(text);
+    setSavedOpen(false);
+  }
+
+  async function sendSaved(row: SavedResponseRow) {
+    const patientId = activeMemberId || selected?.members[0]?.id;
+    if (!patientId) return;
+    const ctx = await tokenContextForActive();
+    const text = applySavedTokens(row.body, ctx).trim();
+    if (!text) return;
+    setSending(true);
+    setSavedOpen(false);
+    try {
+      const sent = (await staffApi.messages.send(patientId, text, "sms")) as Msg;
+      if (sent.delivery_status === "failed") {
+        toastError(sent.failure_reason || "Message failed to send");
+      } else {
+        toastSuccess("Message sent");
+      }
+      await refresh();
+    } catch {
+      toastError("Could not send message.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const filteredSaved = useMemo(() => {
+    const q = savedQuery.trim().toLowerCase();
+    if (!q) return savedRows;
+    return savedRows.filter(
+      (r) => r.title.toLowerCase().includes(q) || r.body.toLowerCase().includes(q)
+    );
+  }, [savedRows, savedQuery]);
 
   function startWithPatient(p: PatientHit) {
     const name = `${p.first_name} ${p.last_name}`.trim();
@@ -402,23 +566,90 @@ export function MessagesView() {
             >
               {helpOpen ? "Hide tips" : "Tips"}
             </button>
-            <button
-              type="button"
-              onClick={() => setShowArchived((v) => !v)}
-              className={`inline-flex items-center gap-1.5 text-sm font-medium rounded-lg px-2.5 py-1.5 border ${
-                showArchived
-                  ? "border-teal-300 bg-teal-50 text-teal-800"
-                  : "border-border text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <Filter size={14} />
-              {showArchived ? "Showing archived" : "Filter"}
-            </button>
+            <div className="relative" ref={filterRef}>
+              <button
+                type="button"
+                onClick={() => setFilterOpen((v) => !v)}
+                className={`inline-flex items-center gap-1.5 text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+                  inboxFilter !== "all"
+                    ? "text-teal-700"
+                    : "text-teal-600 hover:text-teal-800"
+                }`}
+              >
+                <Filter size={14} />
+                Filter
+              </button>
+              {filterOpen && (
+                <div className="absolute right-0 mt-1 w-44 bg-white border border-border rounded-lg shadow-lg z-30 py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInboxFilter("archived");
+                      setFilterOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 ${
+                      inboxFilter === "archived"
+                        ? "text-teal-700 font-semibold"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    Archived only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInboxFilter("unread");
+                      setFilterOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 ${
+                      inboxFilter === "unread"
+                        ? "text-teal-700 font-semibold"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    Unread only
+                  </button>
+                  {inboxFilter !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInboxFilter("all");
+                        setFilterOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 border-t border-border"
+                    >
+                      Clear filter
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
+        {inboxFilter === "archived" && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+            Archived messages will automatically unarchive if you or the patient sends a new
+            message. Hover a conversation, open ⋯, and choose Archive to unarchive.
+          </div>
+        )}
+
         {helpOpen && (
           <div className="space-y-2 text-sm">
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-indigo-950 text-xs space-y-1">
+              <p className="font-medium text-sm">Archive & unarchive</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                <li>
+                  Hover to the right of the patient’s name to show ⋯, then choose Archive to remove
+                  the conversation from the main inbox.
+                </li>
+                <li>
+                  Filter → Archived only to open archives, then ⋯ → Archive to unarchive — or search
+                  by patient name.
+                </li>
+                <li>Sending a new message automatically unarchives the thread.</li>
+              </ul>
+            </div>
             <div className="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-teal-950">
               Looking to send appointment reminders? Use Reminders (not Messages). Manual Messages
               are best for real-time conversations. Smart commands cannot be inserted into Messages.
@@ -489,7 +720,11 @@ export function MessagesView() {
             <div className="flex-1 overflow-y-auto">
               {filtered.length === 0 ? (
                 <div className="px-4 py-10 text-center text-sm text-gray-400">
-                  Search for a patient to start a thread.
+                  {inboxFilter === "archived"
+                    ? "No archived conversations."
+                    : inboxFilter === "unread"
+                      ? "No unread conversations."
+                      : "Search for a patient to start a thread."}
                 </div>
               ) : (
                 filtered.map((c) => {
@@ -497,14 +732,14 @@ export function MessagesView() {
                   return (
                     <div
                       key={c.key}
-                      className={`relative border-b border-gray-50 ${
+                      className={`group relative border-b border-gray-50 ${
                         active ? "bg-gray-100" : "hover:bg-gray-50"
                       }`}
                     >
                       <button
                         type="button"
                         onClick={() => setSelectedKey(c.key)}
-                        className="w-full text-left px-3 py-3 flex gap-3"
+                        className="w-full text-left px-3 py-3 flex gap-3 pr-10"
                       >
                         <FamilyAvatar family={c.isFamily} />
                         <div className="min-w-0 flex-1">
@@ -517,6 +752,11 @@ export function MessagesView() {
                               }`}
                             >
                               {c.title}
+                              {c.archived && inboxFilter !== "archived" && searching && (
+                                <span className="ml-1.5 text-[10px] font-medium text-gray-400 uppercase">
+                                  archived
+                                </span>
+                              )}
                             </span>
                             <span className="text-[11px] text-gray-400 flex-shrink-0">
                               {c.messages.length
@@ -535,7 +775,11 @@ export function MessagesView() {
                       {c.threadId && (
                         <button
                           type="button"
-                          className="absolute right-2 top-2 p-1 text-gray-400 hover:text-gray-700 rounded"
+                          className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-700 rounded ${
+                            menuKey === c.key
+                              ? "opacity-100"
+                              : "opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          }`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setMenuKey(menuKey === c.key ? null : c.key);
@@ -548,7 +792,7 @@ export function MessagesView() {
                       {menuKey === c.key && (
                         <div
                           ref={menuRef}
-                          className="absolute right-2 top-8 z-30 w-44 bg-white border border-border rounded-lg shadow-lg py-1"
+                          className="absolute right-2 top-10 z-30 w-44 bg-white border border-border rounded-lg shadow-lg py-1"
                         >
                           <button
                             type="button"
@@ -563,7 +807,7 @@ export function MessagesView() {
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           >
                             <Archive size={14} />
-                            {c.archived ? "Unarchive" : "Archive"}
+                            Archive
                           </button>
                         </div>
                       )}
@@ -705,6 +949,82 @@ export function MessagesView() {
                       </div>
                     </div>
                   )}
+                  {savedOpen && (
+                    <div
+                      ref={savedRef}
+                      className="absolute bottom-full left-3 right-3 mb-2 bg-white border border-border rounded-xl shadow-xl z-30 overflow-hidden"
+                    >
+                      <div className="p-2 border-b border-border flex items-center gap-2">
+                        <div className="flex-1 flex items-center gap-2 px-2 py-1.5 border border-gray-200 rounded-lg">
+                          <Search size={14} className="text-gray-400" />
+                          <input
+                            value={savedQuery}
+                            onChange={(e) => setSavedQuery(e.target.value)}
+                            placeholder="Search"
+                            className="flex-1 text-sm outline-none bg-transparent"
+                            autoFocus
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          title="Settings → Messages"
+                          className="p-2 text-gray-400 hover:text-teal-700 rounded-lg border border-gray-200"
+                          onClick={() => {
+                            setSavedOpen(false);
+                            window.dispatchEvent(
+                              new CustomEvent("nexhealth:open-settings", {
+                                detail: { tab: "messages" },
+                              })
+                            );
+                          }}
+                        >
+                          <Settings size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSavedOpen(false);
+                            setCreateSaved(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm font-semibold text-teal-700 border border-teal-200 rounded-lg hover:bg-teal-50 whitespace-nowrap"
+                        >
+                          + New saved response
+                        </button>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {filteredSaved.length === 0 ? (
+                          <p className="px-4 py-8 text-sm text-gray-400 text-center">
+                            No saved responses. Create one to reuse phrases.
+                          </p>
+                        ) : (
+                          filteredSaved.map((row) => (
+                            <div
+                              key={row.id}
+                              className="flex items-start gap-2 px-3 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => void insertSaved(row)}
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <p className="font-semibold text-sm text-gray-900">{row.title}</p>
+                                <p className="text-xs text-gray-500 truncate mt-0.5">{row.body}</p>
+                              </button>
+                              <button
+                                type="button"
+                                title="Send"
+                                disabled={sending}
+                                onClick={() => void sendSaved(row)}
+                                className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg flex-shrink-0"
+                              >
+                                <Send size={15} />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <input
                       ref={fileRef}
@@ -721,6 +1041,15 @@ export function MessagesView() {
                     <button
                       type="button"
                       className="p-2 text-gray-400 hover:text-gray-600"
+                      aria-label="Saved responses"
+                      title="Saved responses"
+                      onClick={() => void openSavedPicker()}
+                    >
+                      <Zap size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="p-2 text-gray-400 hover:text-gray-600"
                       aria-label="Attach"
                       onClick={() => fileRef.current?.click()}
                       title="PDFs, JPGs, and PNGs"
@@ -731,7 +1060,10 @@ export function MessagesView() {
                       type="button"
                       className="p-2 text-gray-400 hover:text-gray-600"
                       aria-label="Emoji"
-                      onClick={() => setEmojiOpen((v) => !v)}
+                      onClick={() => {
+                        setSavedOpen(false);
+                        setEmojiOpen((v) => !v);
+                      }}
                     >
                       <Smile size={18} />
                     </button>
@@ -766,6 +1098,16 @@ export function MessagesView() {
             )}
           </section>
         </div>
+      )}
+
+      {createSaved && (
+        <SavedResponseEditorModal
+          onClose={() => setCreateSaved(false)}
+          onSaved={() => {
+            setCreateSaved(false);
+            void openSavedPicker();
+          }}
+        />
       )}
     </div>
   );
