@@ -225,7 +225,7 @@ export function TemplatesListView({
     });
 
   return (
-    <div className="px-4 sm:px-6 py-5 space-y-4">
+    <div className="px-4 sm:px-6 space-y-4">
       <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white border border-border rounded-xl max-w-md shadow-sm">
         <Search size={15} className="text-gray-400" />
         <input

@@ -456,6 +456,8 @@ export type CommunicationTemplate = {
   totalSent: number;
   recipients: number;
   multiLocation: boolean;
+  appointmentTypeId: string | null;
+  appointmentTypeName: string;
   locationName: string;
   createdAt: string;
   updatedAt: string;
@@ -467,5 +469,13 @@ export type TemplateConfiguration = {
   locationId: string;
   sendingHoursStart: string;
   sendingHoursEnd: string;
+  customizeByAppointmentType: boolean;
   updatedAt: string;
+};
+
+export type TemplateAppointmentTypeStatus = {
+  appointmentTypeId: string;
+  appointmentTypeName: string;
+  enabled: boolean;
+  variantId: string | null;
 };

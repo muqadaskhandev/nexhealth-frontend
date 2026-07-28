@@ -148,8 +148,20 @@ export function TemplateDetailView({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{template.name}</h1>
+            {template.appointmentTypeName && (
+              <p className="text-sm text-teal-700 font-medium mt-1">
+                Appointment type: {template.appointmentTypeName}
+              </p>
+            )}
             {template.description && (
               <p className="text-sm text-gray-500 mt-1 max-w-2xl">{template.description}</p>
+            )}
+            {template.slug === "reminders" && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 max-w-2xl">
+                Leave the <code className="bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code>{" "}
+                smart command intact so patients can confirm from the message. Smart Form Automation
+                will send required intake forms when configured.
+              </div>
             )}
           </div>
           <div className="flex items-center gap-3">

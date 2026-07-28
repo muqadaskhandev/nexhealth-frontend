@@ -148,8 +148,12 @@ export function MappingRulesView({ types, onBack }: { types: AppointmentType[]; 
       />
 
       <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
-        Mapping rules are only needed if you are differentiating communications — <span className="font-semibold">Recalls, Reviews, Campaigns, Templates, or Forms</span> — by appointment type.
-        Rules are evaluated top to bottom; the first match wins, so more specific rules should be listed above more general ones.
+        Mapping rules are only needed if you are differentiating communications —{" "}
+        <span className="font-semibold">Recalls, Reviews, Campaigns, Templates, or Forms</span> — by
+        appointment type. After rules are set, enable{" "}
+        <span className="font-semibold">Customize templates by appointment type</span> under
+        Templates → Settings, then build sequences on the Custom tab. Rules are evaluated top to
+        bottom; the first match wins.
       </div>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">

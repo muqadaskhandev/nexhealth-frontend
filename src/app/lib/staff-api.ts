@@ -36,6 +36,7 @@ import type {
   RulePatientStatus,
   TemplateCategory,
   TemplateConfiguration,
+  TemplateAppointmentTypeStatus,
   TemplateStepKind,
   WaitlistEntry,
   WaitlistPatientCandidate,
@@ -107,6 +108,8 @@ export type ApiCommunicationTemplate = {
   total_sent: number;
   recipients: number;
   multi_location: boolean;
+  appointment_type_id: string | null;
+  appointment_type_name: string;
   location_name: string;
   created_at: string;
   updated_at: string;
@@ -118,9 +121,16 @@ export type ApiTemplateConfiguration = {
   location_id: string;
   sending_hours_start: string;
   sending_hours_end: string;
+  customize_by_appointment_type: boolean;
   updated_at: string;
 };
 
+export type ApiTemplateAppointmentTypeStatus = {
+  appointment_type_id: string;
+  appointment_type_name: string;
+  enabled: boolean;
+  variant_id: string | null;
+};
 export function mapCommunicationTemplateStep(s: ApiCommunicationTemplateStep): CommunicationTemplateStep {
   return {
     id: s.id,
@@ -147,6 +157,8 @@ export function mapCommunicationTemplate(t: ApiCommunicationTemplate): Communica
     totalSent: t.total_sent,
     recipients: t.recipients,
     multiLocation: t.multi_location,
+    appointmentTypeId: t.appointment_type_id,
+    appointmentTypeName: t.appointment_type_name || "",
     locationName: t.location_name || "",
     createdAt: t.created_at,
     updatedAt: t.updated_at,
@@ -160,7 +172,19 @@ export function mapTemplateConfiguration(c: ApiTemplateConfiguration): TemplateC
     locationId: c.location_id,
     sendingHoursStart: c.sending_hours_start,
     sendingHoursEnd: c.sending_hours_end,
+    customizeByAppointmentType: !!c.customize_by_appointment_type,
     updatedAt: c.updated_at,
+  };
+}
+
+export function mapTemplateAppointmentTypeStatus(
+  s: ApiTemplateAppointmentTypeStatus
+): TemplateAppointmentTypeStatus {
+  return {
+    appointmentTypeId: s.appointment_type_id,
+    appointmentTypeName: s.appointment_type_name,
+    enabled: s.enabled,
+    variantId: s.variant_id,
   };
 }
 
@@ -929,10 +953,20 @@ export const staffApi = {
       api.post("/api/messages", { patient_id: patientId, body, channel }),
   },
   communicationTemplates: {
-    list: () => api.get<ApiCommunicationTemplate[]>("/api/communication-templates"),
+    list: (scope: "default" | "variants" | "all" = "default") =>
+      api.get<ApiCommunicationTemplate[]>(`/api/communication-templates?scope=${scope}`),
     get: (id: string) => api.get<ApiCommunicationTemplate>(`/api/communication-templates/${id}`),
     bySlug: (slug: string) =>
       api.get<ApiCommunicationTemplate>(`/api/communication-templates/by-slug/${slug}`),
+    appointmentTypes: (slug: string) =>
+      api.get<ApiTemplateAppointmentTypeStatus[]>(
+        `/api/communication-templates/by-slug/${slug}/appointment-types`
+      ),
+    setVariant: (slug: string, appointmentTypeId: string, enabled: boolean) =>
+      api.post<ApiCommunicationTemplate | null>(
+        `/api/communication-templates/by-slug/${slug}/variants`,
+        { appointment_type_id: appointmentTypeId, enabled }
+      ),
     update: (id: string, body: { is_active?: boolean; description?: string }) =>
       api.patch<ApiCommunicationTemplate>(`/api/communication-templates/${id}`, body),
     updateStep: (
@@ -951,8 +985,11 @@ export const staffApi = {
   },
   templateConfig: {
     get: () => api.get<ApiTemplateConfiguration>("/api/template-configurations"),
-    update: (body: { sending_hours_start: string; sending_hours_end: string }) =>
-      api.patch<ApiTemplateConfiguration>("/api/template-configurations", body),
+    update: (body: {
+      sending_hours_start?: string;
+      sending_hours_end?: string;
+      customize_by_appointment_type?: boolean;
+    }) => api.patch<ApiTemplateConfiguration>("/api/template-configurations", body),
   },
   payments: {
     list: () =>
