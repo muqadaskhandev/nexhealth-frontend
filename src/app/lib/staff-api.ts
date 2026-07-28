@@ -152,6 +152,7 @@ export function mapAppointment(a: ApiAppointment): Appointment {
   return {
     id: a.id,
     patientId: a.patient_id,
+    startsAt: a.starts_at,
     time: formatTime(a.starts_at),
     duration: `${a.duration_minutes} minutes`,
     status: a.status,
@@ -689,10 +690,15 @@ export const staffApi = {
     duplicates: () => api.get<ApiPatient[][]>("/api/patients/duplicates"),
   },
   appointments: {
-    list: (date?: string, patientId?: string) => {
+    list: (opts?: { date?: string; startDate?: string; endDate?: string; patientId?: string }) => {
       const params = new URLSearchParams();
-      if (date) params.set("date", date);
-      if (patientId) params.set("patient_id", patientId);
+      if (opts?.patientId) params.set("patient_id", opts.patientId);
+      else if (opts?.startDate || opts?.endDate) {
+        if (opts.startDate) params.set("start_date", opts.startDate);
+        if (opts.endDate) params.set("end_date", opts.endDate);
+      } else if (opts?.date) {
+        params.set("date", opts.date);
+      }
       const qs = params.toString();
       return api.get<ApiAppointment[]>(`/api/appointments${qs ? `?${qs}` : ""}`);
     },

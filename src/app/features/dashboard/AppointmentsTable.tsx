@@ -4,10 +4,11 @@ import { PatientAvatar } from "../../components/shared/PatientAvatar";
 import { StatusDropdown } from "../../components/shared/StatusDropdown";
 import type { Appointment, Patient, AppointmentStatus } from "../../types";
 
-export function AppointmentsTable({ appointments, patients, onStatusChange, onOpenPanel }: {
+export function AppointmentsTable({ appointments, patients, onStatusChange, onOpenPanel, showDate = false }: {
   appointments: Appointment[]; patients: Patient[];
   onStatusChange: (id: string, status: AppointmentStatus) => void;
   onOpenPanel: (p: Patient) => void;
+  showDate?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "unconfirmed">("all");
   const [search, setSearch] = useState("");
@@ -23,6 +24,11 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
     confirmed: appointments.filter(a => a.status === "confirmed").length,
     unconfirmed: appointments.filter(a => a.status === "unconfirmed").length,
   };
+
+  function formatApptDate(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  }
 
   return (
     <div className="bg-card rounded-lg border border-border overflow-hidden shadow-sm w-full">
@@ -74,6 +80,9 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
                   className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors group cursor-pointer"
                 >
                   <td className="px-4 py-3 whitespace-nowrap">
+                    {showDate && (
+                      <div className="text-xs text-muted-foreground mb-0.5">{formatApptDate(appt.startsAt)}</div>
+                    )}
                     <div className="font-medium text-foreground">{appt.time}</div>
                     <div className="text-xs text-muted-foreground">{appt.duration}</div>
                   </td>

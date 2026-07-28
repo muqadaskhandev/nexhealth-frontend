@@ -56,7 +56,7 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
       if (cancelled) return;
       setMessages(rows.map((m) => ({ id: m.id, body: m.body, direction: m.direction, channel: m.channel, sentAt: m.sent_at })));
     });
-    staffApi.appointments.list(undefined, patient.id).then((rows) => {
+    staffApi.appointments.list({ patientId: patient.id }).then((rows) => {
       if (cancelled) return;
       setAppointments(rows);
     });

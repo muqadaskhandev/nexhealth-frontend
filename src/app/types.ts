@@ -12,7 +12,7 @@ export type NavItem = {
 export type AppointmentStatus = "checked-in" | "confirmed" | "unconfirmed" | "cancelled";
 
 export type Appointment = {
-  id: string; patientId: string; time: string; duration: string;
+  id: string; patientId: string; time: string; duration: string; startsAt: string;
   status: AppointmentStatus;
   patient: { name: string; dob: string; initials: string; color: string };
   contact: { phone: string; email: string; redacted?: boolean };
