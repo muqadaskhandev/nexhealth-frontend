@@ -861,14 +861,20 @@ export const staffApi = {
         description,
       }),
   },
-  dashboard: () =>
-    api.get<{
+  dashboard: (opts?: { startDate?: string; endDate?: string }) => {
+    const params = new URLSearchParams();
+    if (opts?.startDate) params.set("start_date", opts.startDate);
+    if (opts?.endDate) params.set("end_date", opts.endDate);
+    const qs = params.toString();
+    return api.get<{
       appointments_today: number;
       confirmed_count: number;
+      unconfirmed_count: number;
       waitlist_count: number;
       pending_forms: number;
       pending_payments: number;
-    }>("/api/dashboard/stats"),
+    }>(`/api/dashboard/stats${qs ? `?${qs}` : ""}`);
+  },
   activity: (limit = 75) =>
     api.get<
       {

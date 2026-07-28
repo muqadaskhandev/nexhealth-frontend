@@ -31,11 +31,11 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
   }
 
   return (
-    <div className="bg-card rounded-lg border border-border overflow-hidden shadow-sm w-full">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-4 py-3 border-b border-border bg-white">
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm w-full">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-4 py-3.5 border-b border-gray-100">
         <div className="flex items-center gap-1 flex-wrap">
           {(["all", "confirmed", "unconfirmed"] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === tab ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === tab ? "bg-gray-900 text-white shadow-sm" : "text-gray-500 hover:bg-gray-100"}`}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)} <span className={`ml-0.5 ${activeTab === tab ? "opacity-80" : "opacity-60"}`}>({counts[tab]})</span>
             </button>
           ))}
