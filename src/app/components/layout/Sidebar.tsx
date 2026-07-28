@@ -26,13 +26,12 @@ export function Sidebar({
   activeNav: string;
   setActiveNav: (id: string) => void;
 }) {
-  // Sidebar should start collapsed to give the user more screen space.
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     for (const item of NAV_ITEMS) {
       if (item.children) {
-        initial[item.id] = childIds(item).includes(activeNav) || ["communications", "scheduling"].includes(item.id);
+        initial[item.id] = childIds(item).includes(activeNav);
       }
     }
     return initial;
@@ -51,7 +50,7 @@ export function Sidebar({
   return (
     <aside
       className={`h-full flex-shrink-0 flex flex-col border-r border-gray-200/80 bg-gradient-to-b from-gray-50 to-white transition-[width] duration-200 ${
-        collapsed ? "w-16" : "w-60"
+        collapsed ? "w-16" : "w-64"
       }`}
     >
       <div className="px-4 py-4 border-b border-gray-200/60">
