@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Clock,
@@ -17,20 +17,13 @@ import {
 } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { CommunicationTemplate, CommunicationTemplateStep } from "../../types";
+import { applySmartCommandPreview } from "./smartCommands";
+import { SmartCommandsPanel } from "./SmartCommandsPanel";
 
 type DetailTab = "actions" | "performance" | "history";
 type EditTarget =
   | { kind: "trigger" | "message"; step: CommunicationTemplateStep }
   | null;
-
-const SMART_COMMANDS = [
-  "PATIENT_FIRST_NAME",
-  "LOCATION_NAME",
-  "APPOINTMENT_DATE",
-  "APPOINTMENT_TIME",
-  "FORM_LINK",
-  "REVIEW_LINK",
-];
 
 export function TemplateDetailView({
   templateId,
@@ -394,6 +387,9 @@ function StepEditorPanel({
   const [subject, setSubject] = useState(step.subject);
   const [timingValue, setTimingValue] = useState(step.timingValue ?? 1);
   const [timingUnit, setTimingUnit] = useState(step.timingUnit ?? "day");
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const [insertTarget, setInsertTarget] = useState<"body" | "subject">("body");
 
   useEffect(() => {
     setTitle(step.title);
@@ -408,8 +404,45 @@ function StepEditorPanel({
   const smsLimit = 425;
   const isSms = step.kind === "sms";
 
+  function insertSmartCommand(wrapped: string) {
+    if (preview) return;
+
+    if (insertTarget === "subject" && step.kind === "email") {
+      const el = subjectRef.current;
+      if (!el) {
+        setSubject((s) => s + wrapped);
+        return;
+      }
+      const start = el.selectionStart ?? subject.length;
+      const end = el.selectionEnd ?? start;
+      const next = subject.slice(0, start) + wrapped + subject.slice(end);
+      setSubject(next);
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + wrapped.length;
+        el.setSelectionRange(pos, pos);
+      });
+      return;
+    }
+
+    const el = bodyRef.current;
+    if (!el) {
+      setBody((b) => b + wrapped);
+      return;
+    }
+    const start = el.selectionStart ?? body.length;
+    const end = el.selectionEnd ?? start;
+    const next = body.slice(0, start) + wrapped + body.slice(end);
+    setBody(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + wrapped.length;
+      el.setSelectionRange(pos, pos);
+    });
+  }
+
   return (
-    <aside className="w-full max-w-md border-l border-border bg-white flex flex-col min-h-0 shadow-xl">
+    <aside className="w-full max-w-lg border-l border-border bg-white flex flex-col min-h-0 shadow-xl">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <h2 className="font-semibold text-gray-900 text-sm">
           {isMessage ? "Edit the message" : "Edit the time"}
@@ -465,8 +498,10 @@ function StepEditorPanel({
               <>
                 <label className="block text-xs font-medium text-gray-500">Subject line</label>
                 <input
+                  ref={subjectRef}
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
+                  onFocus={() => setInsertTarget("subject")}
                   disabled={preview}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400 disabled:bg-gray-50"
                 />
@@ -475,18 +510,14 @@ function StepEditorPanel({
             <label className="block text-xs font-medium text-gray-500">Message</label>
             {preview ? (
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 whitespace-pre-wrap min-h-[160px]">
-                {body
-                  .replace(/\{\{PATIENT_FIRST_NAME\}\}/g, "Alex")
-                  .replace(/\{\{LOCATION_NAME\}\}/g, "Better Dental")
-                  .replace(/\{\{APPOINTMENT_DATE\}\}/g, "March 12")
-                  .replace(/\{\{APPOINTMENT_TIME\}\}/g, "10:00 AM")
-                  .replace(/\{\{FORM_LINK\}\}/g, "https://forms.example/abc")
-                  .replace(/\{\{REVIEW_LINK\}\}/g, "https://reviews.example/xyz")}
+                {applySmartCommandPreview(body)}
               </div>
             ) : (
               <textarea
+                ref={bodyRef}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
+                onFocus={() => setInsertTarget("body")}
                 rows={10}
                 maxLength={isSms ? smsLimit : undefined}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400 resize-y"
@@ -497,22 +528,8 @@ function StepEditorPanel({
                 {body.length}/{smsLimit} characters. Emojis count as two characters.
               </p>
             )}
-            <div>
-              <p className="text-xs font-medium text-gray-500 mb-2">Smart commands</p>
-              <div className="flex flex-wrap gap-1.5">
-                {SMART_COMMANDS.map((cmd) => (
-                  <button
-                    key={cmd}
-                    type="button"
-                    disabled={preview}
-                    onClick={() => setBody((b) => `${b}{{${cmd}}}`)}
-                    className="px-2 py-1 text-[11px] font-mono rounded-md bg-gray-100 text-gray-700 hover:bg-teal-50 hover:text-teal-700 disabled:opacity-40"
-                  >
-                    {`{{${cmd}}}`}
-                  </button>
-                ))}
-              </div>
-            </div>
+
+            <SmartCommandsPanel disabled={preview} onInsert={insertSmartCommand} />
           </>
         )}
       </div>
