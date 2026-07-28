@@ -13,6 +13,7 @@ import type {
 } from "../../types";
 import { TemplatesListView } from "./TemplatesListView";
 import { TemplateConfigurationsPanel } from "./TemplateConfigurationsPanel";
+import { MessageGroupingRulesPanel } from "./MessageGroupingRulesPanel";
 
 /** Template types that support per-appointment-type sequences. */
 export const CUSTOMIZABLE_TEMPLATE_SLUGS = [
@@ -264,6 +265,10 @@ export function TemplatesSettingsTab({
       </div>
 
       <TemplateConfigurationsPanel />
+
+      <div className="border-t border-border pt-8">
+        <MessageGroupingRulesPanel config={config} />
+      </div>
     </div>
   );
 }
@@ -403,10 +408,12 @@ export function TemplatesCustomTab({
 
       {selectedSlug === "reminders" && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          When editing Reminders, leave the{" "}
-          <code className="text-xs bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code> smart
-          command intact so patients can confirm appointments. If Smart Form Automation is
-          configured, required forms are sent automatically.
+          Reminder details are only consolidated when{" "}
+          <code className="text-xs bg-white/70 px-1 rounded">INSERTCONFIRMAPPT</code> or{" "}
+          <code className="text-xs bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code> is in
+          the Reminder content. Open the Reminder template → Message grouping for full rules
+          (shared phone, family messaging, 30-minute same-day clusters, and 6-hour other-template
+          dedupe).
         </div>
       )}
     </div>

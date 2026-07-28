@@ -1006,6 +1006,56 @@ export const staffApi = {
       family_messaging_age_limit?: number | null;
     }) => api.patch<ApiTemplateConfiguration>("/api/template-configurations", body),
   },
+  messageGrouping: {
+    rules: () =>
+      api.get<{
+        title: string;
+        summary: string;
+        consolidation_gate: string;
+        sections: {
+          id: string;
+          title: string;
+          intro?: string;
+          items: {
+            title: string;
+            body: string;
+            callout?: string;
+            example?: string;
+          }[];
+        }[];
+      }>("/api/message-grouping/rules"),
+    preview: (body: {
+      template_content?: string;
+      family_messaging_enabled?: boolean;
+      use_family_messaging_for_reminders?: boolean;
+      appointment_journeys_enabled?: boolean;
+      date?: string;
+      appointments?: {
+        patient_id: string;
+        patient_name: string;
+        patient_phone?: string;
+        guarantor_phone?: string | null;
+        starts_at: string;
+        duration_minutes?: number;
+        appointment_type?: string;
+        journey_key?: string | null;
+      }[];
+    }) =>
+      api.post<{
+        consolidation_supported: boolean;
+        family_messaging_active: boolean;
+        groups: {
+          mode: string;
+          recipient_phone: string;
+          recipient_label: string;
+          appointment_ids: string[];
+          listed_appointment_ids: string[];
+          patient_names: string[];
+          notes: string[];
+          confirm_applies_to_all: boolean;
+        }[];
+      }>("/api/message-grouping/preview", body),
+  },
   payments: {
     list: () =>
       api.get<

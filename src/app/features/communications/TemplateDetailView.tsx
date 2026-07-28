@@ -13,14 +13,20 @@ import { Toggle } from "../../components/shared/Toggle";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import {
   mapCommunicationTemplate,
+  mapTemplateConfiguration,
   staffApi,
 } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
-import type { CommunicationTemplate, CommunicationTemplateStep } from "../../types";
-import { applySmartCommandPreview } from "./smartCommands";
+import type {
+  CommunicationTemplate,
+  CommunicationTemplateStep,
+  TemplateConfiguration,
+} from "../../types";
+import { applySmartCommandPreview, reminderContentSupportsConsolidation } from "./smartCommands";
 import { SmartCommandsPanel } from "./SmartCommandsPanel";
+import { MessageGroupingRulesPanel } from "./MessageGroupingRulesPanel";
 
-type DetailTab = "actions" | "performance" | "history";
+type DetailTab = "actions" | "grouping" | "performance" | "history";
 type EditTarget =
   | { kind: "trigger" | "message"; step: CommunicationTemplateStep }
   | null;
@@ -33,6 +39,7 @@ export function TemplateDetailView({
   onBack: () => void;
 }) {
   const [template, setTemplate] = useState<CommunicationTemplate | null>(null);
+  const [config, setConfig] = useState<TemplateConfiguration | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<DetailTab>("actions");
   const [edit, setEdit] = useState<EditTarget>(null);
@@ -49,6 +56,10 @@ export function TemplateDetailView({
   useEffect(() => {
     setLoading(true);
     refresh().finally(() => setLoading(false));
+    staffApi.templateConfig
+      .get()
+      .then((row) => setConfig(mapTemplateConfiguration(row)))
+      .catch(() => setConfig(null));
   }, [templateId]);
 
   async function setActive(next: boolean) {
@@ -128,6 +139,8 @@ export function TemplateDetailView({
 
   const trigger = template.steps.find((s) => s.kind === "trigger");
   const messages = template.steps.filter((s) => s.kind === "email" || s.kind === "sms");
+  const reminderBodies = messages.map((m) => `${m.body || ""}\n${m.subject || ""}`).join("\n");
+  const consolidates = reminderContentSupportsConsolidation(reminderBodies);
 
   const tabCls = (active: boolean) =>
     `px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
@@ -157,10 +170,27 @@ export function TemplateDetailView({
               <p className="text-sm text-gray-500 mt-1 max-w-2xl">{template.description}</p>
             )}
             {template.slug === "reminders" && (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 max-w-2xl">
-                Leave the <code className="bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code>{" "}
-                smart command intact so patients can confirm from the message. Smart Form Automation
-                will send required intake forms when configured.
+              <div
+                className={`mt-3 rounded-lg border px-3 py-2 text-xs max-w-2xl ${
+                  consolidates
+                    ? "border-amber-200 bg-amber-50 text-amber-950"
+                    : "border-rose-200 bg-rose-50 text-rose-900"
+                }`}
+              >
+                {consolidates ? (
+                  <>
+                    Reminder consolidation is enabled because this template includes{" "}
+                    <code className="bg-white/70 px-1 rounded">INSERTCONFIRMAPPT</code> or{" "}
+                    <code className="bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code>. Keep
+                    those smart commands intact so patients can confirm and details can be grouped.
+                  </>
+                ) : (
+                  <>
+                    Add <code className="bg-white/70 px-1 rounded">INSERTCONFIRMAPPT</code> or{" "}
+                    <code className="bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code> to
+                    Reminder content. Without them, appointment details are not consolidated.
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -185,6 +215,15 @@ export function TemplateDetailView({
           <button type="button" className={tabCls(tab === "actions")} onClick={() => setTab("actions")}>
             Actions
           </button>
+          {template.slug === "reminders" && (
+            <button
+              type="button"
+              className={tabCls(tab === "grouping")}
+              onClick={() => setTab("grouping")}
+            >
+              Message grouping
+            </button>
+          )}
           <button
             type="button"
             className={tabCls(tab === "performance")}
@@ -274,6 +313,10 @@ export function TemplateDetailView({
               </div>
               <p className="text-center text-xs text-teal-600 mt-2">Add another sequence</p>
             </div>
+          )}
+
+          {tab === "grouping" && (
+            <MessageGroupingRulesPanel config={config} reminderContent={reminderBodies} />
           )}
 
           {tab === "performance" && (

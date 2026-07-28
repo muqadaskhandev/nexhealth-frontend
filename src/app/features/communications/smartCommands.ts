@@ -188,6 +188,14 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
         ],
       },
       {
+        token: "INSERTCONFIRMAPPT",
+        label: "Insert confirm appointment",
+        description:
+          "Required for reminder consolidation. Inserts confirm/cancel prompt. Replies apply to all appointments listed in the message.",
+        preview: 'Reply "C" to confirm or "N" to cancel',
+        templates: ["reminders", "appointment-request", "appointment-confirmed", "save-the-date", "new-patient"],
+      },
+      {
         token: "CONFIRM_APPOINTMENT",
         label: "Confirm appointment",
         description: "Inserts a button the patient can click to confirm their appointment.",
@@ -198,7 +206,7 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
         token: "APPOINTMENT_REGISTRATION",
         label: "Appointment registration",
         description:
-          "Links the patient to confirm their appointment. With Smart Forms enabled, also prompts required intake forms.",
+          "Links the patient to confirm their appointment (also accepted as APPOINTMENTREGISTRATION). With Smart Forms enabled, also prompts required intake forms. Required (with INSERTCONFIRMAPPT) for reminder consolidation.",
         preview: "[Confirm appointment & forms]",
         templates: ["reminders", "appointment-request", "appointment-confirmed", "save-the-date", "new-patient"],
       },
@@ -387,4 +395,19 @@ export function applySmartCommandPreview(
 
 export function wrapSmartCommand(token: string): string {
   return `{{${token}}}`;
+}
+
+/** Tokens that enable reminder consolidation (help center: INSERTCONFIRMAPPT / APPOINTMENTREGISTRATION). */
+export const REMINDER_CONSOLIDATION_TOKENS = [
+  "INSERTCONFIRMAPPT",
+  "APPOINTMENT_REGISTRATION",
+  "APPOINTMENTREGISTRATION",
+  "CONFIRM_APPOINTMENT",
+] as const;
+
+export function reminderContentSupportsConsolidation(content: string): boolean {
+  const upper = content.toUpperCase();
+  return REMINDER_CONSOLIDATION_TOKENS.some(
+    (t) => upper.includes(`{{${t}}}`) || upper.includes(t)
+  );
 }
