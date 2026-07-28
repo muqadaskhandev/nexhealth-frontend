@@ -5,7 +5,7 @@ import { SyncTooltip } from "../../components/shared/SyncTooltip";
 import { IconButton } from "../../components/shared/IconButton";
 import { InsuranceAccordion } from "../insurance/InsuranceAccordion";
 import { EditPatientInfoModal } from "./EditPatientInfoModal";
-import { EditNotificationPreferencesModal } from "./EditNotificationPreferencesModal";
+import { EditNotificationPreferencesModal, hasUnsubscribedPrefs } from "./EditNotificationPreferencesModal";
 import { staffApi, type ApiAppointment } from "../../lib/staff-api";
 import type { Patient, ActivityItem, ActivityType, MessageItem } from "../../types";
 
@@ -32,7 +32,7 @@ function formatDateTime(iso: string): string {
 
 export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
   patient: Patient; onClose: () => void;
-  onSavePatient: (p: Patient) => void;
+  onSavePatient: (p: Patient) => void | Promise<void>;
 }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"history" | "messages" | "appointments">("history");
@@ -118,6 +118,14 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
                   {patient.archived && (
                     <span className="px-2 py-0.5 text-xs font-medium border border-pink-300 text-pink-600 bg-pink-50 rounded-md flex-shrink-0">
                       Archived
+                    </span>
+                  )}
+                  {hasUnsubscribedPrefs(patient.notificationPrefs) && (
+                    <span
+                      className="px-2 py-0.5 text-xs font-medium border border-amber-300 text-amber-800 bg-amber-50 rounded-md flex-shrink-0"
+                      title="This patient is unsubscribed from one or more email/SMS automations"
+                    >
+                      Partial unsubscribe
                     </span>
                   )}
                   {!patient.synced && <SyncTooltip />}
@@ -319,7 +327,9 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
         <EditNotificationPreferencesModal
           patient={patient}
           onClose={() => setModal(null)}
-          onSave={(prefs) => onSavePatient({ ...patient, notificationPrefs: prefs })}
+          onSave={async (prefs) => {
+            await onSavePatient({ ...patient, notificationPrefs: prefs });
+          }}
         />
       )}
     </>

@@ -60,10 +60,22 @@ export function useStaffData(enabled: boolean) {
         notification_prefs: updated.notificationPrefs ?? {},
       };
       try {
+        const before = patients.find((p) => p.id === updated.id);
+        const prefsChanged =
+          JSON.stringify(before?.notificationPrefs ?? {}) !==
+          JSON.stringify(updated.notificationPrefs ?? {});
         const saved = mapPatient(await staffApi.patients.update(updated.id, body));
+
+        if (prefsChanged) {
+          // SMS prefs propagate to shared phone numbers server-side — refresh list.
+          toastSuccess("Notification preferences saved");
+          await refresh();
+          return saved;
+        }
+
         setPatients((prev) => {
-          const before = prev.find((p) => p.id === saved.id);
-          if (before && before.archived !== saved.archived) {
+          const prevPatient = prev.find((p) => p.id === saved.id);
+          if (prevPatient && prevPatient.archived !== saved.archived) {
             toastSuccess(saved.archived ? "Patient archived" : "Patient unarchived");
           } else {
             toastSuccess("Patient updated");
@@ -77,7 +89,7 @@ export function useStaffData(enabled: boolean) {
         throw err;
       }
     },
-    []
+    [patients, refresh]
   );
 
   const createPatient = useCallback(async (data: Partial<Patient>) => {
