@@ -999,6 +999,8 @@ export const staffApi = {
         `/api/message-threads/${threadId}`,
         body
       ),
+    receiveInbound: (patientId: string, body: string) =>
+      api.post("/api/messages/inbound", { patient_id: patientId, body }),
   },
   savedResponses: {
     list: (q?: string) =>
@@ -1045,6 +1047,74 @@ export const staffApi = {
         updated_at: string;
       }>(`/api/saved-responses/${id}`, body),
     remove: (id: string) => api.delete(`/api/saved-responses/${id}`),
+  },
+  outOfOffice: {
+    get: () =>
+      api.get<{
+        id: string;
+        location_id: string;
+        enabled: boolean;
+        auto_reply_message: string;
+        service_hours: {
+          day: number;
+          unavailable: boolean;
+          start: string;
+          end: string;
+        }[];
+        custom_dates: {
+          id: string;
+          date: string;
+          label: string;
+          unavailable: boolean;
+          start: string;
+          end: string;
+        }[];
+        shared_location_ids: string[];
+        updated_at: string;
+        reply_throttle_minutes: number;
+      }>("/api/out-of-office"),
+    update: (body: {
+      enabled?: boolean;
+      auto_reply_message?: string;
+      service_hours?: {
+        day: number;
+        unavailable: boolean;
+        start: string;
+        end: string;
+      }[];
+      custom_dates?: {
+        id: string;
+        date: string;
+        label: string;
+        unavailable: boolean;
+        start: string;
+        end: string;
+      }[];
+      shared_location_ids?: string[];
+    }) =>
+      api.patch<{
+        id: string;
+        location_id: string;
+        enabled: boolean;
+        auto_reply_message: string;
+        service_hours: {
+          day: number;
+          unavailable: boolean;
+          start: string;
+          end: string;
+        }[];
+        custom_dates: {
+          id: string;
+          date: string;
+          label: string;
+          unavailable: boolean;
+          start: string;
+          end: string;
+        }[];
+        shared_location_ids: string[];
+        updated_at: string;
+        reply_throttle_minutes: number;
+      }>("/api/out-of-office", body),
   },
   communicationTemplates: {
     list: (scope: "default" | "variants" | "all" = "default") =>

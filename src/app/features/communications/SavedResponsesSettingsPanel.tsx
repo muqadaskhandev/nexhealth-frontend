@@ -4,6 +4,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import { ConfirmModal } from "../../components/shared/ConfirmModal";
+import { OutOfOfficeSettingsPanel } from "./OutOfOfficeSettingsPanel";
 import { wrapSmartCommand } from "./smartCommands";
 
 export type SavedResponseRow = {
@@ -348,14 +349,17 @@ export function MessagesSettingsPanel({
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-8 max-w-3xl">
       <div>
         <h2 className="text-lg font-bold text-gray-900">Messages</h2>
         <p className="text-sm text-gray-500 mt-1">
           Increase efficiency, avoid typos, and build your brand with a library of saved responses
-          to patient messages.
+          to patient messages. Set up out-of-office replies for holidays, vacations, weekends, and
+          outside regular business hours.
         </p>
       </div>
+
+      <OutOfOfficeSettingsPanel />
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-3 justify-between">
