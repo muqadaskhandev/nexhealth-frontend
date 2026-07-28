@@ -26,6 +26,8 @@ export function Sidebar({
   activeNav: string;
   setActiveNav: (id: string) => void;
 }) {
+  // Sidebar should start collapsed to give the user more screen space.
+  const [collapsed, setCollapsed] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     for (const item of NAV_ITEMS) {
@@ -47,9 +49,28 @@ export function Sidebar({
   const toggle = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
-    <aside className="w-60 flex-shrink-0 h-full flex flex-col border-r border-gray-200/80 bg-gradient-to-b from-gray-50 to-white">
+    <aside
+      className={`h-full flex-shrink-0 flex flex-col border-r border-gray-200/80 bg-gradient-to-b from-gray-50 to-white transition-[width] duration-200 ${
+        collapsed ? "w-16" : "w-60"
+      }`}
+    >
       <div className="px-4 py-4 border-b border-gray-200/60">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Navigation</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className={`text-[11px] font-semibold uppercase tracking-wider text-gray-400 ${collapsed ? "hidden" : ""}`}>
+            Navigation
+          </p>
+          <button
+            type="button"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`ml-auto p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors ${
+              collapsed ? "w-11 h-11 flex items-center justify-center" : ""
+            }`}
+            onClick={() => setCollapsed((v) => !v)}
+          >
+            {/* Use chevron icon already in the bundle via inline SVG-like fallback */}
+            <span className={`text-sm font-bold leading-none ${collapsed ? "" : "rotate-180"}`}>›</span>
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
@@ -59,9 +80,11 @@ export function Sidebar({
 
           return (
             <div key={section.label}>
-              <p className="px-2.5 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                {section.label}
-              </p>
+              {!collapsed && (
+                <p className="px-2.5 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  {section.label}
+                </p>
+              )}
               <div className="space-y-1">
                 {items.map((item) => {
                   const hasChildren = !!item.children;
@@ -97,9 +120,10 @@ export function Sidebar({
                           >
                             {item.icon}
                           </span>
-                          <span className="truncate font-medium">{item.label}</span>
+                          {!collapsed && <span className="truncate font-medium">{item.label}</span>}
                         </span>
-                        <span className="flex items-center gap-1 flex-shrink-0">
+                        {!collapsed && (
+                          <span className="flex items-center gap-1 flex-shrink-0">
                           {item.badge != null && item.badge > 0 && (
                             <span className="min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                               {item.badge}
@@ -110,10 +134,11 @@ export function Sidebar({
                               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             </span>
                           )}
-                        </span>
+                          </span>
+                        )}
                       </button>
 
-                      {hasChildren && isExpanded && (
+                      {!collapsed && hasChildren && isExpanded && (
                         <div className="mt-1 ml-5 pl-3 border-l-2 border-teal-100 space-y-0.5">
                           {item.children!.map((child) => {
                             const childActive = activeNav === child.id;

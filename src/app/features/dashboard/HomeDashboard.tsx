@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CalendarRange } from "lucide-react";
 import { StatCards } from "./StatCards";
 import { AppointmentsTable } from "./AppointmentsTable";
@@ -13,7 +13,7 @@ function todayIso(): string {
 
 export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPanel }: {
   appointments: Appointment[]; patients: Patient[];
-  onStatusChange: (id: string, status: AppointmentStatus) => void;
+  onStatusChange: (id: string, status: AppointmentStatus) => void | Promise<void>;
   onOpenPanel: (p: Patient) => void;
 }) {
   const { activeLocation } = useAuth();
@@ -21,11 +21,12 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
   const [toDate, setToDate] = useState("");
   const [rangeAppointments, setRangeAppointments] = useState<Appointment[]>(appointments);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const hasDateFilter = Boolean(fromDate || toDate);
   const showDateColumn = !hasDateFilter || fromDate !== toDate;
 
-  useEffect(() => {
+  const refreshAppointments = useCallback(() => {
     let cancelled = false;
     setLoadingAppointments(true);
 
@@ -51,7 +52,15 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
     return () => {
       cancelled = true;
     };
-  }, [fromDate, toDate, activeLocation?.id]);
+  }, [fromDate, toDate]);
+
+  useEffect(() => refreshAppointments(), [refreshAppointments, activeLocation?.id, refreshNonce]);
+
+  useEffect(() => {
+    if (!fromDate && !toDate) {
+      setRangeAppointments(appointments);
+    }
+  }, [appointments, fromDate, toDate]);
 
   function setToday() {
     const t = todayIso();
@@ -64,11 +73,16 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
     setToDate("");
   }
 
+  async function handleStatusChange(id: string, status: AppointmentStatus) {
+    await onStatusChange(id, status);
+    setRefreshNonce((v) => v + 1);
+  }
+
   const inputCls =
     "px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-800 bg-white outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 shadow-sm";
 
   return (
-    <div className="w-full min-w-0 px-6 py-5 space-y-5">
+    <div className="w-full min-w-0 px-6 py-5 space-y-5 min-h-full flex flex-col">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between bg-white rounded-2xl border border-gray-100 px-4 py-4 shadow-sm">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex items-center gap-2 text-gray-700 pb-2 pr-1">
@@ -120,21 +134,23 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
         )}
       </div>
 
-      <StatCards fromDate={fromDate} toDate={toDate} />
+      <StatCards fromDate={fromDate} toDate={toDate} refreshNonce={refreshNonce} />
 
+      <div className="flex-1 min-h-[60vh]">
       {loadingAppointments ? (
-        <div className="bg-white rounded-2xl border border-gray-100 px-4 py-12 text-center text-sm text-gray-400 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-100 px-4 py-12 text-center text-sm text-gray-400 shadow-sm h-full min-h-[60vh]">
           Loading appointments…
         </div>
       ) : (
         <AppointmentsTable
           appointments={rangeAppointments}
           patients={patients}
-          onStatusChange={onStatusChange}
+          onStatusChange={handleStatusChange}
           onOpenPanel={onOpenPanel}
           showDate={showDateColumn}
         />
       )}
+      </div>
     </div>
   );
 }

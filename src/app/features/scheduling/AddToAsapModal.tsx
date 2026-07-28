@@ -54,6 +54,12 @@ export function AddToAsapModal({ onClose, onAdded }: { onClose: () => void; onAd
       setAppointmentId("");
       return;
     }
+    // Clear any previously selected appointment when switching patients.
+    // Otherwise we can submit an appointment_id that belongs to a different patient,
+    // which triggers "Appointment not found for this patient".
+    setFutureAppts([]);
+    setAppointmentId("");
+    setError(null);
     setLoadingAppts(true);
     staffApi.appointments
       .list(undefined, patientId)

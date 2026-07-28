@@ -32,7 +32,15 @@ function formatPeriodLabel(fromDate: string, toDate: string): string {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-export function StatCards({ fromDate, toDate }: { fromDate: string; toDate: string }) {
+export function StatCards({
+  fromDate,
+  toDate,
+  refreshNonce = 0,
+}: {
+  fromDate: string;
+  toDate: string;
+  refreshNonce?: number;
+}) {
   const { activeLocation } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,7 +69,7 @@ export function StatCards({ fromDate, toDate }: { fromDate: string; toDate: stri
     return () => {
       cancelled = true;
     };
-  }, [activeLocation?.id, fromDate, toDate]);
+  }, [activeLocation?.id, fromDate, toDate, refreshNonce]);
 
   const cards = [
     {

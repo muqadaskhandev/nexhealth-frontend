@@ -87,8 +87,8 @@ export default function App() {
   if (isAcceptInvite) return <AcceptInvitePage />;
   if (isResetPassword) return <ResetPasswordPage />;
 
-  function handleStatusChange(id: string, status: AppointmentStatus) {
-    staff.updateAppointmentStatus(id, status);
+  async function handleStatusChange(id: string, status: AppointmentStatus) {
+    await staff.updateAppointmentStatus(id, status);
   }
 
   function handleSavePatient(updated: Patient) {

@@ -6,7 +6,7 @@ import type { Appointment, Patient, AppointmentStatus } from "../../types";
 
 export function AppointmentsTable({ appointments, patients, onStatusChange, onOpenPanel, showDate = false }: {
   appointments: Appointment[]; patients: Patient[];
-  onStatusChange: (id: string, status: AppointmentStatus) => void;
+  onStatusChange: (id: string, status: AppointmentStatus) => void | Promise<void>;
   onOpenPanel: (p: Patient) => void;
   showDate?: boolean;
 }) {
@@ -31,7 +31,7 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm w-full">
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm w-full h-full min-h-[60vh] flex flex-col">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-4 py-3.5 border-b border-gray-100">
         <div className="flex items-center gap-1 flex-wrap">
           {(["all", "confirmed", "unconfirmed"] as const).map(tab => (
@@ -50,7 +50,7 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
           </button>
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto flex-1">
         <table className="w-full min-w-[960px] text-sm">
           <thead>
             <tr className="border-b border-border bg-gray-50/80">
