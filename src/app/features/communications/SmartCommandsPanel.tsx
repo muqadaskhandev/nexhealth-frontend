@@ -1,7 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import {
+  mapAppointmentType,
+  mapFormTemplate,
+  staffApi,
+} from "../../lib/staff-api";
+import {
   SMART_COMMAND_GROUPS,
+  appointmentSlotCommandsFromTypes,
+  filterSmartCommandGroups,
+  formCommandsFromTemplates,
   wrapSmartCommand,
   type SmartCommand,
   type SmartCommandGroup,
@@ -9,17 +17,63 @@ import {
 
 export function SmartCommandsPanel({
   disabled,
+  templateSlug,
   onInsert,
 }: {
   disabled?: boolean;
+  /** When set, only show commands available for this template. */
+  templateSlug?: string;
   onInsert: (token: string) => void;
 }) {
   const [open, setOpen] = useState(true);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(SMART_COMMAND_GROUPS.map((g) => [g.id, g.id === "company" || g.id === "location" || g.id === "patient"]))
-  );
+  const [formCommands, setFormCommands] = useState<SmartCommand[]>([]);
+  const [slotCommands, setSlotCommands] = useState<SmartCommand[]>([]);
 
-  const groups = useMemo(() => SMART_COMMAND_GROUPS, []);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      staffApi.forms.templates().catch(() => []),
+      staffApi.appointmentTypes.list().catch(() => []),
+    ]).then(([forms, types]) => {
+      if (cancelled) return;
+      setFormCommands(
+        formCommandsFromTemplates(
+          forms.map(mapFormTemplate).map((f) => ({ id: f.id, name: f.name }))
+        )
+      );
+      setSlotCommands(
+        appointmentSlotCommandsFromTypes(
+          types.map(mapAppointmentType).map((t) => ({ id: t.id, name: t.name }))
+        )
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const groups = useMemo(() => {
+    const merged: SmartCommandGroup[] = SMART_COMMAND_GROUPS.map((g) => {
+      if (g.id === "forms") return { ...g, commands: formCommands };
+      if (g.id === "appointment_slots") return { ...g, commands: slotCommands };
+      return g;
+    });
+    return filterSmartCommandGroups(merged, templateSlug);
+  }, [formCommands, slotCommands, templateSlug]);
+
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setExpanded((prev) => {
+      const next = { ...prev };
+      for (const g of groups) {
+        if (next[g.id] === undefined) {
+          next[g.id] = g.id === "company" || g.id === "location" || g.id === "patient";
+        }
+      }
+      return next;
+    });
+  }, [groups]);
 
   function toggleGroup(id: string) {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -44,16 +98,20 @@ export function SmartCommandsPanel({
           <p className="px-3.5 py-2 text-[11px] text-gray-400 bg-gray-50/80">
             Available commands vary by template. Hover a command for details.
           </p>
-          {groups.map((group) => (
-            <CommandGroup
-              key={group.id}
-              group={group}
-              expanded={!!expanded[group.id]}
-              disabled={disabled}
-              onToggle={() => toggleGroup(group.id)}
-              onInsert={onInsert}
-            />
-          ))}
+          {groups.length === 0 ? (
+            <p className="px-3.5 py-4 text-sm text-gray-400">No smart commands for this template.</p>
+          ) : (
+            groups.map((group) => (
+              <CommandGroup
+                key={group.id}
+                group={group}
+                expanded={!!expanded[group.id]}
+                disabled={disabled}
+                onToggle={() => toggleGroup(group.id)}
+                onInsert={onInsert}
+              />
+            ))
+          )}
         </div>
       )}
     </div>

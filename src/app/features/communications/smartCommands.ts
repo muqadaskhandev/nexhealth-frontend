@@ -9,6 +9,11 @@ export type SmartCommand = {
   description: string;
   /** Sample value used in Preview mode */
   preview: string;
+  /**
+   * When set, only show on these template slugs.
+   * Omit = available on all templates (subject to product notes in description).
+   */
+  templates?: string[];
 };
 
 export type SmartCommandGroup = {
@@ -17,6 +22,7 @@ export type SmartCommandGroup = {
   commands: SmartCommand[];
 };
 
+/** Core static groups (Forms + Appointment slots are merged in at runtime). */
 export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
   {
     id: "company",
@@ -31,7 +37,7 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
       {
         token: "COMPANY_BOOKING_APPOINTMENT",
         label: "Booking appointment",
-        description: "Button to widget to book appointments (includes all locations)",
+        description: "Button to widget to book appointments (includes all locations). Requires Scheduling.",
         preview: "[Book appointment]",
       },
       {
@@ -39,6 +45,7 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
         label: "Survey SMS rating",
         description: "Insert a prompt to rate your service. Used with Reviews templates.",
         preview: "How was your visit? Reply 1–5",
+        templates: ["reviews"],
       },
     ],
   },
@@ -105,45 +112,8 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
   {
     id: "forms",
     label: "Forms",
-    commands: [
-      {
-        token: "FORM_MEDICAL_HISTORY",
-        label: "Medical History",
-        description: "Insert a button that links to this form. Requires Forms.",
-        preview: "[Medical History]",
-      },
-      {
-        token: "FORM_PATIENT_INFORMATION",
-        label: "Patient Information Form",
-        description: "Insert a button that links to this form. Requires Forms.",
-        preview: "[Patient Information Form]",
-      },
-      {
-        token: "FORM_DENTAL_INSURANCE",
-        label: "Dental Insurance Form",
-        description: "Insert a button that links to this form. Requires Forms.",
-        preview: "[Dental Insurance Form]",
-      },
-      {
-        token: "FORM_DRIVER_LICENSE",
-        label: "Driver License Form",
-        description: "Insert a button that links to this form. Requires Forms.",
-        preview: "[Driver License Form]",
-      },
-      {
-        token: "FORM_HIPAA",
-        label: "HIPAA and Release Authorization",
-        description: "Insert a button that links to this form. Requires Forms.",
-        preview: "[HIPAA and Release Authorization]",
-      },
-      {
-        token: "APPOINTMENT_REGISTRATION",
-        label: "Appointment registration",
-        description:
-          "Links the patient to confirm their appointment. With Smart Forms enabled, also prompts required intake forms.",
-        preview: "[Confirm appointment & forms]",
-      },
-    ],
+    // Populated at runtime from enabled form templates.
+    commands: [],
   },
   {
     id: "appointment",
@@ -154,45 +124,91 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
         label: "Appointment type",
         description: "Inserts the type of the scheduled appointment. Used with Scheduling and Reminders.",
         preview: "Cleaning",
+        templates: [
+          "reminders",
+          "appointment-request",
+          "appointment-confirmed",
+          "appointment-rescheduled",
+          "save-the-date",
+          "missed",
+          "cancelled",
+          "post-appointment-follow-up",
+          "recalls",
+        ],
       },
       {
         token: "APPOINTMENT_DATE",
         label: "Appointment date",
         description: "Inserts the date of the scheduled appointment.",
         preview: "March 12, 2026",
+        templates: [
+          "reminders",
+          "appointment-request",
+          "appointment-confirmed",
+          "appointment-rescheduled",
+          "save-the-date",
+          "missed",
+          "cancelled",
+          "post-appointment-follow-up",
+          "recalls",
+        ],
       },
       {
         token: "APPOINTMENT_TIME",
         label: "Appointment time",
         description: "Inserts the time of the scheduled appointment.",
         preview: "10:00 AM",
+        templates: [
+          "reminders",
+          "appointment-request",
+          "appointment-confirmed",
+          "appointment-rescheduled",
+          "save-the-date",
+          "missed",
+          "cancelled",
+          "post-appointment-follow-up",
+          "recalls",
+        ],
       },
       {
         token: "APPOINTMENT_DETAILS",
         label: "Appointment details",
         description: "Inserts details about the scheduled appointment.",
         preview: "Cleaning with Dr. Riviera on March 12 at 10:00 AM",
+        templates: [
+          "reminders",
+          "appointment-request",
+          "appointment-confirmed",
+          "appointment-rescheduled",
+          "save-the-date",
+          "missed",
+          "cancelled",
+          "post-appointment-follow-up",
+          "recalls",
+        ],
       },
       {
         token: "CONFIRM_APPOINTMENT",
         label: "Confirm appointment",
         description: "Inserts a button the patient can click to confirm their appointment.",
         preview: "[Confirm appointment]",
+        templates: ["reminders", "appointment-request", "appointment-confirmed", "save-the-date"],
+      },
+      {
+        token: "APPOINTMENT_REGISTRATION",
+        label: "Appointment registration",
+        description:
+          "Links the patient to confirm their appointment. With Smart Forms enabled, also prompts required intake forms.",
+        preview: "[Confirm appointment & forms]",
+        templates: ["reminders", "appointment-request", "appointment-confirmed", "save-the-date", "new-patient"],
       },
     ],
   },
   {
     id: "appointment_slots",
     label: "Appointment slots",
-    commands: [
-      {
-        token: "APPOINTMENT_SLOTS",
-        label: "Available appointment slots",
-        description:
-          "Inserts available appointment slots for a specific appointment type so patients can select a time. Used with Scheduling.",
-        preview: "[Available slots]",
-      },
-    ],
+    // Populated at runtime from appointment types.
+    commands: [],
   },
   {
     id: "provider",
@@ -201,26 +217,62 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
       {
         token: "PROVIDER_FIRST_NAME",
         label: "Provider first name",
-        description: "Inserts the first name of the provider associated with the appointment or slot.",
+        description: "Inserts the first name of the provider associated with the appointment or slot. Used with Scheduling and Reminders.",
         preview: "Nick",
+        templates: [
+          "reminders",
+          "appointment-request",
+          "appointment-confirmed",
+          "appointment-rescheduled",
+          "save-the-date",
+          "waitlist-appointment",
+          "waitlist-continuing-care",
+        ],
       },
       {
         token: "PROVIDER_LAST_NAME",
         label: "Provider last name",
         description: "Inserts the last name of the provider associated with the appointment or slot.",
         preview: "Riviera",
+        templates: [
+          "reminders",
+          "appointment-request",
+          "appointment-confirmed",
+          "appointment-rescheduled",
+          "save-the-date",
+          "waitlist-appointment",
+          "waitlist-continuing-care",
+        ],
       },
       {
         token: "PROVIDER_SHORT_NAME",
         label: "Provider short name",
         description: "Inserts the short name of the provider associated with the appointment or slot.",
         preview: "Dr. Riviera",
+        templates: [
+          "reminders",
+          "appointment-request",
+          "appointment-confirmed",
+          "appointment-rescheduled",
+          "save-the-date",
+          "waitlist-appointment",
+          "waitlist-continuing-care",
+        ],
       },
       {
         token: "PROVIDER_FULL_NAME",
         label: "Provider full name",
         description: "Inserts the full name of the provider associated with the appointment or slot.",
         preview: "Dr. Nick Riviera",
+        templates: [
+          "reminders",
+          "appointment-request",
+          "appointment-confirmed",
+          "appointment-rescheduled",
+          "save-the-date",
+          "waitlist-appointment",
+          "waitlist-continuing-care",
+        ],
       },
     ],
   },
@@ -232,8 +284,9 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
         token: "CONFIRM_WAITLIST",
         label: "Confirm waitlist",
         description:
-          "Insert buttons to confirm a waitlist slot. Providers are stored at the time slot level.",
+          "Insert buttons to confirm a waitlist slot. Providers are stored at the time slot level — a single waitlist request can have multiple time slots.",
         preview: "[Claim this slot]",
+        templates: ["waitlist-appointment", "waitlist-continuing-care"],
       },
     ],
   },
@@ -246,37 +299,89 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
         label: "Payment amount",
         description: "Inserts the payment amount. For use with Payments.",
         preview: "$125.00",
+        templates: ["payments"],
       },
       {
         token: "PAYMENT_REASON",
         label: "Payment reason",
         description: "Inserts the payment reason. For use with Payments.",
         preview: "Outstanding balance",
+        templates: ["payments"],
       },
       {
         token: "PAYMENT_APPOINTMENT_DATE",
         label: "Payment appointment date",
         description: "Inserts the appointment date related to the payment.",
         preview: "March 12, 2026",
+        templates: ["payments"],
       },
       {
         token: "PAYMENT_BUTTON",
         label: "Payment button",
         description: "Insert a button so the patient can pay online.",
         preview: "[Pay now]",
+        templates: ["payments"],
       },
     ],
   },
 ];
 
-/** Flat token → preview map for Preview mode. */
-export const SMART_COMMAND_PREVIEW: Record<string, string> = Object.fromEntries(
-  SMART_COMMAND_GROUPS.flatMap((g) => g.commands.map((c) => [c.token, c.preview]))
-);
+export function commandAvailableForTemplate(cmd: SmartCommand, templateSlug?: string): boolean {
+  if (!cmd.templates || cmd.templates.length === 0) return true;
+  if (!templateSlug) return true;
+  return cmd.templates.includes(templateSlug);
+}
 
-export function applySmartCommandPreview(text: string): string {
+export function filterSmartCommandGroups(
+  groups: SmartCommandGroup[],
+  templateSlug?: string
+): SmartCommandGroup[] {
+  return groups
+    .map((g) => ({
+      ...g,
+      commands: g.commands.filter((c) => commandAvailableForTemplate(c, templateSlug)),
+    }))
+    .filter((g) => g.commands.length > 0);
+}
+
+export function formCommandsFromTemplates(
+  forms: { id: string; name: string }[]
+): SmartCommand[] {
+  return forms.map((f) => ({
+    token: `FORM_${f.id.replace(/-/g, "").slice(0, 12).toUpperCase()}`,
+    label: f.name,
+    description: `Insert a button that links to “${f.name}”. Requires Forms.`,
+    preview: `[${f.name}]`,
+  }));
+}
+
+export function appointmentSlotCommandsFromTypes(
+  types: { id: string; name: string }[]
+): SmartCommand[] {
+  return types.map((t) => ({
+    token: `APPOINTMENT_SLOTS_${t.id.replace(/-/g, "").slice(0, 12).toUpperCase()}`,
+    label: t.name,
+    description: `Inserts available appointment slots for “${t.name}” so patients can select a time. Used with Scheduling.`,
+    preview: `[${t.name} slots]`,
+  }));
+}
+
+/** Flat token → preview map for Preview mode (static + any runtime tokens). */
+export function buildPreviewMap(groups: SmartCommandGroup[]): Record<string, string> {
+  return Object.fromEntries(
+    groups.flatMap((g) => g.commands.map((c) => [c.token, c.preview]))
+  );
+}
+
+export function applySmartCommandPreview(
+  text: string,
+  previewMap?: Record<string, string>
+): string {
+  const map =
+    previewMap ??
+    buildPreviewMap(SMART_COMMAND_GROUPS);
   return text.replace(/\{\{([A-Z0-9_]+)\}\}/g, (match, token: string) => {
-    return SMART_COMMAND_PREVIEW[token] ?? match;
+    return map[token] ?? match;
   });
 }
 

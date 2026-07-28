@@ -284,6 +284,7 @@ export function TemplateDetailView({
           <StepEditorPanel
             step={edit.step}
             isMessage={edit.kind === "message"}
+            templateSlug={template.slug}
             preview={preview}
             setPreview={setPreview}
             saving={saving}
@@ -365,6 +366,7 @@ function SequenceTile({
 function StepEditorPanel({
   step,
   isMessage,
+  templateSlug,
   preview,
   setPreview,
   saving,
@@ -374,6 +376,7 @@ function StepEditorPanel({
 }: {
   step: CommunicationTemplateStep;
   isMessage: boolean;
+  templateSlug: string;
   preview: boolean;
   setPreview: (v: boolean) => void;
   saving: boolean;
@@ -529,7 +532,11 @@ function StepEditorPanel({
               </p>
             )}
 
-            <SmartCommandsPanel disabled={preview} onInsert={insertSmartCommand} />
+            <SmartCommandsPanel
+              disabled={preview}
+              templateSlug={templateSlug}
+              onInsert={insertSmartCommand}
+            />
           </>
         )}
       </div>

@@ -37,6 +37,7 @@ import { ReserveWithGoogleView } from "../features/scheduling/ReserveWithGoogleV
 import { OnlineBookingSection } from "../features/scheduling/OnlineBookingSection";
 import { toastError, toastSuccess } from "../lib/toast";
 import { TemplateConfigurationsPanel } from "../features/communications/TemplateConfigurationsPanel";
+import { SmartCommandsSettingsPanel } from "../features/communications/SmartCommandsSettingsPanel";
 
 export type SettingsTab =
   | "account"
@@ -49,7 +50,8 @@ export type SettingsTab =
   | "appointment-types"
   | "booking-insurance"
   | "reserve-with-google"
-  | "template-configurations";
+  | "template-configurations"
+  | "smart-commands";
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all bg-white";
@@ -86,6 +88,11 @@ function SettingsNav({
           id: "template-configurations",
           label: "Template configurations",
           icon: <MessageSquare size={16} />,
+        },
+        {
+          id: "smart-commands",
+          label: "Smart commands",
+          icon: <FileText size={16} />,
         },
       ],
     },
@@ -1036,6 +1043,7 @@ export function SettingsSection({
           {tab === "booking-insurance" && <BookingInsuranceView embedded />}
           {tab === "reserve-with-google" && <ReserveWithGoogleView embedded />}
           {tab === "template-configurations" && <TemplateConfigurationsPanel />}
+          {tab === "smart-commands" && <SmartCommandsSettingsPanel />}
         </div>
       </div>
     </div>
