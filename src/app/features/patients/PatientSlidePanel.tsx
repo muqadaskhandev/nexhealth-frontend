@@ -45,6 +45,25 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
+  const [compose, setCompose] = useState("");
+  const [sendingMsg, setSendingMsg] = useState(false);
+
+  function refreshMessages() {
+    return staffApi.messages.list(patient.id).then((rows) => {
+      setMessages(
+        rows.map((m) => ({
+          id: m.id,
+          body: m.body,
+          direction: m.direction,
+          channel: m.channel,
+          sentAt: m.sent_at,
+          deliveryStatus: m.delivery_status,
+          failureReason: m.failure_reason,
+          attachmentName: m.attachment_name,
+        }))
+      );
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -52,9 +71,8 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
       if (cancelled) return;
       setActivity(rows.map((a) => ({ id: a.id, type: a.activity_type as ActivityType, title: a.title, body: a.body, createdAt: a.created_at })));
     });
-    staffApi.messages.list(patient.id).then((rows) => {
-      if (cancelled) return;
-      setMessages(rows.map((m) => ({ id: m.id, body: m.body, direction: m.direction, channel: m.channel, sentAt: m.sent_at })));
+    refreshMessages().catch(() => {
+      if (!cancelled) setMessages([]);
     });
     staffApi.appointments.list({ patientId: patient.id }).then((rows) => {
       if (cancelled) return;
@@ -275,22 +293,94 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
               )
             )}
             {activeTab === "messages" && (
-              messages.length === 0 ? (
-                <div className="py-10 text-center text-gray-400 text-sm bg-white rounded-2xl border border-dashed border-gray-200">No messages yet</div>
-              ) : (
-                <div className="space-y-3 pb-2">
-                  {messages.map(m => (
-                    <div key={m.id} className={`flex ${m.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${m.direction === "outbound" ? "bg-teal-50 border border-teal-200" : "bg-white border border-border"}`}>
-                        <p className="text-sm text-gray-800">{m.body}</p>
-                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
-                          <span className="uppercase">{m.channel}</span>·{formatDateTime(m.sentAt)}
-                        </p>
+              <div className="space-y-3 pb-2">
+                <p className="text-xs text-gray-500">
+                  Option 2: message from the patient profile. Texts go to the primary phone number
+                  ({patient.phone || "none on file"}).
+                </p>
+                {messages.length === 0 ? (
+                  <div className="py-8 text-center text-gray-400 text-sm bg-white rounded-2xl border border-dashed border-gray-200">
+                    No messages yet
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {messages.map((m) => (
+                      <div
+                        key={m.id}
+                        className={`flex ${m.direction === "outbound" ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${
+                            m.direction === "outbound"
+                              ? "bg-teal-50 border border-teal-200"
+                              : "bg-white border border-border"
+                          }`}
+                        >
+                          <p className="text-sm text-gray-800">{m.body}</p>
+                          {m.attachmentName && (
+                            <p className="text-xs text-gray-500 mt-1">Attachment: {m.attachmentName}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="uppercase">{m.channel}</span>·{formatDateTime(m.sentAt)}
+                            {m.deliveryStatus === "failed" && (
+                              <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 font-medium">
+                                failed
+                              </span>
+                            )}
+                          </p>
+                          {m.deliveryStatus === "failed" && m.failureReason && (
+                            <p className="text-xs text-rose-600 mt-1">{m.failureReason}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2 items-center bg-white border border-border rounded-xl p-2 shadow-sm">
+                  <input
+                    value={compose}
+                    onChange={(e) => setCompose(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void (async () => {
+                          if (!compose.trim() || sendingMsg) return;
+                          setSendingMsg(true);
+                          try {
+                            await staffApi.messages.send(patient.id, compose.trim());
+                            setCompose("");
+                            await refreshMessages();
+                          } finally {
+                            setSendingMsg(false);
+                          }
+                        })();
+                      }
+                    }}
+                    placeholder="Type a message…"
+                    className="flex-1 px-2 py-1.5 text-sm outline-none bg-transparent"
+                  />
+                  <button
+                    type="button"
+                    disabled={sendingMsg || !compose.trim()}
+                    onClick={() => {
+                      void (async () => {
+                        if (!compose.trim() || sendingMsg) return;
+                        setSendingMsg(true);
+                        try {
+                          await staffApi.messages.send(patient.id, compose.trim());
+                          setCompose("");
+                          await refreshMessages();
+                        } finally {
+                          setSendingMsg(false);
+                        }
+                      })();
+                    }}
+                    className="px-3 py-1.5 text-sm font-semibold text-white bg-teal-500 rounded-lg disabled:opacity-40"
+                  >
+                    Send
+                  </button>
                 </div>
-              )
+              </div>
             )}
             {activeTab === "appointments" && (
               appointments.length === 0 ? (

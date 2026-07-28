@@ -69,6 +69,9 @@ export type MessageItem = {
   direction: string;
   channel: string;
   sentAt: string;
+  deliveryStatus?: string;
+  failureReason?: string | null;
+  attachmentName?: string | null;
 };
 
 // ── Forms ────────────────────────────────────────────────────────────────────────

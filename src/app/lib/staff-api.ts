@@ -945,8 +945,12 @@ export const staffApi = {
     },
   },
   messages: {
-    list: (patientId?: string) =>
-      api.get<
+    list: (patientId?: string, includeArchived = false) => {
+      const qs = new URLSearchParams();
+      if (patientId) qs.set("patient_id", patientId);
+      if (includeArchived) qs.set("include_archived", "true");
+      const q = qs.toString();
+      return api.get<
         {
           id: string;
           thread_id: string;
@@ -959,10 +963,31 @@ export const staffApi = {
           patient_first_name: string;
           patient_last_name: string;
           patient_phone: string;
+          delivery_status: string;
+          failure_reason: string | null;
+          attachment_name: string | null;
+          thread_unread: boolean;
+          thread_archived: boolean;
         }[]
-      >(`/api/messages${patientId ? `?patient_id=${patientId}` : ""}`),
-    send: (patientId: string, body: string, channel = "sms") =>
-      api.post("/api/messages", { patient_id: patientId, body, channel }),
+      >(`/api/messages${q ? `?${q}` : ""}`);
+    },
+    send: (
+      patientId: string,
+      body: string,
+      channel = "sms",
+      attachmentName?: string | null
+    ) =>
+      api.post("/api/messages", {
+        patient_id: patientId,
+        body,
+        channel,
+        attachment_name: attachmentName || null,
+      }),
+    updateThread: (threadId: string, body: { unread?: boolean; archived?: boolean }) =>
+      api.patch<{ id: string; patient_id: string; unread: boolean; archived: boolean }>(
+        `/api/message-threads/${threadId}`,
+        body
+      ),
   },
   communicationTemplates: {
     list: (scope: "default" | "variants" | "all" = "default") =>
