@@ -39,6 +39,7 @@ import { toastError, toastSuccess } from "../lib/toast";
 import { TemplateConfigurationsPanel } from "../features/communications/TemplateConfigurationsPanel";
 import { SmartCommandsSettingsPanel } from "../features/communications/SmartCommandsSettingsPanel";
 import { MessagesSettingsPanel } from "../features/communications/SavedResponsesSettingsPanel";
+import { SmsRegistrationSettingsPanel } from "../features/communications/SmsRegistrationPanel";
 
 export type SettingsTab =
   | "account"
@@ -53,7 +54,8 @@ export type SettingsTab =
   | "reserve-with-google"
   | "template-configurations"
   | "smart-commands"
-  | "messages";
+  | "messages"
+  | "sms-registration";
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all bg-white";
@@ -90,6 +92,11 @@ function SettingsNav({
           id: "messages",
           label: "Messages",
           icon: <MessageSquare size={16} />,
+        },
+        {
+          id: "sms-registration",
+          label: "SMS Registration",
+          icon: <Shield size={16} />,
         },
         {
           id: "template-configurations",
@@ -1050,6 +1057,7 @@ export function SettingsSection({
           {tab === "booking-insurance" && <BookingInsuranceView embedded />}
           {tab === "reserve-with-google" && <ReserveWithGoogleView embedded />}
           {tab === "messages" && <MessagesSettingsPanel />}
+          {tab === "sms-registration" && <SmsRegistrationSettingsPanel />}
           {tab === "template-configurations" && <TemplateConfigurationsPanel />}
           {tab === "smart-commands" && <SmartCommandsSettingsPanel />}
         </div>

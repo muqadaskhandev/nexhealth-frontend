@@ -27,6 +27,7 @@ import { PublicFormsPage } from "./public/PublicFormsPage";
 import { PublicPacketPage } from "./public/PublicPacketPage";
 import { useStaffData } from "./hooks/useStaffData";
 import { LoadingScreen } from "./components/shared/LoadingBounce";
+import { SmsRegistrationBanner } from "./features/communications/SmsRegistrationPanel";
 import type { AppointmentStatus, Patient } from "./types";
 
 export default function App() {
@@ -189,6 +190,9 @@ export default function App() {
         onOpenUsers={() => openSettings("users")}
         onSelectPatient={setPanelPatient}
       />
+      {activeNav === "home" && (
+        <SmsRegistrationBanner onStart={() => openSettings("sms-registration")} />
+      )}
       <div className="flex flex-1 overflow-hidden min-h-0 w-full">
         {activeNav !== "settings" && (
           <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} />

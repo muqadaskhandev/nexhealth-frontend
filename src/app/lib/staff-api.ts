@@ -1048,6 +1048,116 @@ export const staffApi = {
       }>(`/api/saved-responses/${id}`, body),
     remove: (id: string) => api.delete(`/api/saved-responses/${id}`),
   },
+  smsRegistration: {
+    get: () =>
+      api.get<{
+        id: string;
+        location_id: string;
+        status: string;
+        legal_business_name: string;
+        ein: string;
+        dba_name: string;
+        business_type: string;
+        business_address: string;
+        business_city: string;
+        business_state: string;
+        business_zip: string;
+        business_phone: string;
+        business_website: string;
+        auth_rep_name: string;
+        auth_rep_email: string;
+        auth_rep_phone: string;
+        auth_rep_title: string;
+        request_office_number_hosting: boolean;
+        office_phone_number: string;
+        failure_reason: string;
+        submitted_at: string | null;
+        reviewed_at: string | null;
+        updated_at: string;
+        sms_enabled: boolean;
+      }>("/api/sms-registration"),
+    update: (body: Record<string, unknown>) =>
+      api.patch<{
+        id: string;
+        location_id: string;
+        status: string;
+        legal_business_name: string;
+        ein: string;
+        dba_name: string;
+        business_type: string;
+        business_address: string;
+        business_city: string;
+        business_state: string;
+        business_zip: string;
+        business_phone: string;
+        business_website: string;
+        auth_rep_name: string;
+        auth_rep_email: string;
+        auth_rep_phone: string;
+        auth_rep_title: string;
+        request_office_number_hosting: boolean;
+        office_phone_number: string;
+        failure_reason: string;
+        submitted_at: string | null;
+        reviewed_at: string | null;
+        updated_at: string;
+        sms_enabled: boolean;
+      }>("/api/sms-registration", body),
+    submit: () =>
+      api.post<{
+        id: string;
+        location_id: string;
+        status: string;
+        legal_business_name: string;
+        ein: string;
+        dba_name: string;
+        business_type: string;
+        business_address: string;
+        business_city: string;
+        business_state: string;
+        business_zip: string;
+        business_phone: string;
+        business_website: string;
+        auth_rep_name: string;
+        auth_rep_email: string;
+        auth_rep_phone: string;
+        auth_rep_title: string;
+        request_office_number_hosting: boolean;
+        office_phone_number: string;
+        failure_reason: string;
+        submitted_at: string | null;
+        reviewed_at: string | null;
+        updated_at: string;
+        sms_enabled: boolean;
+      }>("/api/sms-registration/submit", {}),
+    setStatus: (body: { status: "approved" | "failed" | "in_progress"; failure_reason?: string }) =>
+      api.post<{
+        id: string;
+        location_id: string;
+        status: string;
+        legal_business_name: string;
+        ein: string;
+        dba_name: string;
+        business_type: string;
+        business_address: string;
+        business_city: string;
+        business_state: string;
+        business_zip: string;
+        business_phone: string;
+        business_website: string;
+        auth_rep_name: string;
+        auth_rep_email: string;
+        auth_rep_phone: string;
+        auth_rep_title: string;
+        request_office_number_hosting: boolean;
+        office_phone_number: string;
+        failure_reason: string;
+        submitted_at: string | null;
+        reviewed_at: string | null;
+        updated_at: string;
+        sms_enabled: boolean;
+      }>("/api/sms-registration/status", body),
+  },
   outOfOffice: {
     get: () =>
       api.get<{
