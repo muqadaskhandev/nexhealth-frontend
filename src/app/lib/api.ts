@@ -7,7 +7,7 @@
 // - Transparently retries once through /api/auth/refresh on a 401, so an expired
 //   access token is renewed without bouncing the user to the login screen.
 
-export type ApiError = { status: number; detail: string };
+export type ApiError = { status: number; detail: string; data?: unknown };
 
 function readCookie(name: string): string | null {
   const match = document.cookie
@@ -41,6 +41,7 @@ async function raw(
 
 async function parseError(res: Response): Promise<never> {
   let detail = res.statusText;
+  let dataPayload: unknown;
   try {
     const data = await res.json();
     if (typeof data.detail === "string") {
@@ -50,11 +51,15 @@ async function parseError(res: Response): Promise<never> {
         .map((item: { msg?: string }) => item.msg)
         .filter(Boolean)
         .join("; ");
+    } else if (data.detail && typeof data.detail === "object") {
+      dataPayload = data.detail;
+      const d = data.detail as { message?: string };
+      detail = d.message || JSON.stringify(data.detail);
     }
   } catch {
     /* non-JSON error body */
   }
-  throw { status: res.status, detail } as ApiError;
+  throw { status: res.status, detail, data: dataPayload } as ApiError;
 }
 
 async function request<T>(

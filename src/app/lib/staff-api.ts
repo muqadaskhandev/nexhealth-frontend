@@ -1072,9 +1072,45 @@ export const staffApi = {
         `/api/campaigns/${id}/generate-ai`,
         body
       ),
-    send: (id: string) => api.post<ApiCampaign>(`/api/campaigns/${id}/send`, {}),
-    schedule: (id: string, scheduled_at: string) =>
-      api.post<ApiCampaign>(`/api/campaigns/${id}/schedule`, { scheduled_at }),
+    send: (id: string, body?: { allow_overage?: boolean }) =>
+      api.post<ApiCampaign>(`/api/campaigns/${id}/send`, body || {}),
+    schedule: (id: string, scheduled_at: string, allow_overage = false) =>
+      api.post<ApiCampaign>(
+        `/api/campaigns/${id}/schedule?allow_overage=${allow_overage ? "true" : "false"}`,
+        { scheduled_at }
+      ),
+    smsCap: () =>
+      api.get<{
+        location_id: string;
+        year_month: string;
+        included_cap: number;
+        used: number;
+        remaining: number;
+        warning: boolean;
+        near_limit: boolean;
+        at_or_over_limit: boolean;
+        allow_overage: boolean;
+        overage_messages: number;
+        overage_rate_usd: number;
+        estimated_overage_cost_usd: number;
+        notes: Record<string, string>;
+      }>("/api/campaigns/sms-cap"),
+    allowSmsOverage: (allow_overage: boolean) =>
+      api.post<{
+        location_id: string;
+        year_month: string;
+        included_cap: number;
+        used: number;
+        remaining: number;
+        warning: boolean;
+        near_limit: boolean;
+        at_or_over_limit: boolean;
+        allow_overage: boolean;
+        overage_messages: number;
+        overage_rate_usd: number;
+        estimated_overage_cost_usd: number;
+        notes: Record<string, string>;
+      }>("/api/campaigns/sms-cap/allow-overage", { allow_overage }),
     sendTest: (id: string, channel: "email" | "sms") =>
       api.post<{ message: string }>(`/api/campaigns/${id}/send-test`, { channel }),
     analytics: (id: string) =>

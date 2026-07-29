@@ -255,6 +255,189 @@ function ScheduleModal({
   );
 }
 
+type SmsCapInfo = Awaited<ReturnType<typeof staffApi.campaigns.smsCap>>;
+
+function SmsCapBanner({
+  cap,
+  onRefresh,
+}: {
+  cap: SmsCapInfo | null;
+  onRefresh: () => void;
+}) {
+  const [infoOpen, setInfoOpen] = useState(false);
+  if (!cap) return null;
+
+  const showWarning = cap.warning || cap.at_or_over_limit;
+
+  return (
+    <div className="space-y-2">
+      {showWarning ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-950 space-y-2">
+          <p className="font-semibold">
+            Approaching the {cap.included_cap.toLocaleString()} Campaign SMS monthly limit
+          </p>
+          <p>
+            You have used <strong>{cap.used.toLocaleString()}</strong> of{" "}
+            <strong>{cap.included_cap.toLocaleString()}</strong> included SMS for this location (
+            {cap.year_month}). Remaining: {cap.remaining.toLocaleString()}.
+          </p>
+          <p>
+            Additional SMS credits are <strong>${cap.overage_rate_usd.toFixed(3)}/message</strong>{" "}
+            and appear on your next monthly invoice. Purchasing credits is{" "}
+            <strong>not recommended</strong> — prefer email for broad outreach.
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {!cap.allow_overage ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void staffApi.campaigns
+                    .allowSmsOverage(true)
+                    .then(() => {
+                      toastSuccess("Overage charges enabled for this location");
+                      onRefresh();
+                    })
+                    .catch(() => toastError("Could not update overage setting"));
+                }}
+                className="px-3 py-1.5 text-sm font-semibold text-rose-900 bg-white border border-rose-200 rounded-lg hover:bg-rose-100"
+              >
+                Allow overage (${cap.overage_rate_usd}/msg)
+              </button>
+            ) : (
+              <span className="text-xs font-medium text-rose-800 bg-white/70 px-2 py-1 rounded">
+                Overage enabled · est. ${cap.estimated_overage_cost_usd.toFixed(2)} so far
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setInfoOpen(true)}
+              className="px-3 py-1.5 text-sm font-medium text-rose-800 hover:underline"
+            >
+              Learn more
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+          <span>
+            Campaign SMS this month:{" "}
+            <strong className="text-gray-900">
+              {cap.used.toLocaleString()} / {cap.included_cap.toLocaleString()}
+            </strong>{" "}
+            per location
+          </span>
+          <button
+            type="button"
+            onClick={() => setInfoOpen(true)}
+            className="text-teal-700 font-medium hover:underline"
+          >
+            About SMS caps
+          </button>
+        </div>
+      )}
+
+      {infoOpen && (
+        <div className="rounded-xl border border-border bg-white px-4 py-4 space-y-3 text-sm text-gray-700">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-bold text-gray-900">Campaign SMS message cap</h3>
+            <button
+              type="button"
+              onClick={() => setInfoOpen(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <p>{cap.notes.scope}</p>
+          <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-amber-950">
+            This <strong>only</strong> applies to SMS messages sent via a Campaign.
+          </div>
+          <p>{cap.notes.why}</p>
+          <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-emerald-950">
+            {cap.notes.exclusions}
+          </div>
+          <h4 className="font-semibold text-gray-900 pt-1">
+            Purchasing additional credits — not recommended
+          </h4>
+          <p>{cap.notes.credits_not_recommended}</p>
+          <h4 className="font-semibold text-gray-900">Credit purchase rate</h4>
+          <p>
+            Additional SMS credits can be purchased at a rate of ${cap.overage_rate_usd}/message.
+          </p>
+          <div className="rounded-lg bg-rose-50 border border-rose-100 px-3 py-2 text-rose-950">
+            {cap.notes.overage_billing}
+          </div>
+          <h4 className="font-semibold text-gray-900">
+            Does this limit affect regular messages or automated templates?
+          </h4>
+          <p>{cap.notes.templates_unaffected}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SmsOverageConfirmModal({
+  detail,
+  onCancel,
+  onConfirm,
+}: {
+  detail: {
+    message?: string;
+    locations?: {
+      overage_messages: number;
+      overage_cost_usd: number;
+      rate_usd: number;
+      used: number;
+      projected: number;
+      cap: number;
+    }[];
+  };
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const loc = detail.locations?.[0];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onCancel} />
+      <div className="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-border p-5 space-y-3">
+        <h3 className="font-semibold text-gray-900">Campaign SMS cap exceeded</h3>
+        <p className="text-sm text-gray-600">
+          {detail.message ||
+            "This send would exceed the 5,000 monthly Campaign SMS cap for this location."}
+        </p>
+        {loc && (
+          <div className="rounded-lg bg-rose-50 border border-rose-100 px-3 py-2 text-sm text-rose-950">
+            Used {loc.used.toLocaleString()} → projected {loc.projected.toLocaleString()} (cap{" "}
+            {loc.cap.toLocaleString()}). Overage: {loc.overage_messages.toLocaleString()} messages ≈
+            ${loc.overage_cost_usd.toFixed(2)} at ${loc.rate_usd}/message.
+          </div>
+        )}
+        <p className="text-sm text-gray-600">
+          <strong>Purchasing credits is not recommended.</strong> Prefer email for broad
+          communications. If you continue, overage charges are added to your next monthly invoice.
+        </p>
+        <div className="flex flex-wrap gap-2 justify-end pt-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50 rounded-lg"
+          >
+            Cancel — use email instead
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg"
+          >
+            Send anyway (incur overage)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ImageInsertModal({
   onClose,
   onSave,
@@ -447,8 +630,59 @@ function CampaignEditor({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [titleEdit, setTitleEdit] = useState(campaign.title);
+  const [overagePrompt, setOveragePrompt] = useState<{
+    message?: string;
+    locations?: {
+      overage_messages: number;
+      overage_cost_usd: number;
+      rate_usd: number;
+      used: number;
+      projected: number;
+      cap: number;
+    }[];
+  } | null>(null);
+  const [pendingScheduleIso, setPendingScheduleIso] = useState<string | null>(null);
 
   const filters = (campaign.audience_filters || {}) as Record<string, unknown>;
+
+  async function trySend(allowOverage: boolean) {
+    setBusy(true);
+    try {
+      if (pendingScheduleIso) {
+        const c = await staffApi.campaigns.schedule(
+          campaign.id,
+          pendingScheduleIso,
+          allowOverage
+        );
+        onChange(c);
+        setPendingScheduleIso(null);
+        setOveragePrompt(null);
+        toastSuccess("Campaign scheduled");
+      } else {
+        const c = await staffApi.campaigns.send(campaign.id, { allow_overage: allowOverage });
+        onChange(c);
+        setOveragePrompt(null);
+        toastSuccess("Campaign sent");
+      }
+    } catch (err: unknown) {
+      const e = err as {
+        status?: number;
+        detail?: string;
+        data?: { code?: string; message?: string; locations?: unknown[] };
+      };
+      if (
+        e.status === 409 &&
+        e.data &&
+        (e.data as { code?: string }).code === "campaign_sms_cap_exceeded"
+      ) {
+        setOveragePrompt(e.data as typeof overagePrompt);
+      } else {
+        toastError(e.detail || "Could not send campaign");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function patch(body: Record<string, unknown>) {
     const updated = await staffApi.campaigns.update(campaign.id, body);
@@ -590,19 +824,7 @@ function CampaignEditor({
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                void staffApi.campaigns
-                  .send(campaign.id)
-                  .then((c) => {
-                    onChange(c);
-                    toastSuccess("Campaign sent");
-                  })
-                  .catch((err: { detail?: string }) =>
-                    toastError(err?.detail || "Could not send campaign")
-                  )
-                  .finally(() => setBusy(false));
-              }}
+              onClick={() => void trySend(false)}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-teal-500 rounded-lg hover:bg-teal-600 disabled:opacity-50"
             >
               <Send size={14} /> Send
@@ -1344,11 +1566,37 @@ function CampaignEditor({
         <ScheduleModal
           onClose={() => setScheduleOpen(false)}
           onConfirm={async (iso) => {
-            const c = await staffApi.campaigns.schedule(campaign.id, iso);
-            onChange(c);
-            setScheduleOpen(false);
-            toastSuccess("Campaign scheduled");
+            try {
+              const c = await staffApi.campaigns.schedule(campaign.id, iso, false);
+              onChange(c);
+              setScheduleOpen(false);
+              toastSuccess("Campaign scheduled");
+            } catch (err: unknown) {
+              const e = err as {
+                status?: number;
+                detail?: string;
+                data?: { code?: string };
+              };
+              if (e.status === 409 && e.data?.code === "campaign_sms_cap_exceeded") {
+                setPendingScheduleIso(iso);
+                setScheduleOpen(false);
+                setOveragePrompt(e.data as typeof overagePrompt);
+              } else {
+                toastError(e.detail || "Could not schedule");
+              }
+            }
           }}
+        />
+      )}
+
+      {overagePrompt && (
+        <SmsOverageConfirmModal
+          detail={overagePrompt}
+          onCancel={() => {
+            setOveragePrompt(null);
+            setPendingScheduleIso(null);
+          }}
+          onConfirm={() => void trySend(true)}
         />
       )}
     </div>
@@ -1699,6 +1947,7 @@ function SentCampaignAnalytics({
 }
 
 export function CampaignsView() {
+  const { activeLocation } = useAuth();
   const [tab, setTab] = useState<Tab>("favorites");
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<ApiCampaign[]>([]);
@@ -1706,6 +1955,14 @@ export function CampaignsView() {
   const [active, setActive] = useState<ApiCampaign | null>(null);
   const [copySource, setCopySource] = useState<ApiCampaign | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [smsCap, setSmsCap] = useState<SmsCapInfo | null>(null);
+
+  const refreshCap = useCallback(() => {
+    return staffApi.campaigns
+      .smsCap()
+      .then(setSmsCap)
+      .catch(() => setSmsCap(null));
+  }, []);
 
   const refresh = useCallback(() => {
     return staffApi.campaigns
@@ -1721,6 +1978,10 @@ export function CampaignsView() {
     setLoading(true);
     void refresh().finally(() => setLoading(false));
   }, [refresh]);
+
+  useEffect(() => {
+    void refreshCap();
+  }, [refreshCap, activeLocation?.id]);
 
   async function newBlank() {
     try {
@@ -1800,6 +2061,8 @@ export function CampaignsView() {
         templates live under <strong>Favorites</strong>. Open the <strong>Sent</strong> tab and click
         a campaign to review analytics.
       </div>
+
+      <SmsCapBanner cap={smsCap} onRefresh={() => void refreshCap()} />
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-3 justify-between">
