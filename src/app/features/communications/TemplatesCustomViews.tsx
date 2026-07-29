@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Toggle } from "../../components/shared/Toggle";
 import {
+  mapCommunicationTemplate,
   mapTemplateAppointmentTypeStatus,
   mapTemplateConfiguration,
   staffApi,
@@ -282,8 +283,19 @@ export function TemplatesCustomTab({
 }) {
   const [selectedSlug, setSelectedSlug] = useState<string>("reminders");
   const [rows, setRows] = useState<TemplateAppointmentTypeStatus[]>([]);
+  const [ehrCustom, setEhrCustom] = useState<CommunicationTemplate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [ehrLoading, setEhrLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEhrLoading(true);
+    staffApi.communicationTemplates
+      .list("ehr-custom")
+      .then((data) => setEhrCustom(data.map(mapCommunicationTemplate)))
+      .catch(() => setEhrCustom([]))
+      .finally(() => setEhrLoading(false));
+  }, []);
 
   function refresh(slug: string) {
     setLoading(true);
@@ -323,97 +335,177 @@ export function TemplatesCustomTab({
     }
   }
 
-  if (!enabled) {
-    return (
-      <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center max-w-lg">
-        <p className="text-sm font-medium text-gray-700">Customization is off</p>
-        <p className="text-sm text-gray-400 mt-1">
-          Go to Settings and turn on “Customize templates by appointment type”.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-8 max-w-2xl">
       <div>
-        <h2 className="text-xl font-bold text-gray-900">Build by appointment type</h2>
+        <h2 className="text-xl font-bold text-gray-900">Custom continuing care</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Select a template type, enable appointment types that need a custom sequence, then open a
-          sequence to edit, preview, and activate.
+          EHR-based recall / recare / continuing care templates. In this context those terms are used
+          interchangeably.
         </p>
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1.5">Template type</label>
-        <select
-          value={selectedSlug}
-          onChange={(e) => setSelectedSlug(e.target.value)}
-          className="w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400"
-        >
-          {CUSTOMIZABLE_TEMPLATE_SLUGS.map((t) => (
-            <option key={t.slug} value={t.slug}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+      <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+        If you do not see Custom Recall templates, contact NexHealth Support. One of our team members
+        will be glad to activate Custom Recall templates if available.
+      </div>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 space-y-2">
+        <p className="font-semibold">
+          Custom Recall templates are available for most health record systems NexHealth integrates
+          with, but not all.
+        </p>
+        <ul className="list-disc list-inside text-xs space-y-1">
+          <li>
+            For <strong>Eaglesoft</strong>, we read the next recall date.
+          </li>
+          <li>
+            For other systems, we read the <strong>due dates</strong> associated with common recall
+            appointment types such as Prophy, Perio, Exams, etc.
+          </li>
+        </ul>
       </div>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
-          <h3 className="font-semibold text-gray-900">Customize Appointment Types</h3>
-          <p className="text-xs text-gray-500 mt-1">
-            Create a new sequence for any appointment type that does not have this sequence enabled.
-          </p>
+        <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900 text-sm">Custom Recall templates</h3>
+          <span className="text-xs text-gray-400">Assign locations · Total sent</span>
         </div>
-
-        {loading ? (
+        {ehrLoading ? (
           <p className="px-5 py-8 text-sm text-gray-400">Loading…</p>
-        ) : rows.length === 0 ? (
-          <div className="px-5 py-10 text-center">
-            <p className="text-sm text-gray-500">No appointment types yet.</p>
-            <p className="text-xs text-gray-400 mt-1">
-              Create them under Scheduling → Online booking → Appointment types.
-            </p>
-          </div>
+        ) : ehrCustom.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-gray-500 text-center">
+            No Custom Recall templates yet. Contact Support to activate.
+          </p>
         ) : (
           <ul className="divide-y divide-border">
-            {rows.map((row) => (
-              <li
-                key={row.appointmentTypeId}
-                className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-50/80"
-              >
+            {ehrCustom.map((t) => (
+              <li key={t.id}>
                 <button
                   type="button"
-                  disabled={!row.enabled || !row.variantId}
-                  onClick={() => row.variantId && onOpenTemplate(row.variantId)}
-                  className={`text-sm text-left truncate ${
-                    row.enabled && row.variantId
-                      ? "text-teal-700 font-medium hover:underline"
-                      : "text-gray-700"
-                  }`}
+                  onClick={() => onOpenTemplate(t.id)}
+                  className="w-full flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-gray-50 text-left"
                 >
-                  {row.appointmentTypeName}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        t.isActive ? "bg-emerald-500" : "bg-gray-300"
+                      }`}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-teal-700 truncate">{t.name}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {t.multiLocation ? "Multiple locations" : t.locationName || "This location"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-400 shrink-0 text-right">
+                    <div>{t.totalSent} sent</div>
+                    <div>{t.recipients} recipients</div>
+                  </div>
                 </button>
-                <Toggle
-                  on={row.enabled}
-                  disabled={savingId === row.appointmentTypeId}
-                  onChange={(v) => toggleType(row, v)}
-                />
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      {selectedSlug === "reminders" && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          Reminder details are only consolidated when{" "}
-          <code className="text-xs bg-white/70 px-1 rounded">INSERTCONFIRMAPPT</code> or{" "}
-          <code className="text-xs bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code> is in
-          the Reminder content. Open the Reminder template → Message grouping for full rules
-          (shared phone, family messaging, 30-minute same-day clusters, and 6-hour other-template
-          dedupe).
+      {!enabled ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center">
+          <p className="text-sm font-medium text-gray-700">Per–appointment-type customization is off</p>
+          <p className="text-sm text-gray-400 mt-1">
+            Go to Settings and turn on “Customize templates by appointment type” to add Recalls
+            sequences per appointment type (+ Add Recalls Sequence).
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Build by appointment type</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Select a template type (e.g. Recalls), enable appointment types that need a custom
+              sequence, then open a sequence to edit, preview, and activate.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Template type</label>
+            <select
+              value={selectedSlug}
+              onChange={(e) => setSelectedSlug(e.target.value)}
+              className="w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-teal-400"
+            >
+              {CUSTOMIZABLE_TEMPLATE_SLUGS.map((t) => (
+                <option key={t.slug} value={t.slug}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="bg-white rounded-xl border border-border overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <h3 className="font-semibold text-gray-900">Customize Appointment Types</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Create a new sequence for any appointment type — for Recalls this is “+ Add Recalls
+                Sequence.”
+              </p>
+            </div>
+
+            {loading ? (
+              <p className="px-5 py-8 text-sm text-gray-400">Loading…</p>
+            ) : rows.length === 0 ? (
+              <div className="px-5 py-10 text-center">
+                <p className="text-sm text-gray-500">No appointment types yet.</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Create them under Scheduling → Online booking → Appointment types.
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {rows.map((row) => (
+                  <li
+                    key={row.appointmentTypeId}
+                    className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-50/80"
+                  >
+                    <button
+                      type="button"
+                      disabled={!row.enabled || !row.variantId}
+                      onClick={() => row.variantId && onOpenTemplate(row.variantId)}
+                      className={`text-sm text-left truncate ${
+                        row.enabled && row.variantId
+                          ? "text-teal-700 font-medium hover:underline"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {row.appointmentTypeName}
+                    </button>
+                    <Toggle
+                      on={row.enabled}
+                      disabled={savingId === row.appointmentTypeId}
+                      onChange={(v) => toggleType(row, v)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {selectedSlug === "reminders" && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              Reminder details are only consolidated when{" "}
+              <code className="text-xs bg-white/70 px-1 rounded">INSERTCONFIRMAPPT</code> or{" "}
+              <code className="text-xs bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code> is in
+              the Reminder content.
+            </div>
+          )}
+
+          {selectedSlug === "recalls" && (
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-sm text-indigo-950">
+              When you enable a Recalls sequence for an appointment type, you&apos;ll notify only that
+              type. Edit timing with the pencil on the Next action tile; use + to add steps.
+            </div>
+          )}
         </div>
       )}
     </div>

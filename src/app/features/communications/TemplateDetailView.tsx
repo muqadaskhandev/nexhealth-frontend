@@ -28,6 +28,7 @@ import { SmartCommandsPanel } from "./SmartCommandsPanel";
 import { MessageGroupingRulesPanel } from "./MessageGroupingRulesPanel";
 import { TemplateHistoryPanel } from "./TemplateHistoryPanel";
 import { RemindersHelpPanel } from "./RemindersHelpPanel";
+import { RecallsHelpPanel } from "./RecallsHelpPanel";
 
 type DetailTab = "actions" | "grouping" | "performance" | "history" | "help";
 type EditTarget =
@@ -196,28 +197,38 @@ export function TemplateDetailView({
 
   async function addReminderTiming(timingValue = 2, timingUnit = "hour") {
     if (!template) return;
+    const isRecall =
+      template.slug === "recalls" || template.slug.startsWith("custom-");
     try {
       await staffApi.communicationTemplates.addStep(template.id, {
         kind: "trigger",
         title: "Next action",
-        subtitle: `${timingValue} ${timingUnit} Reminders`,
+        subtitle: isRecall
+          ? `${timingValue} ${timingUnit} Recalls`
+          : `${timingValue} ${timingUnit} Reminders`,
         timing_value: timingValue,
         timing_unit: timingUnit,
-        condition_label: "Send if unconfirmed",
+        condition_label: isRecall ? "Send if no upcoming appointment" : "Send if unconfirmed",
       });
       await staffApi.communicationTemplates.addStep(template.id, {
         kind: "sms",
-        title: "Reminders SMS",
-        body:
-          "Hi {{PATIENT_FIRST_NAME}}, reminder: your appointment at {{LOCATION_NAME}} " +
-          "is on {{APPOINTMENT_DATE}} at {{APPOINTMENT_TIME}}.\n\n{{INSERTCONFIRMAPPT}}\n{{APPOINTMENT_REGISTRATION}}",
-        condition_label: "Send if unconfirmed",
-        meta: { send_condition: "unconfirmed" },
+        title: isRecall ? "Recalls SMS" : "Reminders SMS",
+        body: isRecall
+          ? "Hi {{PATIENT_FIRST_NAME}}, you're due for continuing care at {{LOCATION_NAME}}. " +
+            "Book: {{LOCATION_BOOKING_APPOINTMENT}}"
+          : "Hi {{PATIENT_FIRST_NAME}}, reminder: your appointment at {{LOCATION_NAME}} " +
+            "is on {{APPOINTMENT_DATE}} at {{APPOINTMENT_TIME}}.\n\n{{INSERTCONFIRMAPPT}}\n{{APPOINTMENT_REGISTRATION}}",
+        condition_label: isRecall ? "Send if no upcoming appointment" : "Send if unconfirmed",
+        meta: isRecall ? { send_condition: "no_upcoming" } : { send_condition: "unconfirmed" },
       });
       await refresh();
-      toastSuccess("Added second Reminder timing — edit the Next action tile to fine-tune hours prior");
+      toastSuccess(
+        isRecall
+          ? "Added Recalls timing — edit the Next action tile to fine-tune"
+          : "Added second Reminder timing — edit the Next action tile to fine-tune hours prior"
+      );
     } catch {
-      toastError("Could not add Reminder timing.");
+      toastError(isRecall ? "Could not add Recalls timing." : "Could not add Reminder timing.");
     }
   }
 
@@ -396,6 +407,11 @@ export function TemplateDetailView({
               Help & FAQ
             </button>
           )}
+          {(template.slug === "recalls" || template.slug.startsWith("custom-")) && (
+            <button type="button" className={tabCls(tab === "help")} onClick={() => setTab("help")}>
+              Help & FAQ
+            </button>
+          )}
         </div>
       </div>
 
@@ -413,6 +429,29 @@ export function TemplateDetailView({
                   queue; they just do not go out. For early-morning appointments, use a closer timing,
                   widen sending hours under Settings → Template configurations, or add a second Reminder
                   timing (evening-prior + hours-prior).
+                </div>
+              )}
+
+              {(template.slug === "recalls" || template.slug.startsWith("custom-")) && (
+                <div className="rounded-lg border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-xs text-indigo-950 mb-4 space-y-1">
+                  <p>
+                    <strong>Recall / Recare / Continuing care</strong> all mean reminders to get patients
+                    back for continuing care. Include{" "}
+                    <code className="bg-white/70 px-1 rounded">LOCATION_BOOKING_APPOINTMENT</code> so
+                    patients can book online.
+                  </p>
+                  {template.slug === "recalls" ? (
+                    <p>
+                      Standard Recalls: by default <strong>6 months after the last appointment</strong>{" "}
+                      if the patient has no upcoming visit. Customize by appointment type via Templates →
+                      Custom, or + Add Recalls Sequence below.
+                    </p>
+                  ) : (
+                    <p>
+                      Custom continuing care follows the EHR due date (day before, then 1–24 months).
+                      Click clock tiles to edit each timing.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -545,13 +584,24 @@ export function TemplateDetailView({
                         Add Reminder timing
                       </button>
                     )}
+                    {(template.slug === "recalls" || template.slug.startsWith("custom-")) && (
+                      <button
+                        type="button"
+                        onClick={() => addReminderTiming(1, "month")}
+                        className="px-3 py-1.5 text-sm text-left hover:bg-gray-50 rounded-md"
+                      >
+                        Add Recalls timing
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
               <p className="text-center text-xs text-teal-600 mt-2">
                 {template.slug === "reminders"
                   ? "Add another sequence or Reminder timing (e.g. 14h prior + 2h prior)"
-                  : "Add another sequence"}
+                  : template.slug === "recalls" || template.slug.startsWith("custom-")
+                    ? "Add another sequence or Recalls timing"
+                    : "Add another sequence"}
               </p>
 
               {template.slug === "reminders" && (
@@ -566,11 +616,31 @@ export function TemplateDetailView({
                 </div>
               )}
 
+              {template.slug === "recalls" && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => addReminderTiming(6, "month")}
+                    className="text-sm font-medium text-teal-700 hover:text-teal-800 underline"
+                  >
+                    + Add Recalls Sequence (6 month timing)
+                  </button>
+                </div>
+              )}
+
               {template.slug === "reminders" && (
                 <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
                   You can also configure your reminders in other languages. Prefer communicating with
                   patients in their preferred language when translations are available. Sending hours
                   and early-morning math live in Settings → Template configurations.
+                </div>
+              )}
+
+              {(template.slug === "recalls" || template.slug.startsWith("custom-")) && (
+                <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                  Prefer Campaigns → Favorites → &quot;Recall / Continuing Care&quot; for one-off recall
+                  blasts with audience filters (exclude patients who already have an upcoming
+                  appointment).
                 </div>
               )}
             </div>
@@ -591,7 +661,11 @@ export function TemplateDetailView({
 
           {tab === "history" && <TemplateHistoryPanel templateId={template.id} />}
 
-          {tab === "help" && <RemindersHelpPanel />}
+          {tab === "help" && template.slug === "reminders" && <RemindersHelpPanel />}
+          {tab === "help" &&
+            (template.slug === "recalls" || template.slug.startsWith("custom-")) && (
+              <RecallsHelpPanel />
+            )}
         </div>
 
         {edit && (

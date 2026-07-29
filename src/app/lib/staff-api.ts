@@ -1372,7 +1372,7 @@ export const staffApi = {
       }>("/api/out-of-office", body),
   },
   communicationTemplates: {
-    list: (scope: "default" | "variants" | "all" = "default") =>
+    list: (scope: "default" | "variants" | "all" | "ehr-custom" = "default") =>
       api.get<ApiCommunicationTemplate[]>(`/api/communication-templates?scope=${scope}`),
     get: (id: string) => api.get<ApiCommunicationTemplate>(`/api/communication-templates/${id}`),
     bySlug: (slug: string) =>

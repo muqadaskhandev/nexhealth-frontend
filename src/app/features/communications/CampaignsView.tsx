@@ -1016,6 +1016,24 @@ function CampaignEditor({
                     {label}
                   </label>
                 ))}
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 mt-2">
+                  <label className="flex items-start gap-2 text-sm text-emerald-950">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={Boolean(filters.exclude_upcoming_appointments)}
+                      onChange={(e) =>
+                        void setFilter({ exclude_upcoming_appointments: e.target.checked })
+                      }
+                    />
+                    <span>
+                      <strong>Do not send to patients with an upcoming appointment</strong>
+                      <span className="block text-xs text-emerald-800/80 mt-0.5">
+                        Recommended for recall / continuing care campaigns.
+                      </span>
+                    </span>
+                  </label>
+                </div>
               </div>
             )}
 
@@ -1076,7 +1094,9 @@ function CampaignEditor({
               <div className="space-y-3">
                 <h3 className="font-semibold text-gray-900">Continuing care</h3>
                 <p className="text-sm text-gray-500">
-                  Patients due for recall care based on the due date recorded in your system.
+                  Patients due for recall care based on the due date recorded in your system
+                  (usually Prophy or Perio). Also used for unscheduled treatment by procedure code
+                  when your health record supports it.
                 </p>
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -1086,6 +1106,25 @@ function CampaignEditor({
                   />
                   Due for recall care
                 </label>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <label className="flex items-start gap-2 text-sm text-emerald-950">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={Boolean(filters.exclude_upcoming_appointments)}
+                      onChange={(e) =>
+                        void setFilter({ exclude_upcoming_appointments: e.target.checked })
+                      }
+                    />
+                    <span>
+                      <strong>Do not send to patients with an upcoming appointment</strong>
+                      <span className="block text-xs text-emerald-800/80 mt-0.5">
+                        Under Appointment types and Continuing care filters, select this for recall
+                        campaigns.
+                      </span>
+                    </span>
+                  </label>
+                </div>
               </div>
             )}
 
