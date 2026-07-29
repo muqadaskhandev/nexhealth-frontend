@@ -101,6 +101,95 @@ export function RemindersHelpPanel() {
 
       <section>
         <h2 className="text-lg font-semibold text-gray-900 mb-2">
+          How do patients receive and respond to appointment reminders?
+        </h2>
+        <p className="text-sm text-gray-600 mb-3">
+          Patients can confirm or cancel their appointments from the Reminder you send (when cancel is
+          enabled on the appointment type).
+        </p>
+
+        <div className="space-y-4 text-sm text-gray-700">
+          <div>
+            <h3 className="font-semibold text-teal-700 mb-1">
+              Enable appointment cancellation from Reminders
+            </h3>
+            <p className="text-xs text-gray-600">
+              Each time you create or edit an appointment type, toggle{" "}
+              <strong>Allow patient to cancel</strong>. Patients are prompted twice before they cancel.
+              After cancelling, they can <strong>Book new appointment</strong>.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-teal-700 mb-1">The patient experience of Reminders</h3>
+            <p className="text-xs text-gray-600">
+              Reminders ask patients to confirm or cancel (if enabled) and complete forms configured
+              with Smart Form Automation.
+            </p>
+            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+              Note: The form link will not show in the staff preview of the Reminder because it is not
+              connected to an actual appointment. Reminders sent to patients will include forms.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-teal-700 mb-1">SMS if patient cancellation is enabled</h3>
+            <p className="text-xs text-gray-600">
+              Text asks patients to reply <strong>&quot;Y&quot;</strong> to confirm or{" "}
+              <strong>&quot;N&quot;</strong> to cancel. NexHealth also auto-confirms replies that are
+              three words or fewer and contain: confirm, C, Y, yes, K, kk, ok, okay, si, confirmado, or
+              see you soon. Patients are told they&apos;ll receive a forms link once they confirm.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-teal-700 mb-1">SMS if patient cancellation is not enabled</h3>
+            <p className="text-xs text-gray-600">
+              The text asks them to reply <strong>&quot;C&quot;</strong> to confirm.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-teal-700 mb-1">Email reminders</h3>
+            <p className="text-xs text-gray-600">
+              Email prompts patients to confirm and includes a note/link to complete forms. Once they
+              confirm, they are prompted with a link to complete their forms.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-teal-700 mb-1">
+              Reminders after confirmation, with incomplete forms
+            </h3>
+            <p className="text-xs text-gray-600">
+              If patients confirm but do not complete their forms, subsequent Reminders only include the
+              form completion reminder.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-teal-700 mb-1">
+              Reminders after confirmation and form completion
+            </h3>
+            <p className="text-xs text-gray-600">
+              If they confirm and complete forms, they will not receive additional Reminders unless the
+              sequence is set to send to <strong>Confirmed and Unconfirmed</strong> patients.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            <p className="font-semibold mb-1">Reminder grouping</p>
+            <p>
+              If multiple patients share the same phone number, they each receive a Reminder per patient.
+              A confirm or cancel reply applies to all appointments they received a Reminder for. See
+              Message grouping for full rules.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">
           How do I send early-morning reminders?
         </h2>
         <p className="text-sm text-gray-600 mb-3">

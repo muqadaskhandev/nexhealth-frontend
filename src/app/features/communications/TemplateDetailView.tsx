@@ -995,8 +995,17 @@ function StepEditorPanel({
             )}
             <label className="block text-xs font-medium text-gray-500">Message</label>
             {preview ? (
-              <div className="rounded-lg border border-border bg-gray-50 p-3 text-sm text-gray-800 whitespace-pre-wrap min-h-[160px]">
-                {applySmartCommandPreview(body)}
+              <div className="space-y-2">
+                <div className="rounded-lg border border-border bg-gray-50 p-3 text-sm text-gray-800 whitespace-pre-wrap min-h-[160px]">
+                  {applySmartCommandPreview(body)}
+                </div>
+                {templateSlug === "reminders" && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                    Note: The form link will not show in this preview because it is not connected to an
+                    actual appointment. Reminders sent to patients will include forms when Smart Form
+                    Automation is configured.
+                  </div>
+                )}
               </div>
             ) : (
               <textarea

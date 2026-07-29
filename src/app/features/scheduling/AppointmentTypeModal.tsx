@@ -166,6 +166,20 @@ export function AppointmentTypeModal({ initial, onClose, onSaved, onDeleted }: {
               <span className="text-sm text-gray-700">Allow patient to cancel?</span>
               <Toggle on={allowCancel} onChange={setAllowCancel} />
             </label>
+            <div className="rounded-lg border border-rose-100 bg-rose-50/80 px-3 py-2 text-xs text-rose-900 space-y-1">
+              <p>
+                Toggling this on lets patients cancel from Reminder SMS/email.{" "}
+                <strong>Patients will be prompted twice before they cancel.</strong>
+              </p>
+              <p>
+                After cancelling, patients get the option to <strong>Book new appointment</strong>.
+              </p>
+              <p className="text-rose-800/80">
+                SMS text: {allowCancel
+                  ? 'Reply "Y" to confirm or "N" to cancel'
+                  : 'Reply "C" to confirm (cancellation disabled)'}
+              </p>
+            </div>
           </div>
 
           {/* Insertion rules */}

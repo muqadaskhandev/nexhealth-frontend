@@ -25,6 +25,7 @@ import { PublicBookingThankYouPage } from "./public/PublicBookingThankYouPage";
 import { PublicWaitlistPage } from "./public/PublicWaitlistPage";
 import { PublicFormsPage } from "./public/PublicFormsPage";
 import { PublicPacketPage } from "./public/PublicPacketPage";
+import { PublicReminderRespondPage } from "./public/PublicReminderRespondPage";
 import { useStaffData } from "./hooks/useStaffData";
 import { LoadingScreen } from "./components/shared/LoadingBounce";
 import { SmsRegistrationBanner } from "./features/communications/SmsRegistrationPanel";
@@ -81,6 +82,7 @@ export default function App() {
 
   const publicFormsMatch = window.location.pathname.match(/\/forms\/([^/]+)\/?$/);
   const publicPacketMatch = window.location.pathname.match(/\/p\/([^/]+)\/?$/);
+  const publicReminderMatch = window.location.pathname.match(/\/reminder\/([^/]+)\/?$/);
 
   const publicApptMatch = window.location.pathname.match(/\/appt\/([^/]+)\/?$/);
   const publicWaitlistMatch = window.location.pathname.match(/\/waitlist\/([^/]+)\/?$/);
@@ -89,6 +91,7 @@ export default function App() {
     window.location.pathname.endsWith("/booking/thank-you");
 
   if (publicFormsMatch) return <PublicFormsPage token={publicFormsMatch[1]} />;
+  if (publicReminderMatch) return <PublicReminderRespondPage appointmentId={publicReminderMatch[1]} />;
   if (publicWaitlistMatch) return <PublicWaitlistPage token={publicWaitlistMatch[1]} />;
   if (isBookingThankYou) return <PublicBookingThankYouPage />;
   if (publicApptMatch) return <PublicBookingPage slug={publicApptMatch[1]} />;

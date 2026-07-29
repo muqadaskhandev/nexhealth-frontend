@@ -197,8 +197,8 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
         token: "INSERTCONFIRMAPPT",
         label: "Insert confirm appointment",
         description:
-          "Required for reminder consolidation. Inserts confirm/cancel prompt. Replies apply to all appointments listed in the message.",
-        preview: 'Reply "C" to confirm or "N" to cancel',
+          "Required for reminder consolidation. Inserts confirm/cancel prompt based on whether the appointment type allows patient cancel. Replies apply to all appointments listed in the message. Auto-confirms short replies containing confirm, C, Y, yes, K, kk, ok, okay, si, confirmado, or see you soon.",
+        preview: 'Reply "Y" to confirm or "N" to cancel (or "C" if cancel is disabled). Forms link sent after confirm.',
         templates: ["reminders", "appointment-request", "appointment-confirmed", "save-the-date", "new-patient"],
       },
       {
