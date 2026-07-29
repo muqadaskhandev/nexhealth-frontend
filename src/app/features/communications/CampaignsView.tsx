@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  Calendar,
+  Download,
+  Eye,
   Heart,
   Image as ImageIcon,
   MoreHorizontal,
@@ -1352,6 +1355,349 @@ function CampaignEditor({
   );
 }
 
+function MetricCard({
+  label,
+  value,
+  rate,
+  icon,
+}: {
+  label: string;
+  value: number;
+  rate?: number;
+  icon?: string;
+}) {
+  return (
+    <div className="flex-1 min-w-[110px] px-3 py-3 text-center border-r border-gray-100 last:border-0">
+      <p className="text-xs text-gray-500 mb-1">
+        {icon ? `${icon} ` : ""}
+        {label}
+      </p>
+      <p className="text-2xl font-bold text-gray-900 tabular-nums">{value}</p>
+      {rate !== undefined && (
+        <p className="text-xs text-gray-400 mt-0.5">{rate}%</p>
+      )}
+    </div>
+  );
+}
+
+function SentCampaignAnalytics({
+  campaign,
+  onBack,
+  onChange,
+  onCopy,
+}: {
+  campaign: ApiCampaign;
+  onBack: () => void;
+  onChange: (c: ApiCampaign) => void;
+  onCopy: () => void;
+}) {
+  const [data, setData] = useState<Awaited<ReturnType<typeof staffApi.campaigns.analytics>> | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+  const [viewEmail, setViewEmail] = useState(false);
+  const [showGlossary, setShowGlossary] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    void staffApi.campaigns
+      .analytics(campaign.id)
+      .then(setData)
+      .catch(() => toastError("Could not load campaign analytics"))
+      .finally(() => setLoading(false));
+  }, [campaign.id]);
+
+  async function downloadCsv() {
+    try {
+      const res = await fetch(staffApi.campaigns.analyticsCsvUrl(campaign.id), {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("fail");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `campaign-${campaign.id}-analytics.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toastSuccess("CSV downloaded");
+    } catch {
+      toastError("Could not download CSV");
+    }
+  }
+
+  const emailStats = data?.channels.find((c) => c.channel === "email");
+  const smsStats = data?.channels.find((c) => c.channel === "sms");
+
+  return (
+    <div className="px-4 sm:px-6 py-5 space-y-4 max-w-4xl">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-sm text-teal-700 hover:underline"
+      >
+        <ArrowLeft size={14} /> Campaigns
+      </button>
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">{campaign.title}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Campaign history &amp; analytics</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !campaign.is_starred;
+              void staffApi.campaigns
+                .star(campaign.id, next)
+                .then((c) => {
+                  onChange(c);
+                  toastSuccess(next ? "Added to Favorites" : "Removed from Favorites");
+                })
+                .catch(() => toastError("Could not update favorite"));
+            }}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border ${
+              campaign.is_starred
+                ? "border-rose-200 bg-rose-50 text-rose-700"
+                : "border-gray-200 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <Heart
+              size={14}
+              className={campaign.is_starred ? "fill-rose-500 text-rose-500" : ""}
+            />{" "}
+            Favorite
+          </button>
+          <button
+            type="button"
+            onClick={onCopy}
+            className="px-3 py-2 text-sm font-semibold text-teal-700 border border-teal-300 rounded-lg hover:bg-teal-50"
+          >
+            Make a copy
+          </button>
+        </div>
+      </div>
+
+      {loading || !data ? (
+        <p className="text-sm text-gray-400 py-10 text-center">Loading analytics…</p>
+      ) : (
+        <>
+          {(data.has_email || data.has_sms) && (
+            <div className="bg-white rounded-xl border border-border p-4 space-y-4">
+              {data.has_email && (
+                <div className="flex flex-wrap gap-4 items-start">
+                  <div className="w-36 h-28 rounded-lg border border-gray-100 bg-gradient-to-br from-slate-50 to-teal-50 flex items-center justify-center overflow-hidden">
+                    {(campaign.email_images || [])[0]?.data_url ? (
+                      <img
+                        src={campaign.email_images[0].data_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs font-semibold text-teal-700 px-2 text-center">
+                        Email campaign
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-sm font-semibold text-gray-900">
+                      Email{" "}
+                      {data.sent_at && (
+                        <span className="font-normal text-teal-700 ml-1">
+                          {formatWhen(data.sent_at)}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <span className="text-gray-500">Subject:</span>{" "}
+                      <span className="font-medium">{data.email_subject || "—"}</span>
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Preview: {data.email_preview_text || "—"}
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setViewEmail(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
+                      >
+                        <Eye size={14} /> View email
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void downloadCsv()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
+                      >
+                        <Download size={14} /> CSV
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {data.has_sms && !data.has_email && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void downloadCsv()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg"
+                  >
+                    <Download size={14} /> CSV
+                  </button>
+                </div>
+              )}
+
+              {(data.appointments_booked || 0) > 0 && data.has_email && (
+                <div className="rounded-lg border border-sky-100 bg-sky-50 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-sm text-sky-950">
+                  <span className="inline-flex items-center gap-2">
+                    <Calendar size={16} className="text-sky-600 flex-shrink-0" />
+                    <span>
+                      <strong>{data.appointments_booked}</strong> Appointments booked from this email
+                      campaign.
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-sky-700 font-medium hover:underline"
+                    onClick={() =>
+                      toastSuccess(
+                        "Appointments attributed to patients who engaged with this campaign"
+                      )
+                    }
+                  >
+                    Learn more
+                  </button>
+                </div>
+              )}
+
+              {emailStats && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50/50 flex flex-wrap overflow-hidden">
+                  <MetricCard label="Sent" value={emailStats.sent} />
+                  <MetricCard
+                    label="Opens"
+                    value={emailStats.opens}
+                    rate={emailStats.open_rate}
+                  />
+                  <MetricCard
+                    label="Clicks"
+                    value={emailStats.clicks}
+                    rate={emailStats.click_rate}
+                  />
+                  <MetricCard
+                    label="Unsubscribes"
+                    value={emailStats.unsubscribes}
+                    rate={emailStats.unsubscribe_rate}
+                  />
+                  <MetricCard
+                    label="Undelivered"
+                    value={emailStats.undelivered}
+                    rate={emailStats.undelivered_rate}
+                  />
+                </div>
+              )}
+
+              {smsStats && (
+                <div className="space-y-2">
+                  {data.has_email && (
+                    <p className="text-sm font-semibold text-gray-800">SMS metrics</p>
+                  )}
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/50 flex flex-wrap overflow-hidden">
+                    <MetricCard label="Sent" value={smsStats.sent} />
+                    <MetricCard
+                      label="Responses"
+                      value={smsStats.responses}
+                      rate={smsStats.response_rate}
+                    />
+                    <MetricCard
+                      label="Unsubscribes"
+                      value={smsStats.unsubscribes}
+                      rate={smsStats.unsubscribe_rate}
+                    />
+                    <MetricCard
+                      label="Undelivered"
+                      value={smsStats.undelivered}
+                      rate={smsStats.undelivered_rate}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {data.has_email && data.has_sms && (
+                <button
+                  type="button"
+                  onClick={() => void downloadCsv()}
+                  className="inline-flex items-center gap-1.5 text-sm text-teal-700 font-medium"
+                >
+                  <Download size={14} /> Download CSV with more details
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-4">
+            <button
+              type="button"
+              className="w-full flex items-center justify-between text-left"
+              onClick={() => setShowGlossary((v) => !v)}
+            >
+              <h3 className="font-bold text-gray-900">Interpret Campaign analytics</h3>
+              <span className="text-xs text-teal-700 font-medium">
+                {showGlossary ? "Hide" : "Show"}
+              </span>
+            </button>
+            {showGlossary && (
+              <ul className="mt-3 space-y-2 text-sm text-gray-800 list-disc pl-5">
+                <li>
+                  <strong>Sent:</strong> {data.glossary.sent}
+                </li>
+                <li>
+                  <strong>Unsubscribes:</strong> {data.glossary.unsubscribes}
+                </li>
+                <li>
+                  <strong>Undelivered:</strong> {data.glossary.undelivered}
+                </li>
+                <li>
+                  <strong>[Email only] Opens:</strong> {data.glossary.opens}
+                </li>
+                <li>
+                  <strong>[Email only] Clicks:</strong> {data.glossary.clicks}
+                </li>
+                <li>
+                  <strong>[SMS only] Responses:</strong> {data.glossary.responses}
+                </li>
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+
+      {viewEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setViewEmail(false)} />
+          <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h3 className="font-semibold text-gray-900">View email</h3>
+              <button type="button" onClick={() => setViewEmail(false)}>
+                <X size={18} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto">
+              <p className="text-sm">
+                <span className="text-gray-500">Subject:</span>{" "}
+                <strong>{data?.email_subject || campaign.email_subject}</strong>
+              </p>
+              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans bg-gray-50 rounded-lg p-3 border border-gray-100">
+                {data?.email_body || campaign.email_body}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CampaignsView() {
   const [tab, setTab] = useState<Tab>("favorites");
   const [q, setQ] = useState("");
@@ -1387,6 +1733,34 @@ export function CampaignsView() {
   }
 
   if (active) {
+    if (active.status === "sent") {
+      return (
+        <>
+          <SentCampaignAnalytics
+            campaign={active}
+            onBack={() => {
+              setActive(null);
+              void refresh();
+            }}
+            onChange={(c) => {
+              setActive(c);
+              void refresh();
+            }}
+            onCopy={() => setCopySource(active)}
+          />
+          {copySource && (
+            <CopyCampaignModal
+              source={copySource}
+              onClose={() => setCopySource(null)}
+              onCreated={(c) => {
+                setCopySource(null);
+                setActive(c);
+              }}
+            />
+          )}
+        </>
+      );
+    }
     return (
       <CampaignEditor
         campaign={active}
@@ -1423,7 +1797,8 @@ export function CampaignsView() {
 
       <div className="rounded-lg bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-950">
         You can also start with a blank campaign by clicking <strong>New campaign</strong>. Pre-built
-        templates live under <strong>Favorites</strong>.
+        templates live under <strong>Favorites</strong>. Open the <strong>Sent</strong> tab and click
+        a campaign to review analytics.
       </div>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">
@@ -1478,7 +1853,7 @@ export function CampaignsView() {
                       onClick={() => setActive(row)}
                     >
                       <span className="inline-flex items-center gap-1.5 font-medium text-gray-900">
-                        {(row.is_favorite_template || tab === "favorites") && (
+                        {(row.is_favorite_template || row.is_starred) && (
                           <Heart size={14} className="text-rose-500 fill-rose-500" />
                         )}
                         {row.title}

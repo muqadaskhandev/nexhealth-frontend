@@ -170,6 +170,8 @@ export type ApiCampaign = {
   created_by_name: string;
   created_at: string;
   updated_at: string;
+  is_starred?: boolean;
+  appointments_booked?: number;
 };
 
 export function mapCommunicationTemplateStep(s: ApiCommunicationTemplateStep): CommunicationTemplateStep {
@@ -1075,6 +1077,38 @@ export const staffApi = {
       api.post<ApiCampaign>(`/api/campaigns/${id}/schedule`, { scheduled_at }),
     sendTest: (id: string, channel: "email" | "sms") =>
       api.post<{ message: string }>(`/api/campaigns/${id}/send-test`, { channel }),
+    analytics: (id: string) =>
+      api.get<{
+        campaign_id: string;
+        title: string;
+        status: string;
+        is_starred: boolean;
+        has_email: boolean;
+        has_sms: boolean;
+        email_subject: string;
+        email_preview_text: string;
+        email_body: string;
+        sent_at: string | null;
+        appointments_booked: number;
+        channels: {
+          channel: string;
+          sent: number;
+          undelivered: number;
+          unsubscribes: number;
+          opens: number;
+          clicks: number;
+          responses: number;
+          open_rate: number;
+          click_rate: number;
+          unsubscribe_rate: number;
+          undelivered_rate: number;
+          response_rate: number;
+        }[];
+        glossary: Record<string, string>;
+      }>(`/api/campaigns/${id}/analytics`),
+    star: (id: string, is_starred: boolean) =>
+      api.post<ApiCampaign>(`/api/campaigns/${id}/star`, { is_starred }),
+    analyticsCsvUrl: (id: string) => `/api/campaigns/${id}/analytics.csv`,
   },
   savedResponses: {
     list: (q?: string) =>
