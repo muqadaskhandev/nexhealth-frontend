@@ -12,7 +12,11 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "What happens if a patient rates 1, 2, or 3?",
-    a: "They are prompted to leave feedback directed into NexHealth only. You can view it in the Activity feed, the patient's history, or the Reviews Performance tab. They are not prompted to leave a Google review.",
+    a: "They are prompted to leave feedback directed into NexHealth only. You can view it in the Activity feed, the patient's history, or the Reviews Performance tab. Negative feedback is managed privately and does not reach Google.",
+  },
+  {
+    q: "How do I analyze reviews and follow up with patients?",
+    a: "Go to Reviews → Performance. Click a patient's name to see their rating and any feedback so you can address it directly in conversation.",
   },
   {
     q: "Can I change which ratings get the Google prompt?",
@@ -28,7 +32,7 @@ export function ReviewsHelpPanel() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="max-w-2xl mx-auto space-y-10">
       <section>
         <h2 className="text-lg font-semibold text-gray-900 mb-2">
           How do I get more Google reviews with automated text and emails?
@@ -44,7 +48,85 @@ export function ReviewsHelpPanel() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">Overview</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+          How do I boost my Google ranking and improve my reputation?
+        </h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Learn how to boost your reputation and improve your Google ranking. Customers may leave
+          feedback either publicly for a positive review, or privately for a negative review.
+        </p>
+
+        <h3 className="font-semibold text-teal-700 mb-2 text-sm">Use feedback from reviews</h3>
+
+        <div className="space-y-4 text-sm text-gray-700 mb-6">
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-1">Positive reviews</h4>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              If a patient had a great experience and rates it as a <strong>4 or 5</strong>, they
+              will be prompted with a link to leave a review directly on your Google Business page.
+              This way, positive experiences are shared publicly, helping to boost your reputation.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-1">Negative reviews</h4>
+            <p className="text-xs text-gray-600 leading-relaxed mb-2">
+              If a patient did not have a great experience and rates it as a{" "}
+              <strong>1, 2, or 3</strong>, they will be asked to leave feedback,{" "}
+              <strong>which is shared only within NexHealth</strong>.
+            </p>
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-950">
+              This allows you to handle negative feedback in a more controlled manner.
+            </div>
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-1">
+              Analyze reviews — Reviews → Performance
+            </h4>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              You and your staff can view these reviews in your NexHealth dashboard by navigating to{" "}
+              <strong>Reviews</strong>, then selecting <strong>Performance</strong>. Clicking on the
+              patient&apos;s name allows you to see their rating and view any feedback, so you can
+              address it directly in a conversation with the patient. This way, negative feedback is
+              managed privately and does not reach Google.
+            </p>
+          </div>
+        </div>
+
+        <h3 className="font-semibold text-teal-700 mb-2 text-sm">Best practices for reviews</h3>
+        <p className="text-xs text-gray-600 leading-relaxed mb-3">
+          The goal of NexHealth Reviews is to make handling feedback easier and to boost your
+          reputation by publicly promoting positive experiences and privately managing negative ones.
+        </p>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-950 mb-4 leading-relaxed">
+          In general, while <strong>70%</strong> of patients look to online reviews to help them
+          decide how to choose a provider, <strong>only 10%–15%</strong> of patients industry-wide
+          leave reviews, and are most likely to do so only after a very positive or very negative
+          experience.
+        </div>
+        <div className="space-y-4 text-sm text-gray-700">
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-1">Ask happy patients to leave reviews.</h4>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              The <strong>MOST</strong> effective way to increase your reviews is to let happy
+              patients know how much you appreciate them leaving a review about their experience and{" "}
+              <strong>ASK</strong> them to leave a review.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-1">
+              Let patients know you&apos;d appreciate a rating and post to Google.
+            </h4>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Explain to patients that they will receive a message asking them to rate their
+              experience from 1–5, and then a prompt to post to Google. Let them know you&apos;d
+              appreciate it if they do both.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Setup overview</h2>
         <div className="space-y-5 text-sm text-gray-700">
           <div>
             <h3 className="font-semibold text-teal-700 mb-1.5">Set up Reviews</h3>
@@ -91,20 +173,6 @@ export function ReviewsHelpPanel() {
               Customize Reviews by appointment type (Templates → Custom), or contact Support for
               procedure codes / providers. Enable Customize templates by appointment type in Settings.
             </p>
-          </div>
-
-          <div>
-            <h3 className="font-semibold text-teal-700 mb-1.5">Patient review experience</h3>
-            <ul className="list-disc list-inside space-y-1 text-xs text-gray-600">
-              <li>
-                <strong>4 or 5:</strong> prompted with a link to leave a review on Google (must be
-                logged into Google).
-              </li>
-              <li>
-                <strong>1, 2, or 3:</strong> leave feedback in NexHealth only (Activity, patient
-                history, Reviews Performance).
-              </li>
-            </ul>
           </div>
 
           <div>

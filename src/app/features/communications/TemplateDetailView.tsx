@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bell,
+  ChevronDown,
+  ChevronRight,
   Clock,
   Mail,
   Pencil,
@@ -1263,25 +1265,45 @@ function ReviewsPerformancePanel({
   templateId: string;
   totalSent: number;
 }) {
+  type ReviewRow = {
+    id: string;
+    rating: number;
+    feedback_text: string;
+    google_prompted: boolean;
+    created_at: string | null;
+    patient_id: string | null;
+    patient_name: string;
+    is_positive: boolean;
+  };
   const [data, setData] = useState<{
     total_ratings: number;
     by_rating: Record<string, number>;
     google_prompts: number;
     internal_feedback: number;
+    positive_count: number;
+    negative_count: number;
     google_min_rating: number;
-    recent: {
-      id: string;
-      rating: number;
-      feedback_text: string;
-      google_prompted: boolean;
-      created_at: string | null;
-    }[];
+    recent: ReviewRow[];
   } | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "positive" | "negative">("all");
 
   useEffect(() => {
     staffApi.communicationTemplates
       .reviewPerformance(templateId)
-      .then(setData)
+      .then((row) =>
+        setData({
+          ...row,
+          positive_count: row.positive_count ?? 0,
+          negative_count: row.negative_count ?? 0,
+          recent: (row.recent || []).map((r) => ({
+            ...r,
+            patient_id: r.patient_id ?? null,
+            patient_name: r.patient_name || "Patient",
+            is_positive: r.is_positive ?? r.rating >= (row.google_min_rating || 4),
+          })),
+        })
+      )
       .catch(() => setData(null));
   }, [templateId]);
 
@@ -1293,28 +1315,48 @@ function ReviewsPerformancePanel({
     );
   }
 
+  const filtered = data.recent.filter((r) => {
+    if (filter === "positive") return r.is_positive;
+    if (filter === "negative") return !r.is_positive;
+    return true;
+  });
+
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <div className="text-center">
+      <div className="text-center space-y-2">
         <p className="text-sm text-gray-500">{totalSent} review messages sent</p>
-        <p className="text-xs text-gray-400 mt-1">
-          Google prompt for ratings ≥ {data.google_min_rating} (contact Support to change)
+        <p className="text-xs text-gray-500 max-w-md mx-auto leading-relaxed">
+          Positive ratings (4–5) are prompted to post publicly on Google. Negative ratings (1–3)
+          stay private in NexHealth so you can follow up — click a patient&apos;s name to view
+          their rating and feedback.
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-border bg-white p-4 text-center">
           <p className="text-2xl font-bold text-gray-900">{data.total_ratings}</p>
           <p className="text-xs text-gray-500 mt-1">Ratings</p>
         </div>
         <div className="rounded-xl border border-border bg-white p-4 text-center">
-          <p className="text-2xl font-bold text-teal-700">{data.google_prompts}</p>
-          <p className="text-xs text-gray-500 mt-1">Google prompts (4–5)</p>
+          <p className="text-2xl font-bold text-teal-700">{data.positive_count}</p>
+          <p className="text-xs text-gray-500 mt-1">Positive (Google)</p>
         </div>
         <div className="rounded-xl border border-border bg-white p-4 text-center">
-          <p className="text-2xl font-bold text-amber-700">{data.internal_feedback}</p>
-          <p className="text-xs text-gray-500 mt-1">Internal feedback (1–3)</p>
+          <p className="text-2xl font-bold text-amber-700">{data.negative_count}</p>
+          <p className="text-xs text-gray-500 mt-1">Negative (private)</p>
+        </div>
+        <div className="rounded-xl border border-border bg-white p-4 text-center">
+          <p className="text-2xl font-bold text-gray-800">{data.internal_feedback}</p>
+          <p className="text-xs text-gray-500 mt-1">With written feedback</p>
         </div>
       </div>
+
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-950 leading-relaxed">
+        While <strong>70%</strong> of patients look to online reviews when choosing a provider, only{" "}
+        <strong>10%–15%</strong> leave reviews. Ask happy patients to rate and post to Google — the
+        most effective way to boost reputation.
+      </div>
+
       <div className="rounded-xl border border-border bg-white p-4">
         <h3 className="text-sm font-semibold text-gray-900 mb-3">By rating</h3>
         <div className="flex gap-2">
@@ -1326,28 +1368,96 @@ function ReviewsPerformancePanel({
           ))}
         </div>
       </div>
-      {data.recent.length > 0 && (
-        <div className="rounded-xl border border-border bg-white overflow-hidden">
-          <div className="px-4 py-3 border-b border-border">
-            <h3 className="text-sm font-semibold text-gray-900">Recent responses</h3>
-          </div>
-          <ul className="divide-y divide-border">
-            {data.recent.map((r) => (
-              <li key={r.id} className="px-4 py-3 text-sm">
-                <div className="flex justify-between gap-2">
-                  <span className="font-medium text-gray-900">{r.rating}/5</span>
-                  <span className="text-xs text-gray-400">
-                    {r.google_prompted ? "Google prompted" : "Internal feedback"}
-                  </span>
-                </div>
-                {r.feedback_text && (
-                  <p className="text-xs text-gray-600 mt-1">{r.feedback_text}</p>
-                )}
-              </li>
+
+      <div className="rounded-xl border border-border bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-gray-900">Patient responses</h3>
+          <div className="flex gap-1">
+            {(
+              [
+                ["all", "All"],
+                ["positive", "Positive"],
+                ["negative", "Negative"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setFilter(id)}
+                className={`px-2.5 py-1 text-xs rounded-lg font-medium ${
+                  filter === id ? "bg-teal-500 text-white" : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {label}
+              </button>
             ))}
-          </ul>
+          </div>
         </div>
-      )}
+        {filtered.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm text-gray-400">
+            No responses yet. After patients rate visits, they appear here for private follow-up.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {filtered.map((r) => {
+              const open = expandedId === r.id;
+              return (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(open ? null : r.id)}
+                    className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex items-center gap-2">
+                      {open ? (
+                        <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                      ) : (
+                        <ChevronRight size={14} className="text-gray-400 shrink-0" />
+                      )}
+                      <span className="text-sm font-medium text-teal-700 truncate">
+                        {r.patient_name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-semibold text-gray-900">{r.rating}/5</span>
+                      <span
+                        className={`text-[11px] px-1.5 py-0.5 rounded ${
+                          r.is_positive
+                            ? "bg-teal-50 text-teal-800"
+                            : "bg-amber-50 text-amber-900"
+                        }`}
+                      >
+                        {r.is_positive ? "Google prompted" : "Private feedback"}
+                      </span>
+                    </div>
+                  </button>
+                  {open && (
+                    <div className="px-4 pb-3 pl-10 space-y-2">
+                      <p className="text-xs text-gray-500">
+                        {r.is_positive
+                          ? "Positive experience — patient was prompted to leave a public Google review."
+                          : "Negative experience — feedback is shared only within NexHealth so you can address it privately."}
+                      </p>
+                      {r.feedback_text ? (
+                        <div className="rounded-lg border border-border bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                          {r.feedback_text}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">No written feedback submitted.</p>
+                      )}
+                      {r.created_at && (
+                        <p className="text-[11px] text-gray-400">
+                          {new Date(r.created_at).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

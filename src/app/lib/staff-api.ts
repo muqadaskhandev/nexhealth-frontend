@@ -1451,6 +1451,8 @@ export const staffApi = {
         by_rating: Record<string, number>;
         google_prompts: number;
         internal_feedback: number;
+        positive_count?: number;
+        negative_count?: number;
         google_min_rating: number;
         recent: {
           id: string;
@@ -1459,6 +1461,9 @@ export const staffApi = {
           google_prompted: boolean;
           created_at: string | null;
           appointment_id: string | null;
+          patient_id?: string | null;
+          patient_name?: string;
+          is_positive?: boolean;
         }[];
       }>(`/api/communication-templates/${templateId}/review-performance`),
     },
