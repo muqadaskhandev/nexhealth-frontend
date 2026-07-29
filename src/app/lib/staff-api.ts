@@ -134,6 +134,44 @@ export type ApiTemplateAppointmentTypeStatus = {
   enabled: boolean;
   variant_id: string | null;
 };
+
+export type ApiCampaign = {
+  id: string;
+  practice_id: string;
+  location_ids: string[];
+  title: string;
+  status: string;
+  is_favorite_template: boolean;
+  source_campaign_id: string | null;
+  wizard_step: string;
+  audience_filters: Record<string, unknown>;
+  selected_patient_ids: string[];
+  excluded_patient_ids: string[];
+  has_email: boolean;
+  email_subject: string;
+  email_preview_text: string;
+  email_body: string;
+  email_images: {
+    id: string;
+    name: string;
+    data_url: string;
+    alt: string;
+    width?: number | null;
+    height?: number | null;
+    link_url: string;
+  }[];
+  has_sms: boolean;
+  sms_body: string;
+  ai_prompt: string;
+  scheduled_at: string | null;
+  sent_at: string | null;
+  recipient_count: number;
+  created_by_user_id: string | null;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export function mapCommunicationTemplateStep(s: ApiCommunicationTemplateStep): CommunicationTemplateStep {
   return {
     id: s.id,
@@ -1001,6 +1039,42 @@ export const staffApi = {
       ),
     receiveInbound: (patientId: string, body: string) =>
       api.post("/api/messages/inbound", { patient_id: patientId, body }),
+  },
+  campaigns: {
+    list: (tab = "all", q?: string) =>
+      api.get<ApiCampaign[]>(
+        `/api/campaigns?tab=${encodeURIComponent(tab)}${q ? `&q=${encodeURIComponent(q)}` : ""}`
+      ),
+    get: (id: string) => api.get<ApiCampaign>(`/api/campaigns/${id}`),
+    create: (body: { title?: string; location_ids?: string[] }) =>
+      api.post<ApiCampaign>("/api/campaigns", body),
+    copy: (id: string, body: { title: string; location_ids: string[] }) =>
+      api.post<ApiCampaign>(`/api/campaigns/${id}/copy`, body),
+    update: (id: string, body: Record<string, unknown>) =>
+      api.patch<ApiCampaign>(`/api/campaigns/${id}`, body),
+    remove: (id: string) => api.delete(`/api/campaigns/${id}`),
+    audience: (id: string) =>
+      api.get<{
+        total: number;
+        patients: {
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          phone: string;
+          dob: string | null;
+        }[];
+      }>(`/api/campaigns/${id}/audience`),
+    generateAi: (id: string, body: { prompt: string; channel: "email" | "sms" }) =>
+      api.post<{ subject: string; body: string; preview_text: string }>(
+        `/api/campaigns/${id}/generate-ai`,
+        body
+      ),
+    send: (id: string) => api.post<ApiCampaign>(`/api/campaigns/${id}/send`, {}),
+    schedule: (id: string, scheduled_at: string) =>
+      api.post<ApiCampaign>(`/api/campaigns/${id}/schedule`, { scheduled_at }),
+    sendTest: (id: string, channel: "email" | "sms") =>
+      api.post<{ message: string }>(`/api/campaigns/${id}/send-test`, { channel }),
   },
   savedResponses: {
     list: (q?: string) =>
