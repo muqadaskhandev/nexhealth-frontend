@@ -1471,6 +1471,33 @@ export const staffApi = {
       use_family_messaging_for_reminders?: boolean;
       family_messaging_age_limit?: number | null;
     }) => api.patch<ApiTemplateConfiguration>("/api/template-configurations", body),
+    previewReminderSend: (body: {
+      appointment_at: string;
+      timing_value: number;
+      timing_unit: string;
+      channel?: string;
+    }) =>
+      api.post<{
+        send_at: string;
+        within_sending_hours: boolean;
+        blocked: boolean;
+        reason: string;
+        sending_hours_start: string;
+        sending_hours_end: string;
+        queues_when_outside: boolean;
+      }>("/api/template-configurations/preview-reminder-send", body),
+    earlyMorningOffset: (body: {
+      sending_hours_end: string;
+      earliest_appointment: string;
+      buffer_hours?: number;
+    }) =>
+      api.post<{
+        hours_prior: number;
+        difference_hours: number;
+        buffer_hours: number;
+        formula: string;
+        explanation: string;
+      }>("/api/template-configurations/early-morning-offset", body),
   },
   messageGrouping: {
     rules: () =>

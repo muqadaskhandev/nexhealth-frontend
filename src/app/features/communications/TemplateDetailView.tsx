@@ -194,6 +194,33 @@ export function TemplateDetailView({
     }
   }
 
+  async function addReminderTiming(timingValue = 2, timingUnit = "hour") {
+    if (!template) return;
+    try {
+      await staffApi.communicationTemplates.addStep(template.id, {
+        kind: "trigger",
+        title: "Next action",
+        subtitle: `${timingValue} ${timingUnit} Reminders`,
+        timing_value: timingValue,
+        timing_unit: timingUnit,
+        condition_label: "Send if unconfirmed",
+      });
+      await staffApi.communicationTemplates.addStep(template.id, {
+        kind: "sms",
+        title: "Reminders SMS",
+        body:
+          "Hi {{PATIENT_FIRST_NAME}}, reminder: your appointment at {{LOCATION_NAME}} " +
+          "is on {{APPOINTMENT_DATE}} at {{APPOINTMENT_TIME}}.\n\n{{INSERTCONFIRMAPPT}}\n{{APPOINTMENT_REGISTRATION}}",
+        condition_label: "Send if unconfirmed",
+        meta: { send_condition: "unconfirmed" },
+      });
+      await refresh();
+      toastSuccess("Added second Reminder timing — edit the Next action tile to fine-tune hours prior");
+    } catch {
+      toastError("Could not add Reminder timing.");
+    }
+  }
+
   async function removeStep(stepId: string) {
     if (!template) return;
     try {
@@ -222,12 +249,28 @@ export function TemplateDetailView({
     }
   }
 
-  const trigger = template?.steps.find((s) => s.kind === "trigger");
+  const triggers = (template?.steps.filter((s) => s.kind === "trigger") ?? []).sort(
+    (a, b) => a.position - b.position
+  );
+  const trigger = triggers[0];
   const messages = template?.steps.filter((s) => s.kind === "email" || s.kind === "sms") ?? [];
   const reminderBodies = messages.map((m) => `${m.body || ""}\n${m.subject || ""}`).join("\n");
   const consolidates = reminderContentSupportsConsolidation(reminderBodies);
   const branchKeys = Array.from(new Set(messages.map((m) => stepSendCondition(m, trigger))));
   const isBranched = branchKeys.length > 1;
+
+  /** Group messages under the preceding trigger by position (supports dual Reminder timings). */
+  const timingBlocks = triggers.map((trig, idx) => {
+    const nextPos = triggers[idx + 1]?.position ?? Number.POSITIVE_INFINITY;
+    const blockMessages = messages
+      .filter((m) => m.position > trig.position && m.position < nextPos)
+      .sort((a, b) => a.position - b.position);
+    return { trigger: trig, messages: blockMessages };
+  });
+  // Orphan messages before first trigger (shouldn't happen) append to first block
+  const orphanMessages = messages.filter(
+    (m) => !triggers.length || m.position < (triggers[0]?.position ?? 0)
+  );
 
   if (loading || !template) {
     return (
@@ -364,76 +407,112 @@ export function TemplateDetailView({
                 Action — what causes the template to send
               </p>
 
-              {trigger && (
-                <SequenceTile
-                  step={trigger}
-                  onEdit={() => setEdit({ kind: "trigger", step: trigger })}
-                />
-              )}
-
-              <div className="flex justify-center py-2">
-                <div className="rounded-full bg-white border border-border px-3 py-1.5 text-xs text-gray-600 shadow-sm flex flex-wrap items-center justify-center gap-1">
-                  <span>{trigger?.conditionLabel || "Send if unconfirmed"}</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddSequence(true)}
-                    className="text-teal-600 font-medium ml-1 hover:text-teal-700"
-                  >
-                    + Add additional sequence
-                  </button>
-                </div>
-              </div>
-
               {template.slug === "reminders" && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 mb-3">
-                  With the <code className="bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code> smart
-                  command, if you want patients who have already confirmed their appointments to receive a
-                  reminder for their forms, you will need to set the action to{" "}
-                  <strong>Send if confirmed or unconfirmed</strong>.
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 mb-4">
+                  <strong>Reminders do not send outside of set hours</strong> — blocked reminders do not
+                  queue; they just do not go out. For early-morning appointments, use a closer timing,
+                  widen sending hours under Settings → Template configurations, or add a second Reminder
+                  timing (evening-prior + hours-prior).
                 </div>
               )}
 
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3 text-center pt-2">
-                Email / SMS messages
-              </p>
+              {timingBlocks.map((block, blockIdx) => {
+                const blockBranchKeys = Array.from(
+                  new Set(block.messages.map((m) => stepSendCondition(m, block.trigger)))
+                );
+                const blockBranched = blockBranchKeys.length > 1;
+                const canRemoveTrigger = triggers.length > 1;
+                return (
+                  <div key={block.trigger.id} className="mb-8">
+                    {blockIdx > 0 && (
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3 text-center">
+                        Extra Reminder timing
+                      </p>
+                    )}
+                    <SequenceTile
+                      step={block.trigger}
+                      onEdit={() => setEdit({ kind: "trigger", step: block.trigger })}
+                      onDelete={
+                        canRemoveTrigger ? () => removeStep(block.trigger.id) : undefined
+                      }
+                    />
 
-              {isBranched ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {branchKeys.map((key) => {
-                    const branchMessages = messages.filter((m) => stepSendCondition(m, trigger) === key);
-                    return (
-                      <div key={key} className="rounded-xl border border-border bg-gray-50/60 p-3 space-y-2">
-                        <div className="text-center text-xs font-semibold text-gray-600 px-2 py-1.5 rounded-lg bg-white border border-border">
-                          {conditionLabelFor(key)}
-                        </div>
-                        {branchMessages.map((step, i) => (
-                          <div key={step.id}>
-                            <SequenceTile
-                              step={step}
-                              onEdit={() => setEdit({ kind: "message", step })}
-                            />
-                            {i < branchMessages.length - 1 && <Connector />}
-                          </div>
-                        ))}
+                    <div className="flex justify-center py-2">
+                      <div className="rounded-full bg-white border border-border px-3 py-1.5 text-xs text-gray-600 shadow-sm flex flex-wrap items-center justify-center gap-1">
+                        <span>{block.trigger.conditionLabel || "Send if unconfirmed"}</span>
+                        {blockIdx === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAddSequence(true)}
+                            className="text-teal-600 font-medium ml-1 hover:text-teal-700"
+                          >
+                            + Add additional sequence
+                          </button>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="space-y-0">
-                  {messages.map((step, i) => (
-                    <div key={step.id}>
-                      <SequenceTile
-                        step={step}
-                        onEdit={() => setEdit({ kind: "message", step })}
-                      />
-                      {i < messages.length - 1 && <Connector />}
                     </div>
-                  ))}
-                </div>
-              )}
 
-              <div className="flex justify-center pt-4">
+                    {blockIdx === 0 && template.slug === "reminders" && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 mb-3">
+                        With the{" "}
+                        <code className="bg-white/70 px-1 rounded">APPOINTMENT_REGISTRATION</code>{" "}
+                        smart command, if you want patients who have already confirmed to receive a
+                        reminder for their forms, set the action to{" "}
+                        <strong>Send if confirmed or unconfirmed</strong>.
+                      </div>
+                    )}
+
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3 text-center pt-2">
+                      Email / SMS messages
+                    </p>
+
+                    {blockBranched ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {blockBranchKeys.map((key) => {
+                          const branchMessages = block.messages.filter(
+                            (m) => stepSendCondition(m, block.trigger) === key
+                          );
+                          return (
+                            <div
+                              key={key}
+                              className="rounded-xl border border-border bg-gray-50/60 p-3 space-y-2"
+                            >
+                              <div className="text-center text-xs font-semibold text-gray-600 px-2 py-1.5 rounded-lg bg-white border border-border">
+                                {conditionLabelFor(key)}
+                              </div>
+                              {branchMessages.map((step, i) => (
+                                <div key={step.id}>
+                                  <SequenceTile
+                                    step={step}
+                                    onEdit={() => setEdit({ kind: "message", step })}
+                                  />
+                                  {i < branchMessages.length - 1 && <Connector />}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="space-y-0">
+                        {(blockIdx === 0 ? [...orphanMessages, ...block.messages] : block.messages).map(
+                          (step, i, arr) => (
+                            <div key={step.id}>
+                              <SequenceTile
+                                step={step}
+                                onEdit={() => setEdit({ kind: "message", step })}
+                              />
+                              {i < arr.length - 1 && <Connector />}
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="flex justify-center pt-2 gap-3 flex-wrap">
                 <div className="relative group">
                   <button
                     type="button"
@@ -442,7 +521,7 @@ export function TemplateDetailView({
                   >
                     <Plus size={16} />
                   </button>
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover:flex flex-col gap-1 bg-white border border-border rounded-lg shadow-lg p-1 z-10 min-w-[140px]">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover:flex flex-col gap-1 bg-white border border-border rounded-lg shadow-lg p-1 z-10 min-w-[160px]">
                     <button
                       type="button"
                       onClick={() => addStep("email")}
@@ -457,15 +536,41 @@ export function TemplateDetailView({
                     >
                       Add SMS
                     </button>
+                    {template.slug === "reminders" && (
+                      <button
+                        type="button"
+                        onClick={() => addReminderTiming(2, "hour")}
+                        className="px-3 py-1.5 text-sm text-left hover:bg-gray-50 rounded-md"
+                      >
+                        Add Reminder timing
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
-              <p className="text-center text-xs text-teal-600 mt-2">Add another sequence</p>
+              <p className="text-center text-xs text-teal-600 mt-2">
+                {template.slug === "reminders"
+                  ? "Add another sequence or Reminder timing (e.g. 14h prior + 2h prior)"
+                  : "Add another sequence"}
+              </p>
+
+              {template.slug === "reminders" && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => addReminderTiming(14, "hour")}
+                    className="text-sm font-medium text-teal-700 hover:text-teal-800 underline"
+                  >
+                    + Add early-morning Reminder set (14 hours prior)
+                  </button>
+                </div>
+              )}
 
               {template.slug === "reminders" && (
                 <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
                   You can also configure your reminders in other languages. Prefer communicating with
-                  patients in their preferred language when translations are available.
+                  patients in their preferred language when translations are available. Sending hours
+                  and early-morning math live in Settings → Template configurations.
                 </div>
               )}
             </div>
@@ -503,7 +608,10 @@ export function TemplateDetailView({
             }}
             onSave={saveStep}
             onDelete={
-              edit.kind === "message" ? () => removeStep(edit.step.id) : undefined
+              edit.kind === "message" ||
+              (edit.kind === "trigger" && triggers.length > 1)
+                ? () => removeStep(edit.step.id)
+                : undefined
             }
           />
         )}
@@ -641,9 +749,11 @@ function Connector() {
 function SequenceTile({
   step,
   onEdit,
+  onDelete,
 }: {
   step: CommunicationTemplateStep;
   onEdit: () => void;
+  onDelete?: () => void;
 }) {
   const isTrigger = step.kind === "trigger";
   const Icon = step.kind === "email" ? Mail : step.kind === "sms" ? Smartphone : Clock;
@@ -670,14 +780,26 @@ function SequenceTile({
           )}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onEdit}
-        className="absolute top-3 right-3 p-1.5 rounded-md text-gray-400 hover:text-teal-600 hover:bg-teal-50 opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Edit"
-      >
-        <Pencil size={14} />
-      </button>
+      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="p-1.5 rounded-md text-gray-400 hover:text-rose-600 hover:bg-rose-50"
+            title="Remove"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onEdit}
+          className="p-1.5 rounded-md text-gray-400 hover:text-teal-600 hover:bg-teal-50"
+          title="Edit"
+        >
+          <Pencil size={14} />
+        </button>
+      </div>
     </div>
   );
 }
