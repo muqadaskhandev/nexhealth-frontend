@@ -186,6 +186,7 @@ export function mapCommunicationTemplateStep(s: ApiCommunicationTemplateStep): C
     timingUnit: s.timing_unit,
     conditionLabel: s.condition_label,
     position: s.position,
+    meta: s.meta || {},
   };
 }
 
@@ -1396,10 +1397,28 @@ export const staffApi = {
         `/api/communication-templates/${templateId}/steps/${stepId}`,
         body
       ),
-    addStep: (templateId: string, body: { kind: string; title: string; body?: string; subject?: string }) =>
+    addStep: (
+      templateId: string,
+      body: {
+        kind: string;
+        title: string;
+        body?: string;
+        subject?: string;
+        subtitle?: string;
+        timing_value?: number | null;
+        timing_unit?: string | null;
+        condition_label?: string | null;
+        meta?: Record<string, unknown>;
+      }
+    ) =>
       api.post<ApiCommunicationTemplateStep>(`/api/communication-templates/${templateId}/steps`, body),
     deleteStep: (templateId: string, stepId: string) =>
       api.delete(`/api/communication-templates/${templateId}/steps/${stepId}`),
+    copyForLocation: (templateId: string) =>
+      api.post<ApiCommunicationTemplate>(
+        `/api/communication-templates/${templateId}/copy-for-location`,
+        {}
+      ),
     history: (
       templateId: string,
       params?: { q?: string; sent_from?: string; sent_to?: string }
@@ -1424,6 +1443,23 @@ export const staffApi = {
         }[]
       >(`/api/communication-templates/${templateId}/history${q ? `?${q}` : ""}`);
     },
+  },
+  reminders: {
+    manualOptions: (appointmentId: string) =>
+      api.get<
+        {
+          step_id: string;
+          template_id: string;
+          title: string;
+          kind: string;
+          timing_label: string;
+        }[]
+      >(`/api/reminders/manual-options?appointment_id=${encodeURIComponent(appointmentId)}`),
+    manualSend: (body: { appointment_id: string; step_id: string }) =>
+      api.post<{ ok: boolean; channel: string; body: string; delivery_status: string }>(
+        "/api/reminders/manual-send",
+        body
+      ),
   },
   templateConfig: {
     get: () => api.get<ApiTemplateConfiguration>("/api/template-configurations"),

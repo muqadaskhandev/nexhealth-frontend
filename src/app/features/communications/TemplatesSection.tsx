@@ -65,6 +65,9 @@ export function TemplatesSection({ initialSlug }: { initialSlug?: string } = {})
       <TemplateDetailView
         templateId={view.templateId}
         onBack={() => setView({ name: "hub", tab: view.returnTab })}
+        onTemplateReplaced={(id) =>
+          setView({ name: "detail", templateId: id, returnTab: view.returnTab })
+        }
       />
     );
   }

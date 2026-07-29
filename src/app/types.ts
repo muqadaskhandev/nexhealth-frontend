@@ -447,6 +447,7 @@ export type CommunicationTemplateStep = {
   timingUnit: string | null;
   conditionLabel: string | null;
   position: number;
+  meta: Record<string, unknown>;
 };
 
 export type CommunicationTemplate = {
