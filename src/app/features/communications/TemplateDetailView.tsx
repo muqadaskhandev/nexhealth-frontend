@@ -23,12 +23,13 @@ import type {
   CommunicationTemplateStep,
   TemplateConfiguration,
 } from "../../types";
-import { applySmartCommandPreview, reminderContentSupportsConsolidation } from "./smartCommands";
+import { applySmartCommandPreview, reminderContentSupportsConsolidation, reviewContentHasSurveyRating } from "./smartCommands";
 import { SmartCommandsPanel } from "./SmartCommandsPanel";
 import { MessageGroupingRulesPanel } from "./MessageGroupingRulesPanel";
 import { TemplateHistoryPanel } from "./TemplateHistoryPanel";
 import { RemindersHelpPanel } from "./RemindersHelpPanel";
 import { RecallsHelpPanel } from "./RecallsHelpPanel";
+import { ReviewsHelpPanel } from "./ReviewsHelpPanel";
 
 type DetailTab = "actions" | "grouping" | "performance" | "history" | "help";
 type EditTarget =
@@ -199,36 +200,61 @@ export function TemplateDetailView({
     if (!template) return;
     const isRecall =
       template.slug === "recalls" || template.slug.startsWith("custom-");
+    const isReviews = template.slug === "reviews";
     try {
       await staffApi.communicationTemplates.addStep(template.id, {
         kind: "trigger",
         title: "Next action",
-        subtitle: isRecall
-          ? `${timingValue} ${timingUnit} Recalls`
-          : `${timingValue} ${timingUnit} Reminders`,
+        subtitle: isReviews
+          ? `Reviews sequence`
+          : isRecall
+            ? `${timingValue} ${timingUnit} Recalls`
+            : `${timingValue} ${timingUnit} Reminders`,
         timing_value: timingValue,
         timing_unit: timingUnit,
-        condition_label: isRecall ? "Send if no upcoming appointment" : "Send if unconfirmed",
+        condition_label: isReviews
+          ? "Appointment completed"
+          : isRecall
+            ? "Send if no upcoming appointment"
+            : "Send if unconfirmed",
       });
       await staffApi.communicationTemplates.addStep(template.id, {
         kind: "sms",
-        title: isRecall ? "Recalls SMS" : "Reminders SMS",
-        body: isRecall
-          ? "Hi {{PATIENT_FIRST_NAME}}, you're due for continuing care at {{LOCATION_NAME}}. " +
-            "Book: {{LOCATION_BOOKING_APPOINTMENT}}"
-          : "Hi {{PATIENT_FIRST_NAME}}, reminder: your appointment at {{LOCATION_NAME}} " +
-            "is on {{APPOINTMENT_DATE}} at {{APPOINTMENT_TIME}}.\n\n{{INSERTCONFIRMAPPT}}\n{{APPOINTMENT_REGISTRATION}}",
-        condition_label: isRecall ? "Send if no upcoming appointment" : "Send if unconfirmed",
-        meta: isRecall ? { send_condition: "no_upcoming" } : { send_condition: "unconfirmed" },
+        title: isReviews ? "Reviews SMS" : isRecall ? "Recalls SMS" : "Reminders SMS",
+        body: isReviews
+          ? "{{LOCATION_NAME}}? Reply from 1 to 5, with 5 being the best.\n\n{{INSERTSURVEYRATING}}\n\nTo unsubscribe, reply STOP"
+          : isRecall
+            ? "Hi {{PATIENT_FIRST_NAME}}, you're due for continuing care at {{LOCATION_NAME}}. " +
+              "Book: {{LOCATION_BOOKING_APPOINTMENT}}"
+            : "Hi {{PATIENT_FIRST_NAME}}, reminder: your appointment at {{LOCATION_NAME}} " +
+              "is on {{APPOINTMENT_DATE}} at {{APPOINTMENT_TIME}}.\n\n{{INSERTCONFIRMAPPT}}\n{{APPOINTMENT_REGISTRATION}}",
+        condition_label: isReviews
+          ? "Appointment completed"
+          : isRecall
+            ? "Send if no upcoming appointment"
+            : "Send if unconfirmed",
+        meta: isReviews
+          ? { send_condition: "completed" }
+          : isRecall
+            ? { send_condition: "no_upcoming" }
+            : { send_condition: "unconfirmed" },
       });
       await refresh();
       toastSuccess(
-        isRecall
-          ? "Added Recalls timing — edit the Next action tile to fine-tune"
-          : "Added second Reminder timing — edit the Next action tile to fine-tune hours prior"
+        isReviews
+          ? "Added Reviews sequence — keep INSERTSURVEYRATING in the message"
+          : isRecall
+            ? "Added Recalls timing — edit the Next action tile to fine-tune"
+            : "Added second Reminder timing — edit the Next action tile to fine-tune hours prior"
       );
     } catch {
-      toastError(isRecall ? "Could not add Recalls timing." : "Could not add Reminder timing.");
+      toastError(
+        isReviews
+          ? "Could not add Reviews sequence."
+          : isRecall
+            ? "Could not add Recalls timing."
+            : "Could not add Reminder timing."
+      );
     }
   }
 
@@ -412,6 +438,11 @@ export function TemplateDetailView({
               Help & FAQ
             </button>
           )}
+          {template.slug === "reviews" && (
+            <button type="button" className={tabCls(tab === "help")} onClick={() => setTab("help")}>
+              Help & FAQ
+            </button>
+          )}
         </div>
       </div>
 
@@ -452,6 +483,26 @@ export function TemplateDetailView({
                       Click clock tiles to edit each timing.
                     </p>
                   )}
+                </div>
+              )}
+
+              {template.slug === "reviews" && (
+                <div className="mb-4 space-y-2">
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-950">
+                    <strong>NexHealth does NOT post directly to Google.</strong> The patient must post
+                    their review. Default send: <strong>7:30 PM</strong> for completed appointments,
+                    once every six months.
+                  </div>
+                  {!reviewContentHasSurveyRating(reminderBodies) && (
+                    <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-950">
+                      Do not remove <strong>INSERTSURVEYRATING</strong>. This is what creates the Google
+                      Review experience.
+                    </div>
+                  )}
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                    Preview mode does <strong>not</strong> prompt the Google review. To test, schedule a
+                    test appointment, then manually send Review from Home.
+                  </div>
                 </div>
               )}
 
@@ -593,6 +644,15 @@ export function TemplateDetailView({
                         Add Recalls timing
                       </button>
                     )}
+                    {template.slug === "reviews" && (
+                      <button
+                        type="button"
+                        onClick={() => addReminderTiming(1, "day")}
+                        className="px-3 py-1.5 text-sm text-left hover:bg-gray-50 rounded-md"
+                      >
+                        Add Reviews Sequence
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -601,7 +661,9 @@ export function TemplateDetailView({
                   ? "Add another sequence or Reminder timing (e.g. 14h prior + 2h prior)"
                   : template.slug === "recalls" || template.slug.startsWith("custom-")
                     ? "Add another sequence or Recalls timing"
-                    : "Add another sequence"}
+                    : template.slug === "reviews"
+                      ? "Add another sequence or Reviews Sequence"
+                      : "Add another sequence"}
               </p>
 
               {template.slug === "reminders" && (
@@ -628,6 +690,18 @@ export function TemplateDetailView({
                 </div>
               )}
 
+              {template.slug === "reviews" && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => addReminderTiming(1, "day")}
+                    className="text-sm font-medium text-teal-700 hover:text-teal-800 underline"
+                  >
+                    + Add Reviews Sequence
+                  </button>
+                </div>
+              )}
+
               {template.slug === "reminders" && (
                 <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
                   You can also configure your reminders in other languages. Prefer communicating with
@@ -643,6 +717,19 @@ export function TemplateDetailView({
                   appointment).
                 </div>
               )}
+
+              {template.slug === "reviews" && (
+                <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 space-y-1">
+                  <p>
+                    Edit timing on the <strong>Next action</strong> tile (default 7:30 PM). Change
+                    frequency on the <strong>Send to patients</strong> tile (default once every 6
+                    months). Contact Support to send immediately after the appointment ends.
+                  </p>
+                  <p>
+                    Narrower audiences: Templates → Custom → enable Reviews per appointment type.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -650,7 +737,11 @@ export function TemplateDetailView({
             <MessageGroupingRulesPanel config={config} reminderContent={reminderBodies} />
           )}
 
-          {tab === "performance" && (
+          {tab === "performance" && template.slug === "reviews" && (
+            <ReviewsPerformancePanel templateId={template.id} totalSent={template.totalSent} />
+          )}
+
+          {tab === "performance" && template.slug !== "reviews" && (
             <div className="max-w-lg mx-auto text-center py-16">
               <p className="text-sm text-gray-500">
                 {template.totalSent} messages sent to {template.recipients} recipients.
@@ -666,6 +757,7 @@ export function TemplateDetailView({
             (template.slug === "recalls" || template.slug.startsWith("custom-")) && (
               <RecallsHelpPanel />
             )}
+          {tab === "help" && template.slug === "reviews" && <ReviewsHelpPanel />}
         </div>
 
         {edit && (
@@ -1161,5 +1253,101 @@ function StepEditorPanel({
         </button>
       </div>
     </aside>
+  );
+}
+
+function ReviewsPerformancePanel({
+  templateId,
+  totalSent,
+}: {
+  templateId: string;
+  totalSent: number;
+}) {
+  const [data, setData] = useState<{
+    total_ratings: number;
+    by_rating: Record<string, number>;
+    google_prompts: number;
+    internal_feedback: number;
+    google_min_rating: number;
+    recent: {
+      id: string;
+      rating: number;
+      feedback_text: string;
+      google_prompted: boolean;
+      created_at: string | null;
+    }[];
+  } | null>(null);
+
+  useEffect(() => {
+    staffApi.communicationTemplates
+      .reviewPerformance(templateId)
+      .then(setData)
+      .catch(() => setData(null));
+  }, [templateId]);
+
+  if (!data) {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16">
+        <p className="text-sm text-gray-400">Loading performance…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-xl mx-auto space-y-6">
+      <div className="text-center">
+        <p className="text-sm text-gray-500">{totalSent} review messages sent</p>
+        <p className="text-xs text-gray-400 mt-1">
+          Google prompt for ratings ≥ {data.google_min_rating} (contact Support to change)
+        </p>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-border bg-white p-4 text-center">
+          <p className="text-2xl font-bold text-gray-900">{data.total_ratings}</p>
+          <p className="text-xs text-gray-500 mt-1">Ratings</p>
+        </div>
+        <div className="rounded-xl border border-border bg-white p-4 text-center">
+          <p className="text-2xl font-bold text-teal-700">{data.google_prompts}</p>
+          <p className="text-xs text-gray-500 mt-1">Google prompts (4–5)</p>
+        </div>
+        <div className="rounded-xl border border-border bg-white p-4 text-center">
+          <p className="text-2xl font-bold text-amber-700">{data.internal_feedback}</p>
+          <p className="text-xs text-gray-500 mt-1">Internal feedback (1–3)</p>
+        </div>
+      </div>
+      <div className="rounded-xl border border-border bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">By rating</h3>
+        <div className="flex gap-2">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <div key={n} className="flex-1 text-center">
+              <p className="text-lg font-semibold text-gray-800">{data.by_rating[n] || 0}</p>
+              <p className="text-xs text-gray-400">{n}★</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      {data.recent.length > 0 && (
+        <div className="rounded-xl border border-border bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold text-gray-900">Recent responses</h3>
+          </div>
+          <ul className="divide-y divide-border">
+            {data.recent.map((r) => (
+              <li key={r.id} className="px-4 py-3 text-sm">
+                <div className="flex justify-between gap-2">
+                  <span className="font-medium text-gray-900">{r.rating}/5</span>
+                  <span className="text-xs text-gray-400">
+                    {r.google_prompted ? "Google prompted" : "Internal feedback"}
+                  </span>
+                </div>
+                {r.feedback_text && (
+                  <p className="text-xs text-gray-600 mt-1">{r.feedback_text}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

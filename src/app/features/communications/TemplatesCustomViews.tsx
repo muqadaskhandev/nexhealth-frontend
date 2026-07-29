@@ -21,6 +21,7 @@ export const CUSTOMIZABLE_TEMPLATE_SLUGS = [
   { slug: "reminders", label: "Reminders" },
   { slug: "post-appointment-follow-up", label: "Post Appointment Follow-up" },
   { slug: "recalls", label: "Recalls" },
+  { slug: "reviews", label: "Reviews" },
   { slug: "appointment-request", label: "Appointment Request" },
   { slug: "appointment-confirmed", label: "Appointment Confirmed" },
   { slug: "save-the-date", label: "Save the Date" },
@@ -504,6 +505,19 @@ export function TemplatesCustomTab({
             <div className="rounded-lg border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-sm text-indigo-950">
               When you enable a Recalls sequence for an appointment type, you&apos;ll notify only that
               type. Edit timing with the pencil on the Next action tile; use + to add steps.
+            </div>
+          )}
+
+          {selectedSlug === "reviews" && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 space-y-1">
+              <p>
+                Enable Reviews per appointment type to send to narrower audiences (+ Add Reviews
+                Sequence). Do not remove <code className="text-xs bg-white/70 px-1 rounded">INSERTSURVEYRATING</code>.
+              </p>
+              <p className="text-xs">
+                Contact Support to filter by procedure codes or providers, or to change the Google
+                rating threshold (default 4 or 5).
+              </p>
             </div>
           )}
         </div>

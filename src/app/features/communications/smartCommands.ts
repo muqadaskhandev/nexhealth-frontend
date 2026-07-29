@@ -41,10 +41,32 @@ export const SMART_COMMAND_GROUPS: SmartCommandGroup[] = [
         preview: "[Book appointment]",
       },
       {
+        token: "INSERTSURVEYRATING",
+        label: "Insert survey rating",
+        description:
+          "Creates the Google Review experience for Reviews. Do not remove this from Reviews messages. Patients rate 1–5; 4–5 get a Google prompt.",
+        preview: "How was your visit? Reply 1–5 → [Review link]",
+        templates: ["reviews"],
+      },
+      {
         token: "SURVEY_SMS_RATING",
         label: "Survey SMS rating",
-        description: "Insert a prompt to rate your service. Used with Reviews templates.",
+        description: "Alias for INSERTSURVEYRATING — insert a prompt to rate your service.",
         preview: "How was your visit? Reply 1–5",
+        templates: ["reviews"],
+      },
+      {
+        token: "REVIEW_LINK",
+        label: "Review survey link",
+        description: "Link to the patient review survey page.",
+        preview: "https://app.example/review/…",
+        templates: ["reviews"],
+      },
+      {
+        token: "GOOGLE_REVIEW_LINK",
+        label: "Google review link",
+        description: "Link prompting the patient to post on Google (after a 4 or 5 rating).",
+        preview: "https://www.google.com/search?q=…+reviews",
         templates: ["reviews"],
       },
     ],
@@ -414,6 +436,19 @@ export const REMINDER_CONSOLIDATION_TOKENS = [
 export function reminderContentSupportsConsolidation(content: string): boolean {
   const upper = content.toUpperCase();
   return REMINDER_CONSOLIDATION_TOKENS.some(
+    (t) => upper.includes(`{{${t}}}`) || upper.includes(t)
+  );
+}
+
+/** Reviews require INSERTSURVEYRATING (or SURVEY_SMS_RATING) for the Google Review experience. */
+export const REVIEW_SURVEY_TOKENS = [
+  "INSERTSURVEYRATING",
+  "SURVEY_SMS_RATING",
+] as const;
+
+export function reviewContentHasSurveyRating(content: string): boolean {
+  const upper = content.toUpperCase();
+  return REVIEW_SURVEY_TOKENS.some(
     (t) => upper.includes(`{{${t}}}`) || upper.includes(t)
   );
 }

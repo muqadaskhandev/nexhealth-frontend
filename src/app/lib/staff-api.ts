@@ -82,6 +82,7 @@ export type ApiAppointment = {
   patient_dob: string | null;
   patient_email: string;
   patient_phone: string;
+  meta?: Record<string, unknown>;
 };
 
 export type ApiCommunicationTemplateStep = {
@@ -324,6 +325,7 @@ export function mapAppointment(a: ApiAppointment): Appointment {
     details: { provider: a.provider_name, type: a.appointment_type },
     insurance: a.insurance_status,
     forms: a.forms_status,
+    meta: a.meta || {},
   };
 }
 
@@ -1443,7 +1445,23 @@ export const staffApi = {
         }[]
       >(`/api/communication-templates/${templateId}/history${q ? `?${q}` : ""}`);
     },
-  },
+    reviewPerformance: (templateId: string) =>
+      api.get<{
+        total_ratings: number;
+        by_rating: Record<string, number>;
+        google_prompts: number;
+        internal_feedback: number;
+        google_min_rating: number;
+        recent: {
+          id: string;
+          rating: number;
+          feedback_text: string;
+          google_prompted: boolean;
+          created_at: string | null;
+          appointment_id: string | null;
+        }[];
+      }>(`/api/communication-templates/${templateId}/review-performance`),
+    },
   reminders: {
     manualOptions: (appointmentId: string) =>
       api.get<

@@ -18,6 +18,7 @@ export type Appointment = {
   contact: { phone: string; email: string; redacted?: boolean };
   details: { provider: string; type: string };
   insurance: "pending" | "verified"; forms: "complete" | "incomplete";
+  meta?: Record<string, unknown>;
 };
 
 // ── Patients ─────────────────────────────────────────────────────────────────────

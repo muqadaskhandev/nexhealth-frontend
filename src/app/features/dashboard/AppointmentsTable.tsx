@@ -252,6 +252,10 @@ function ManualReminderModal({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [open, setOpen] = useState(false);
+  const [reviewsOn, setReviewsOn] = useState(
+    (appointment.meta as Record<string, unknown> | undefined)?.reviews_enabled !== false
+  );
+  const [savingToggle, setSavingToggle] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -278,6 +282,26 @@ function ManualReminderModal({
   }, []);
 
   const selectedOption = options.find((o) => o.step_id === selected);
+  const isReview = (selectedOption?.title || "").toLowerCase() === "review";
+
+  async function toggleReviews(next: boolean) {
+    setSavingToggle(true);
+    try {
+      await staffApi.appointments.update(appointment.id, {
+        meta: { ...(appointment.meta || {}), reviews_enabled: next },
+      });
+      setReviewsOn(next);
+      toastSuccess(
+        next
+          ? "Review messages enabled for this appointment"
+          : "Patient opted out of Review for this appointment"
+      );
+    } catch {
+      toastError("Could not update Review preference.");
+    } finally {
+      setSavingToggle(false);
+    }
+  }
 
   async function send() {
     if (!selected) return;
@@ -287,10 +311,14 @@ function ManualReminderModal({
         appointment_id: appointment.id,
         step_id: selected,
       });
-      toastSuccess("Reminder sent. Automated reminders will still continue to send as normal.");
+      toastSuccess(
+        isReview
+          ? "Review sent. It will deliver immediately."
+          : "Reminder sent. Automated reminders will still continue to send as normal."
+      );
       onClose();
     } catch {
-      toastError("Could not send reminder.");
+      toastError(isReview ? "Could not send review." : "Could not send reminder.");
     } finally {
       setSending(false);
     }
@@ -300,7 +328,7 @@ function ManualReminderModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl border border-border overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h2 className="font-semibold text-gray-900 text-sm">Automated messages for this appointment</h2>
+          <h2 className="font-semibold text-gray-900 text-sm">Appointment messages for this appointment</h2>
           <button type="button" onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
             <X size={16} />
           </button>
@@ -311,6 +339,30 @@ function ManualReminderModal({
             <span className="inline-flex h-5 w-9 items-center rounded-full bg-teal-500 px-0.5">
               <span className="h-4 w-4 rounded-full bg-white translate-x-4" />
             </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-medium text-gray-900">Review</span>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Off = opt out for this appointment only
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={savingToggle}
+              onClick={() => void toggleReviews(!reviewsOn)}
+              className={`inline-flex h-5 w-9 items-center rounded-full px-0.5 transition-colors ${
+                reviewsOn ? "bg-teal-500" : "bg-gray-300"
+              }`}
+              aria-pressed={reviewsOn}
+            >
+              <span
+                className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                  reviewsOn ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
 
           <div>
@@ -324,7 +376,7 @@ function ManualReminderModal({
                   onClick={() => setOpen(!open)}
                   className="w-full flex items-center justify-between px-3 py-2 border border-teal-400 rounded-lg text-sm text-gray-800 bg-white"
                 >
-                  <span>{selectedOption?.title || "Select reminder"}</span>
+                  <span>{selectedOption?.title || "Manually send template"}</span>
                   <ChevronDown size={14} className="text-gray-400" />
                 </button>
                 {open && (
@@ -333,7 +385,9 @@ function ManualReminderModal({
                       <button
                         key={`${opt.step_id}-${opt.title}`}
                         type="button"
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                          opt.title === "Review" ? "font-medium text-teal-800" : ""
+                        }`}
                         onClick={() => {
                           setSelected(opt.step_id);
                           setOpen(false);
@@ -348,8 +402,9 @@ function ManualReminderModal({
             )}
             {selectedOption && (
               <p className="text-xs text-gray-500 mt-2">
-                Your <span className="font-medium">{selectedOption.title}</span> will send immediately.
-                Any scheduled reminders will continue to send.
+                Your <span className="font-medium">{selectedOption.title}</span> will send immediately
+                after you click Send.
+                {!isReview && " Any scheduled reminders will continue to send."}
               </p>
             )}
           </div>
@@ -357,7 +412,7 @@ function ManualReminderModal({
         <div className="px-4 py-3 border-t border-border">
           <button
             type="button"
-            disabled={!selected || sending || loading}
+            disabled={!selected || sending || loading || (isReview && !reviewsOn)}
             onClick={send}
             className="w-full py-2.5 rounded-lg bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold disabled:opacity-50"
           >
@@ -368,3 +423,4 @@ function ManualReminderModal({
     </div>
   );
 }
+
