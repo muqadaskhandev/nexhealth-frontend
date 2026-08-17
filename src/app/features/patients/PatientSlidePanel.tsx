@@ -6,8 +6,10 @@ import { IconButton } from "../../components/shared/IconButton";
 import { InsuranceAccordion } from "../insurance/InsuranceAccordion";
 import { EditPatientInfoModal } from "./EditPatientInfoModal";
 import { EditNotificationPreferencesModal } from "./EditNotificationPreferencesModal";
-import { staffApi, type ApiAppointment } from "../../lib/staff-api";
-import type { Patient, ActivityItem, ActivityType, MessageItem } from "../../types";
+import { staffApi, mapFormPacket, mapFormRequestBatch, mapFormTemplate, mapPatient, type ApiAppointment } from "../../lib/staff-api";
+import { toastError } from "../../lib/toast";
+import { RequestFormsModal } from "../forms/RequestFormsModal";
+import type { ActivityItem, ActivityType, FormPacket, FormRequestBatch, FormTemplate, MessageItem, Patient } from "../../types";
 
 const ACTIVITY_ICON: Record<ActivityType, typeof CircleDollarSign> = {
   appointment: Calendar,
@@ -37,16 +39,22 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"history" | "messages" | "appointments">("history");
   const [accordion, setAccordion] = useState<Record<string, boolean>>({
-    insurance: false, forms: false, appointment: false, payments: false,
+    insurance: false, forms: false, appointment: false, payments: false, medical: false,
   });
-  const [modal, setModal] = useState<"editInfo" | "notificationPrefs" | null>(null);
+  const [modal, setModal] = useState<"editInfo" | "notificationPrefs" | "requestForms" | null>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
 
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
+  const [formRequests, setFormRequests] = useState<FormRequestBatch[]>([]);
+  const [requestAssets, setRequestAssets] = useState<{
+    patients: Patient[];
+    templates: FormTemplate[];
+    packets: FormPacket[];
+  } | null>(null);
 
-  useEffect(() => {
+  function loadPatientData() {
     let cancelled = false;
     staffApi.patients.activity(patient.id).then((rows) => {
       if (cancelled) return;
@@ -60,8 +68,43 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
       if (cancelled) return;
       setAppointments(rows);
     });
+    staffApi.patients.get(patient.id).then((row) => {
+      if (cancelled) return;
+      onSavePatient(mapPatient(row));
+    });
+    staffApi.forms.requests.list("active").then((rows) => {
+      if (cancelled) return;
+      setFormRequests(rows.map(mapFormRequestBatch).filter((b) => b.patientId === patient.id));
+    });
     return () => { cancelled = true; };
+  }
+
+  useEffect(() => {
+    return loadPatientData();
   }, [patient.id]);
+
+  useEffect(() => {
+    if (modal !== "requestForms") return;
+    let cancelled = false;
+    Promise.all([staffApi.patients.list(), staffApi.forms.templates(false), staffApi.forms.packets.list()])
+      .then(([patientRows, templateRows, packetRows]) => {
+        if (cancelled) return;
+        setRequestAssets({
+          patients: patientRows.map(mapPatient),
+          templates: templateRows.map(mapFormTemplate),
+          packets: packetRows.map(mapFormPacket),
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toastError("Could not load forms to send.");
+          setModal(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [modal, patient.id]);
 
   const now = Date.now();
   const upcomingAppointment = appointments
@@ -76,10 +119,12 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
   }, [actionsOpen]);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && modal === null) onClose();
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, modal]);
 
   const toggleAccordion = (key: string) => setAccordion(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -89,7 +134,7 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
   }
 
   const ACTIONS: { label: string; onClick: () => void; danger?: boolean }[] = [
-    { label: "Request forms",            onClick: () => setActionsOpen(false) },
+    { label: "Request forms",            onClick: () => { setActionsOpen(false); setModal("requestForms"); } },
     { label: "Collect payment",          onClick: () => setActionsOpen(false) },
     { label: "Edit patient info",        onClick: () => { setActionsOpen(false); setModal("editInfo"); } },
     { label: "Manage payment methods",   onClick: () => setActionsOpen(false) },
@@ -176,16 +221,69 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
               <InsuranceAccordion patient={patient} onSavePatient={onSavePatient} />
             </div>
 
+            <div className="border-b border-border">
+              <button onClick={() => toggleAccordion("medical")} className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 font-medium">Medical history</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-0.5 truncate">
+                    {patient.chart?.medical_alerts_summary || "No medical history on file"}
+                  </p>
+                </div>
+                <ChevronDown size={15} className={`text-gray-400 transition-transform flex-shrink-0 ml-2 ${accordion["medical"] ? "rotate-180" : ""}`} />
+              </button>
+              {accordion["medical"] && (
+                <div className="px-4 py-3 border-t border-border bg-gray-50/50 text-sm text-gray-600 space-y-1">
+                  <p>{patient.chart?.medical_alerts_summary || "No conditions, allergies, or medications recorded from intake."}</p>
+                  {patient.chart?.marital_status && <p>Marital status: {patient.chart.marital_status}</p>}
+                  {patient.chart?.hipaa_consent != null && (
+                    <p>HIPAA consent: {patient.chart.hipaa_consent ? "Agreed" : "Not recorded"}</p>
+                  )}
+                  {patient.chart?.intake_signature && (
+                    <p>
+                      Signed: {patient.chart.intake_signature}
+                      {patient.chart.signed_on ? ` on ${patient.chart.signed_on}` : ""}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Forms */}
             <div className="border-b border-border">
               <button onClick={() => toggleAccordion("forms")} className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-500 font-medium">Forms</p>
-                  <p className="text-sm font-semibold text-gray-900 mt-0.5">No outstanding form requests</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-0.5">
+                    {formRequests.length === 0
+                      ? "No outstanding form requests"
+                      : `${formRequests.length} outstanding request${formRequests.length === 1 ? "" : "s"}`}
+                  </p>
                 </div>
                 <ChevronDown size={15} className={`text-gray-400 transition-transform flex-shrink-0 ml-2 ${accordion["forms"] ? "rotate-180" : ""}`} />
               </button>
-              {accordion["forms"] && <div className="px-4 py-3 border-t border-border bg-gray-50/50 text-sm text-gray-500">No forms have been requested.</div>}
+              {accordion["forms"] && (
+                <div className="px-4 py-3 border-t border-border bg-gray-50/50 text-sm text-gray-500 space-y-2">
+                  {formRequests.length === 0 ? (
+                    <p>No forms have been requested.</p>
+                  ) : (
+                    formRequests.map((b) => (
+                      <div key={b.requestIds.join("-")} className="text-sm text-gray-800">
+                        <p className="font-medium">{b.forms.map((f) => f.name).join(", ") || "Forms"}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 capitalize">
+                          {b.completedStatus.replace("_", " ")} · expires {formatDateTime(b.expiresAt)}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setModal("requestForms")}
+                    className="text-xs font-semibold text-teal-700 hover:text-teal-900"
+                  >
+                    Request forms
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Upcoming appointment */}
@@ -198,13 +296,16 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
                       ? `${formatDateTime(upcomingAppointment.starts_at)} · ${upcomingAppointment.provider_name}`
                       : "No upcoming appointments"}
                   </p>
+                  {upcomingAppointment?.visit_reason && (
+                    <p className="text-xs text-gray-500 mt-0.5">Visit: {upcomingAppointment.visit_reason}</p>
+                  )}
                 </div>
                 <ChevronDown size={15} className={`text-gray-400 transition-transform flex-shrink-0 ml-2 ${accordion["appointment"] ? "rotate-180" : ""}`} />
               </button>
               {accordion["appointment"] && (
                 <div className="px-4 py-3 border-t border-border bg-gray-50/50 text-sm text-gray-500">
                   {upcomingAppointment
-                    ? `${upcomingAppointment.appointment_type} with ${upcomingAppointment.provider_name}, ${upcomingAppointment.duration_minutes} minutes.`
+                    ? `${upcomingAppointment.appointment_type} with ${upcomingAppointment.provider_name}, ${upcomingAppointment.duration_minutes} minutes.${upcomingAppointment.visit_reason ? ` Reason: ${upcomingAppointment.visit_reason}.` : ""}${upcomingAppointment.visit_notes ? ` Notes: ${upcomingAppointment.visit_notes}` : ""}`
                     : "No upcoming appointments scheduled."}
                 </div>
               )}
@@ -216,13 +317,23 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-500 font-medium">Payments</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-sm font-semibold text-gray-900">$130.40 not requested (family)</p>
-                    <span className="text-xs px-2 py-0.5 bg-orange-50 text-orange-500 border border-orange-200 rounded font-medium">Not requested</span>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {patient.chart?.payment_preference || "$130.40 not requested (family)"}
+                    </p>
+                    <span className="text-xs px-2 py-0.5 bg-orange-50 text-orange-500 border border-orange-200 rounded font-medium">
+                      {patient.chart?.payment_preference ? "From intake" : "Not requested"}
+                    </span>
                   </div>
                 </div>
                 <ChevronDown size={15} className={`text-gray-400 transition-transform flex-shrink-0 ml-2 ${accordion["payments"] ? "rotate-180" : ""}`} />
               </button>
-              {accordion["payments"] && <div className="px-4 py-3 border-t border-border bg-gray-50/50 text-sm text-gray-500">$130.40 outstanding balance for the family.</div>}
+              {accordion["payments"] && (
+                <div className="px-4 py-3 border-t border-border bg-gray-50/50 text-sm text-gray-500">
+                  {patient.chart?.payment_preference
+                    ? `Patient chose: ${patient.chart.payment_preference}.`
+                    : "$130.40 outstanding balance for the family."}
+                </div>
+              )}
             </div>
           </div>
 
@@ -294,6 +405,13 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
                       <div className="min-w-0">
                         <p className="text-sm text-gray-800 font-medium">{a.appointment_type} with {a.provider_name}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(a.starts_at)} · {a.duration_minutes} minutes</p>
+                        {(a.visit_reason || a.visit_notes) && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            {a.visit_reason ? `Reason: ${a.visit_reason}` : ""}
+                            {a.visit_reason && a.visit_notes ? " · " : ""}
+                            {a.visit_notes || ""}
+                          </p>
+                        )}
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded-full border font-medium flex-shrink-0 ${APPT_STATUS_CLASS[a.status] ?? APPT_STATUS_CLASS.unconfirmed}`}>
                         {a.status}
@@ -320,6 +438,26 @@ export function PatientSlidePanel({ patient, onClose, onSavePatient }: {
           patient={patient}
           onClose={() => setModal(null)}
           onSave={(prefs) => onSavePatient({ ...patient, notificationPrefs: prefs })}
+        />
+      )}
+      {modal === "requestForms" && !requestAssets && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
+          <p className="bg-white rounded-xl px-4 py-3 text-sm text-gray-600 shadow-lg">Loading forms…</p>
+        </div>
+      )}
+      {modal === "requestForms" && requestAssets && (
+        <RequestFormsModal
+          patients={requestAssets.patients}
+          templates={requestAssets.templates}
+          packets={requestAssets.packets}
+          initialPatient={patient}
+          onClose={() => {
+            setModal(null);
+            setRequestAssets(null);
+          }}
+          onSent={() => {
+            loadPatientData();
+          }}
         />
       )}
     </>

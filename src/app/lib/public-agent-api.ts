@@ -1,7 +1,7 @@
 // Public conversational intake agent API (Milestone 3)
 
-import type { MedicalAlertCatalog, PublicBranding, PublicForm, PublicVerifyResult } from "../types";
-import { publicFormsApi, type PublicApiError } from "./public-forms-api";
+import type { MedicalAlertCatalog, PublicBranding, PublicForm, PublicUpcomingAppointment, PublicVerifyResult } from "../types";
+import { mapUpcomingAppointment, publicFormsApi, type PublicApiError } from "./public-forms-api";
 
 export type { PublicApiError };
 
@@ -21,6 +21,13 @@ export type AgentTurn = {
   created_at: string;
 };
 
+export type AgentReviewItem = {
+  fieldId: string;
+  label: string;
+  type: string;
+  value: unknown;
+};
+
 export type AgentSession = {
   sessionId: string;
   status: string;
@@ -35,6 +42,8 @@ export type AgentSession = {
   validationStatus?: string | null;
   currentField: AgentField | null;
   medicalAlerts: MedicalAlertCatalog | null;
+  upcomingAppointment: PublicUpcomingAppointment | null;
+  reviewItems: AgentReviewItem[];
 };
 
 export type AgentAnswerDetail = {
@@ -71,6 +80,14 @@ function mapMedicalAlerts(c: ApiMedicalAlertCatalog | null | undefined): Medical
   };
 }
 
+type ApiAppointment = {
+  id: string;
+  starts_at: string;
+  provider_name: string;
+  appointment_type: string;
+  forms_status: string;
+};
+
 type ApiSessionOut = {
   session_id: string;
   status: string;
@@ -92,6 +109,10 @@ type ApiSessionOut = {
     placeholder: string;
   } | null;
   medical_alerts?: ApiMedicalAlertCatalog | null;
+  medicalAlerts?: ApiMedicalAlertCatalog | null;
+  upcoming_appointment?: ApiAppointment | null;
+  review_items?: { field_id: string; label: string; type: string; value: unknown }[];
+  reviewItems?: { field_id?: string; fieldId?: string; label: string; type: string; value: unknown }[];
 };
 
 function mapSession(r: ApiSessionOut): AgentSession {
@@ -108,7 +129,7 @@ function mapSession(r: ApiSessionOut): AgentSession {
       field_id: t.field_id,
       created_at: t.created_at,
     })),
-    draftAnswers: r.draft_answers,
+    draftAnswers: r.draft_answers ?? {},
     progress: r.progress,
     done: r.done,
     validationStatus: r.validation_status,
@@ -122,7 +143,14 @@ function mapSession(r: ApiSessionOut): AgentSession {
           placeholder: r.current_field.placeholder ?? "",
         }
       : null,
-    medicalAlerts: mapMedicalAlerts(r.medical_alerts),
+    medicalAlerts: mapMedicalAlerts(r.medical_alerts ?? r.medicalAlerts),
+    upcomingAppointment: mapUpcomingAppointment(r.upcoming_appointment),
+    reviewItems: (r.review_items ?? r.reviewItems ?? []).map((item) => ({
+      fieldId: item.field_id ?? item.fieldId ?? "",
+      label: item.label,
+      type: item.type,
+      value: item.value,
+    })),
   };
 }
 
@@ -177,12 +205,47 @@ export const publicAgentApi = {
       structured_value: params.structuredValue ?? null,
     }).then(mapSession),
 
+  upload: (token: string, params: { lastName: string; dob: string; sessionId: string; file: File }) => {
+    const body = new FormData();
+    body.append("file", params.file);
+    body.append("last_name", params.lastName);
+    body.append("dob", params.dob);
+    body.append("session_id", params.sessionId);
+    return fetch(`/api/public/agent/${token}/upload`, {
+      method: "POST",
+      credentials: "include",
+      body,
+    }).then(async (res) => {
+      if (!res.ok) {
+        let detail = res.statusText;
+        try {
+          const data = await res.json();
+          if (typeof data.detail === "string") detail = data.detail;
+        } catch {
+          /* ignore */
+        }
+        throw { status: res.status, detail } as PublicApiError;
+      }
+      return (await res.json()) as { url: string; filename: string };
+    });
+  },
+
   complete: (token: string, params: { lastName: string; dob: string; sessionId: string }) =>
-    request<{ remaining: number; message: string }>("POST", `/api/public/agent/${token}/complete`, {
+    request<{
+      remaining: number;
+      message: string;
+      upcoming_appointment?: ApiAppointment | null;
+      forms_complete_for_visit?: boolean;
+    }>("POST", `/api/public/agent/${token}/complete`, {
       last_name: params.lastName,
       dob: params.dob,
       session_id: params.sessionId,
-    }),
+    }).then((r) => ({
+      remaining: r.remaining,
+      message: r.message,
+      upcomingAppointment: mapUpcomingAppointment(r.upcoming_appointment),
+      formsCompleteForVisit: Boolean(r.forms_complete_for_visit),
+    })),
 };
 
-export type { PublicBranding, PublicForm, PublicVerifyResult };
+export type { PublicBranding, PublicForm, PublicUpcomingAppointment, PublicVerifyResult };

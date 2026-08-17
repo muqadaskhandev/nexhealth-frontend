@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import { DatePicker } from "../../components/shared/DatePicker";
 import { staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { AppointmentType, AvailabilitySlot, Operatory, RepeatMode } from "../../types";
@@ -126,16 +127,18 @@ export function AvailabilitySlotModal({
                     <option key={d} value={i}>{d}</option>
                   ))}
                 </select>
-                <input
-                  type="date"
-                  className={inputCls}
+                <DatePicker
                   value={startsOn}
-                  onChange={(e) => setStartsOn(e.target.value)}
-                  title="Optional: starting date"
+                  onChange={setStartsOn}
+                  aria-label="Starting date"
                 />
               </div>
             ) : (
-              <input type="date" className={inputCls} value={specificDate} onChange={(e) => setSpecificDate(e.target.value)} />
+              <DatePicker
+                value={specificDate}
+                onChange={setSpecificDate}
+                aria-label="Specific date"
+              />
             )}
           </div>
 

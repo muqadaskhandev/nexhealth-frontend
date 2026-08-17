@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CalendarClock, Clock3, Search, UserRoundX, X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import { DatePicker } from "../../components/shared/DatePicker";
 import { staffApi, mapWaitlistPatientCandidate } from "../../lib/staff-api";
 import { toastError } from "../../lib/toast";
 import type { AppointmentType, Provider, WaitlistPatientCandidate } from "../../types";
@@ -222,11 +223,11 @@ export function WaitlistCandidatePickerModal({ group, providers, appointmentType
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">From</label>
-                <input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <DatePicker value={startDate} onChange={setStartDate} aria-label="From date" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">To</label>
-                <input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <DatePicker value={endDate} onChange={setEndDate} aria-label="To date" />
               </div>
             </div>
           )}
@@ -264,11 +265,11 @@ export function WaitlistCandidatePickerModal({ group, providers, appointmentType
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">From</label>
-                  <input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                  <DatePicker value={startDate} onChange={setStartDate} aria-label="From date" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">To</label>
-                  <input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  <DatePicker value={endDate} onChange={setEndDate} aria-label="To date" />
                 </div>
               </div>
             </div>

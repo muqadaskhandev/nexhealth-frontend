@@ -13,6 +13,7 @@ export function EditPatientInfoModal({ patient, onClose, onSave }: {
     gender: patient.gender,
     phone: patient.phone,
     email: patient.email,
+    address: patient.address ?? "",
     language: patient.language,
   });
 
@@ -30,6 +31,7 @@ export function EditPatientInfoModal({ patient, onClose, onSave }: {
       gender: form.gender,
       phone: form.phone,
       email: form.email,
+      address: form.address.trim(),
       language: form.language,
     });
     onClose();
@@ -160,12 +162,14 @@ export function EditPatientInfoModal({ patient, onClose, onSave }: {
               </div>
               <div className="sm:col-span-2">
                 <label className={labelCls}>Address</label>
-                <div className={lockedCls}>
-                  <span className={patient.address ? "text-gray-600" : "text-gray-400"}>
-                    {patient.address ?? "—"}
-                  </span>
-                  <Lock size={13} className="text-gray-400" />
-                </div>
+                <input
+                  className={inputCls}
+                  type="text"
+                  placeholder="Street, city, state, ZIP"
+                  autoComplete="street-address"
+                  value={form.address}
+                  onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                />
               </div>
             </div>
           </section>

@@ -57,6 +57,15 @@ export type ApiPatient = {
   archived: boolean;
   insurance_data: Record<string, unknown>;
   notification_prefs: Record<string, unknown>;
+  chart?: {
+    medical_alerts?: unknown;
+    medical_alerts_summary?: string | null;
+    payment_preference?: string | null;
+    intake_signature?: string | null;
+    signed_on?: string | null;
+    marital_status?: string | null;
+    hipaa_consent?: boolean | null;
+  };
   initials: string;
   full_name: string;
 };
@@ -76,6 +85,8 @@ export type ApiAppointment = {
   patient_dob: string | null;
   patient_email: string;
   patient_phone: string;
+  visit_reason?: string | null;
+  visit_notes?: string | null;
 };
 
 const AVATAR_COLORS = ["#6366f1", "#0ea5e9", "#f59e0b", "#ec4899", "#10b981", "#8b5cf6"];
@@ -145,6 +156,7 @@ export function mapPatient(p: ApiPatient): Patient {
     notificationPrefs: Object.keys(p.notification_prefs || {}).length
       ? (p.notification_prefs as Patient["notificationPrefs"])
       : undefined,
+    chart: p.chart,
   };
 }
 
@@ -163,7 +175,12 @@ export function mapAppointment(a: ApiAppointment): Appointment {
       color: avatarColor(a.patient_id),
     },
     contact: { phone: a.patient_phone, email: a.patient_email },
-    details: { provider: a.provider_name, type: a.appointment_type },
+    details: {
+      provider: a.provider_name,
+      type: a.appointment_type,
+      visitReason: a.visit_reason || undefined,
+      visitNotes: a.visit_notes || undefined,
+    },
     insurance: a.insurance_status,
     forms: a.forms_status,
   };

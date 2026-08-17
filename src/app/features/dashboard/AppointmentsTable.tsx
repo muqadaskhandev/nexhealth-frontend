@@ -105,6 +105,9 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="font-medium text-foreground">{appt.details.provider}</div>
                     <div className="text-xs text-muted-foreground">{appt.details.type}</div>
+                    {appt.details.visitReason && (
+                      <div className="text-xs text-teal-700 mt-0.5">Visit: {appt.details.visitReason}</div>
+                    )}
                   </td>
                   <td className="px-2 py-3 text-center">
                     {appt.insurance === "pending" ? <Clock size={16} className="text-gray-400 mx-auto" /> : <CheckCircle2 size={16} className="text-emerald-500 mx-auto" />}

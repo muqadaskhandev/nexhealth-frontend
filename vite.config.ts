@@ -38,9 +38,9 @@ export default defineConfig({
     // Allow ngrok (and similar) hostnames when tunneling the dev server.
     allowedHosts: ['.ngrok-free.app', '.ngrok.io', '.ngrok.app'],
     proxy: {
-      '/api': { target: 'http://localhost:8000', changeOrigin: true },
-      '/health': { target: 'http://localhost:8000', changeOrigin: true },
-      '/uploads': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api': { target: 'http://localhost:8001', changeOrigin: true },
+      '/health': { target: 'http://localhost:8001', changeOrigin: true },
+      '/uploads': { target: 'http://localhost:8001', changeOrigin: true },
     },
   },
 

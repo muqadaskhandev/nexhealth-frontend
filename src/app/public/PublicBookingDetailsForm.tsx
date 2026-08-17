@@ -1,6 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import { ClipboardList, MessageSquare, Shield, User } from "lucide-react";
 import { PublicBookingFormFieldInput, validateFormField } from "./PublicBookingFormFieldInput";
+import { DatePicker } from "../components/shared/DatePicker";
+import { dobInputBounds } from "../lib/fieldFormat";
 import type { PublicBookingFormField, PublicBookingInsurance } from "../lib/public-booking-api";
 
 export type BookingFor = "self" | "child" | "other";
@@ -308,12 +310,13 @@ export function PublicBookingDetailsForm({
           <label className={labelCls}>
             Date of birth <span className="text-red-500">*</span>
           </label>
-          <input
-            type="date"
+          <DatePicker
             value={values.dob}
-            onChange={(e) => patch({ dob: e.target.value })}
-            className={fieldErrors.dob ? errInput : okInput}
-            aria-invalid={Boolean(fieldErrors.dob)}
+            min={dobInputBounds().min}
+            max={dobInputBounds().max}
+            onChange={(iso) => patch({ dob: iso })}
+            aria-label="Date of birth"
+            inputClassName={fieldErrors.dob ? "border-red-400 ring-2 ring-red-100" : ""}
           />
           <FieldError message={fieldErrors.dob} />
         </div>

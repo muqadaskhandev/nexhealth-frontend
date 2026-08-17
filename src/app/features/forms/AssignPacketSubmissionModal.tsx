@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Search, X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import { DatePicker } from "../../components/shared/DatePicker";
+import { dobInputBounds } from "../../lib/fieldFormat";
 import { staffApi } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { Patient, PublicPacketSubmission } from "../../types";
@@ -188,7 +190,13 @@ export function AssignPacketSubmissionModal({
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Date of birth</label>
-                <input type="date" value={newDob} onChange={(e) => setNewDob(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400" />
+                <DatePicker
+                  value={newDob}
+                  min={dobInputBounds().min}
+                  max={dobInputBounds().max}
+                  onChange={setNewDob}
+                  aria-label="Date of birth"
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

@@ -2,9 +2,6 @@ import { useEffect, useState } from "react";
 import {
   X,
   Search,
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
   FileText,
   Send,
   UserRound,
@@ -13,87 +10,10 @@ import {
 } from "lucide-react";
 import { Toggle } from "../../components/shared/Toggle";
 import { IconButton } from "../../components/shared/IconButton";
+import { DatePicker, dateToIsoLocal, isoToLocalDate } from "../../components/shared/DatePicker";
 import { staffApi, mapFormTemplate } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { FormPacket, FormTemplate, Patient } from "../../types";
-
-function MiniCalendar({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
-  const [viewDate, setViewDate] = useState(new Date(value));
-
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const monthName = viewDate.toLocaleString("default", { month: "long" });
-
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  function prevMonth() {
-    setViewDate(new Date(year, month - 1, 1));
-  }
-  function nextMonth() {
-    setViewDate(new Date(year, month + 1, 1));
-  }
-
-  return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 w-72 z-50">
-      <div className="flex items-center justify-between mb-3">
-        <IconButton
-          label="Previous month"
-          onClick={prevMonth}
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-        >
-          <ChevronLeft size={16} />
-        </IconButton>
-        <span className="text-sm font-semibold text-gray-900">
-          {monthName} {year}
-        </span>
-        <IconButton
-          label="Next month"
-          onClick={nextMonth}
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-        >
-          <ChevronRight size={16} />
-        </IconButton>
-      </div>
-      <div className="grid grid-cols-7 gap-0 mb-1">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-          <div key={d} className="text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400 py-1">
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-0">
-        {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`e${i}`} />
-        ))}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1;
-          const isSelected =
-            value.getDate() === day && value.getMonth() === month && value.getFullYear() === year;
-          const today = new Date();
-          const isToday =
-            today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
-          return (
-            <button
-              key={day}
-              type="button"
-              onClick={() => onChange(new Date(year, month, day))}
-              className={`w-9 h-9 flex items-center justify-center text-sm rounded-full mx-auto transition-colors ${
-                isSelected
-                  ? "bg-teal-500 text-white font-semibold shadow-sm"
-                  : isToday
-                    ? "text-teal-700 font-semibold bg-teal-50"
-                    : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {day}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 const fieldShell =
   "flex items-center gap-2.5 px-3.5 py-3 border rounded-xl bg-white transition-shadow";
@@ -106,15 +26,17 @@ export function RequestFormsModal({
   patients,
   templates,
   packets,
+  initialPatient,
 }: {
   onClose: () => void;
   onSent: () => void;
   patients: Patient[];
   templates: FormTemplate[];
   packets: FormPacket[];
+  initialPatient?: Patient | null;
 }) {
   const [patientSearch, setPatientSearch] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatient ?? null);
   const [showPatientDrop, setShowPatientDrop] = useState(false);
 
   const [formSearch, setFormSearch] = useState("");
@@ -129,7 +51,6 @@ export function RequestFormsModal({
   const defaultExpiry = new Date();
   defaultExpiry.setDate(defaultExpiry.getDate() + 7);
   const [expiryDate, setExpiryDate] = useState(defaultExpiry);
-  const [showCalendar, setShowCalendar] = useState(false);
 
   const [customizeMsg, setCustomizeMsg] = useState(false);
   const [smsMsg, setSmsMsg] = useState("");
@@ -158,13 +79,6 @@ export function RequestFormsModal({
       t.name.toLowerCase().includes(formSearch.toLowerCase()) &&
       !selectedForms.some((f) => f.id === t.id)
   );
-
-  const fmtExpiry = expiryDate.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 
   function addForm(t: FormTemplate) {
     setSelectedForms((prev) => (prev.some((f) => f.id === t.id) ? prev : [...prev, t]));
@@ -483,40 +397,28 @@ export function RequestFormsModal({
               </span>
               <label className="text-sm font-semibold text-gray-900">Expires</label>
             </div>
-            <div className="relative">
+            <div className="space-y-1.5">
+              <DatePicker
+                value={dateToIsoLocal(expiryDate)}
+                min={dateToIsoLocal(new Date())}
+                onChange={(iso) => {
+                  const next = isoToLocalDate(iso);
+                  if (next) setExpiryDate(next);
+                }}
+                aria-label="Form expiration date"
+              />
+              <p className="text-xs text-gray-400">Defaults to 7 days from today.</p>
               <button
                 type="button"
-                onClick={() => setShowCalendar((v) => !v)}
-                className={`w-full ${fieldShell} ${showCalendar ? fieldFocus : fieldIdle} justify-between text-left`}
+                onClick={() => {
+                  const next = new Date();
+                  next.setDate(next.getDate() + 7);
+                  setExpiryDate(next);
+                }}
+                className="text-xs font-semibold text-teal-600 hover:text-teal-700"
               >
-                <span className="flex items-center gap-2.5 text-sm text-gray-800">
-                  <Calendar size={16} className="text-teal-500" />
-                  {fmtExpiry}
-                </span>
-                <span className="text-xs font-semibold text-teal-600">Change</span>
+                Reset to 7 days
               </button>
-              <p className="text-xs text-gray-400 mt-1.5">Defaults to 7 days from today.</p>
-              {showCalendar && (
-                <div className="absolute top-full left-0 mt-2 z-50">
-                  <MiniCalendar
-                    value={expiryDate}
-                    onChange={(d) => {
-                      setExpiryDate(d);
-                      setShowCalendar(false);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExpiryDate(defaultExpiry);
-                      setShowCalendar(false);
-                    }}
-                    className="mt-2 text-xs font-semibold text-teal-600 hover:text-teal-700"
-                  >
-                    Reset to 7 days
-                  </button>
-                </div>
-              )}
             </div>
           </section>
 

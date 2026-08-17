@@ -4,6 +4,7 @@ import { ConfirmModal } from "../../components/shared/ConfirmModal";
 import { RequestFormsModal } from "./RequestFormsModal";
 import { ReactivateFormModal } from "./ReactivateFormModal";
 import { AgentSessionModal } from "./AgentSessionModal";
+import { FormAnswersModal } from "./FormAnswersModal";
 import { AssignPacketSubmissionModal } from "./AssignPacketSubmissionModal";
 import {
   DropdownMenu,
@@ -61,7 +62,16 @@ function openSubmissionPrintView(patientName: string, rows: { form_name: string;
         <p class="meta">Submitted ${escapeHtml(new Date(r.submitted_at).toLocaleString())}</p>
         <table>
           ${Object.entries(r.answers)
-            .map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(Array.isArray(v) ? v.join(", ") : String(v))}</td></tr>`)
+            .map(([k, v]) => {
+              const raw = Array.isArray(v) ? v.join(", ") : String(v);
+              const fileHref = typeof v === "string" && (v.startsWith("/uploads/") || /^https?:\/\//i.test(v))
+                ? (v.startsWith("/") ? `${window.location.origin}${v}` : v)
+                : null;
+              const cell = fileHref
+                ? `<a href="${escapeHtml(fileHref)}" target="_blank" rel="noreferrer">${escapeHtml(raw.split("/").pop() || raw)}</a>`
+                : escapeHtml(raw);
+              return `<tr><td>${escapeHtml(k)}</td><td>${cell}</td></tr>`;
+            })
             .join("")}
         </table>
       `
@@ -119,7 +129,8 @@ export function FormsListView({
   const [pendingSubmissions, setPendingSubmissions] = useState<PublicPacketSubmission[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
   const [assigning, setAssigning] = useState<PublicPacketSubmission | null>(null);
-  const [agentSessionView, setAgentSessionView] = useState<{ sessionId: string; patientName: string } | null>(null);
+  const [agentSessionView, setAgentSessionView] = useState<{ sessionIds: string[]; patientName: string } | null>(null);
+  const [answersView, setAnswersView] = useState<FormRequestBatch | null>(null);
   const [syncBusyKey, setSyncBusyKey] = useState<string | null>(null);
 
   function handleSyncNow(key: string, batch: FormRequestBatch) {
@@ -156,12 +167,12 @@ export function FormsListView({
     staffApi.forms.requests
       .submissions(batch.requestIds)
       .then((rows) => {
-        const agentRow = rows.find((r) => r.agent_session_id);
-        if (!agentRow?.agent_session_id) {
+        const sessionIds = [...new Set(rows.map((r) => r.agent_session_id).filter((id): id is string => Boolean(id)))];
+        if (sessionIds.length === 0) {
           toastError("No chat intake session found for this request.");
           return;
         }
-        setAgentSessionView({ sessionId: agentRow.agent_session_id, patientName: batch.patientName });
+        setAgentSessionView({ sessionIds, patientName: batch.patientName });
       })
       .catch((err: unknown) => {
         const apiErr = err as { detail?: string };
@@ -274,7 +285,7 @@ export function FormsListView({
       {/* Tab bar + filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-1 bg-white border border-border rounded-lg p-1 overflow-x-auto">
-          {(["active", "expired", "deleted", "synced", "pending", "all"] as const).map(tab => (
+          {(["all", "active", "expired", "deleted", "synced", "pending"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize flex-shrink-0 ${activeTab === tab ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
               {tab === "deleted" ? "Deleted" : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
@@ -437,6 +448,9 @@ export function FormsListView({
                         )}
                         {activeTab !== "deleted" && b.completedStatus === "complete" && (
                           <>
+                            <DropdownMenuItem onSelect={() => setAnswersView(b)}>
+                              View answers
+                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => handleViewAgentIntake(b)}>
                               View chat intake
                             </DropdownMenuItem>
@@ -525,9 +539,20 @@ export function FormsListView({
     )}
     {agentSessionView && (
       <AgentSessionModal
-        sessionId={agentSessionView.sessionId}
+        sessionIds={agentSessionView.sessionIds}
         patientName={agentSessionView.patientName}
         onClose={() => setAgentSessionView(null)}
+      />
+    )}
+    {answersView && (
+      <FormAnswersModal
+        patientName={answersView.patientName}
+        requestIds={answersView.requestIds}
+        onClose={() => setAnswersView(null)}
+        onViewChat={(sessionIds) => {
+          setAnswersView(null);
+          setAgentSessionView({ sessionIds, patientName: answersView.patientName });
+        }}
       />
     )}
     </>

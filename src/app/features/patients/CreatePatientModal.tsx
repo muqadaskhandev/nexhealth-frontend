@@ -1,125 +1,10 @@
 import { useRef, useState } from "react";
-import { X, AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Lock, Calendar } from "lucide-react";
+import { X, AlertTriangle, ChevronDown, Lock, Calendar } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
 import { IconButton } from "../../components/shared/IconButton";
+import { dobError, dobInputBounds, formatDobFromDate, formatDobInput, parseDob } from "../../lib/fieldFormat";
+import { isoToLocalDate, StyledCalendar } from "../../components/shared/DatePicker";
 import type { Patient } from "../../types";
-
-function formatDobDisplay(d: Date): string {
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${mm}/${dd}/${d.getFullYear()}`;
-}
-
-function parseDobToDate(input: string): Date | undefined {
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(input.trim());
-  if (!m) return undefined;
-  const month = Number(m[1]);
-  const day = Number(m[2]);
-  const year = Number(m[3]);
-  const d = new Date(year, month - 1, day);
-  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return undefined;
-  return d;
-}
-
-function DobCalendar({
-  value,
-  onChange,
-}: {
-  value?: Date;
-  onChange: (d: Date) => void;
-}) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const [viewDate, setViewDate] = useState(() => value ?? new Date(today.getFullYear() - 25, today.getMonth(), 1));
-
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const monthName = viewDate.toLocaleString("default", { month: "long" });
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  return (
-    <div className="w-full">
-      <div className="flex items-center justify-between mb-3">
-        <IconButton
-          label="Previous month"
-          onClick={() => setViewDate(new Date(year, month - 1, 1))}
-          className="p-1 rounded-lg hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
-        >
-          <ChevronLeft size={16} />
-        </IconButton>
-        <div className="flex items-center gap-1">
-          <span className="text-sm font-bold text-gray-900">{monthName}</span>
-          <IconButton
-            label="Previous year"
-            onClick={() => setViewDate(new Date(year - 1, month, 1))}
-            className="p-0.5 rounded hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
-          >
-            <ChevronLeft size={14} />
-          </IconButton>
-          <span className="text-sm font-bold text-teal-600 tabular-nums w-10 text-center">{year}</span>
-          <IconButton
-            label="Next year"
-            onClick={() => setViewDate(new Date(year + 1, month, 1))}
-            className="p-0.5 rounded hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
-          >
-            <ChevronRight size={14} />
-          </IconButton>
-        </div>
-        <IconButton
-          label="Next month"
-          onClick={() => setViewDate(new Date(year, month + 1, 1))}
-          className="p-1 rounded-lg hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition-colors"
-        >
-          <ChevronRight size={16} />
-        </IconButton>
-      </div>
-      <div className="grid grid-cols-7 gap-0 mb-1">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-          <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-0">
-        {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`e${i}`} />
-        ))}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1;
-          const date = new Date(year, month, day);
-          date.setHours(0, 0, 0, 0);
-          const isFuture = date > today;
-          const isSelected =
-            !!value &&
-            value.getDate() === day &&
-            value.getMonth() === month &&
-            value.getFullYear() === year;
-          const isToday = date.getTime() === today.getTime() && !isSelected;
-          return (
-            <button
-              key={day}
-              type="button"
-              disabled={isFuture}
-              onClick={() => onChange(date)}
-              className={`w-9 h-9 flex items-center justify-center text-sm rounded-full mx-auto transition-colors ${
-                isSelected
-                  ? "bg-teal-500 text-white font-bold shadow-sm"
-                  : isFuture
-                    ? "text-gray-300 cursor-not-allowed"
-                    : isToday
-                      ? "text-teal-600 font-semibold ring-1 ring-teal-300 hover:bg-teal-50"
-                      : "text-gray-700 hover:bg-teal-50 hover:text-teal-700"
-              }`}
-            >
-              {day}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 export function CreatePatientModal({
   onClose,
@@ -140,11 +25,24 @@ export function CreatePatientModal({
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dobFieldError, setDobFieldError] = useState<string | null>(null);
   const [showDobCalendar, setShowDobCalendar] = useState(false);
   const savingRef = useRef(false);
 
+  function handleDobChange(raw: string) {
+    const next = formatDobInput(raw);
+    setForm((f) => ({ ...f, dob: next }));
+    setDobFieldError(dobError(next, { required: true }));
+  }
+
   async function handleSave() {
     if (!form.firstName.trim() || !form.lastName.trim() || savingRef.current) return;
+    const dobMsg = dobError(form.dob, { required: true });
+    if (dobMsg) {
+      setDobFieldError(dobMsg);
+      setError(dobMsg);
+      return;
+    }
     savingRef.current = true;
     setSubmitting(true);
     setError(null);
@@ -152,7 +50,7 @@ export function CreatePatientModal({
       await onSave({
         firstName: form.firstName,
         lastName: form.lastName,
-        dob: form.dob || "—",
+        dob: form.dob,
         gender: form.gender || "—",
         email: form.email,
         phone: form.phone,
@@ -217,10 +115,16 @@ export function CreatePatientModal({
             <Popover open={showDobCalendar} onOpenChange={setShowDobCalendar}>
               <div className="relative">
                 <input
-                  className={inputCls}
+                  className={`${inputCls} ${dobFieldError ? "border-red-400 focus:border-red-400 focus:ring-red-100" : ""}`}
                   placeholder="MM/DD/YYYY"
+                  inputMode="numeric"
+                  autoComplete="bday"
+                  maxLength={10}
                   value={form.dob}
-                  onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))}
+                  aria-invalid={Boolean(dobFieldError)}
+                  aria-describedby="create-patient-dob-hint"
+                  onChange={(e) => handleDobChange(e.target.value)}
+                  onBlur={() => setDobFieldError(dobError(form.dob, { required: true }))}
                   style={{ paddingRight: "2.75rem" }}
                 />
                 <PopoverTrigger asChild>
@@ -237,18 +141,28 @@ export function CreatePatientModal({
               <PopoverContent
                 align="start"
                 sideOffset={8}
-                className="w-auto p-4 rounded-2xl border-gray-100 shadow-xl bg-white"
+                className="w-auto p-4 rounded-2xl border-gray-100 bg-white shadow-[0_10px_25px_-5px_rgba(0,0,0,0.14)]"
                 onOpenAutoFocus={(e) => e.preventDefault()}
               >
-                <DobCalendar
-                  value={parseDobToDate(form.dob)}
+                <StyledCalendar
+                  value={parseDob(form.dob)}
+                  min={isoToLocalDate(dobInputBounds().min) ?? undefined}
+                  max={isoToLocalDate(dobInputBounds().max) ?? undefined}
                   onChange={(d) => {
-                    setForm((f) => ({ ...f, dob: formatDobDisplay(d) }));
+                    const next = formatDobFromDate(d);
+                    setForm((f) => ({ ...f, dob: next }));
+                    setDobFieldError(null);
                     setShowDobCalendar(false);
                   }}
                 />
               </PopoverContent>
             </Popover>
+            <p
+              id="create-patient-dob-hint"
+              className={`mt-1.5 text-xs ${dobFieldError ? "text-red-600" : "text-gray-500"}`}
+            >
+              {dobFieldError || "Required. Type MM/DD/YYYY or pick a date."}
+            </p>
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1.5">Preferred language</label>

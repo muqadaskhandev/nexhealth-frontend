@@ -2,7 +2,7 @@
 // No cookies, no CSRF, no session — this is a separate trust boundary from
 // the staff app's cookie-authenticated API in lib/api.ts.
 
-import type { FormDisplayType, FormFieldType, MedicalAlertCatalog, PublicBranding, PublicForm, PublicPacketForm, PublicPacketInfo, PublicVerifyResult } from "../types";
+import type { FormDisplayType, FormFieldType, MedicalAlertCatalog, PublicBranding, PublicForm, PublicPacketForm, PublicPacketInfo, PublicUpcomingAppointment, PublicVerifyResult } from "../types";
 
 type ApiMedicalAlertCatalog = Record<string, { id: string; label: string }[]>;
 
@@ -96,7 +96,34 @@ type ApiForm = {
   prefill_answers?: Record<string, unknown>;
 };
 
-type ApiVerifyOut = ApiBranding & { patient_name: string; forms: ApiForm[] };
+type ApiAppointment = {
+  id: string;
+  starts_at: string;
+  provider_name: string;
+  appointment_type: string;
+  forms_status: string;
+  visit_reason?: string | null;
+  visit_notes?: string | null;
+};
+
+type ApiVerifyOut = ApiBranding & {
+  patient_name: string;
+  forms: ApiForm[];
+  upcoming_appointment?: ApiAppointment | null;
+};
+
+export function mapUpcomingAppointment(a: ApiAppointment | null | undefined): PublicUpcomingAppointment | null {
+  if (!a) return null;
+  return {
+    id: a.id,
+    startsAt: a.starts_at,
+    providerName: a.provider_name,
+    appointmentType: a.appointment_type,
+    formsStatus: a.forms_status,
+    visitReason: a.visit_reason || undefined,
+    visitNotes: a.visit_notes || undefined,
+  };
+}
 
 function mapBranding(b: ApiBranding): PublicBranding {
   return {
@@ -180,7 +207,12 @@ export const publicFormsApi = {
     request<ApiVerifyOut>("POST", `/api/public/forms/${token}/verify`, {
       last_name: lastName,
       dob,
-    }).then((r): PublicVerifyResult => ({ ...mapBranding(r), patientName: r.patient_name, forms: r.forms.map(mapForm) })),
+    }).then((r): PublicVerifyResult => ({
+      ...mapBranding(r),
+      patientName: r.patient_name,
+      forms: r.forms.map(mapForm),
+      upcomingAppointment: mapUpcomingAppointment(r.upcoming_appointment),
+    })),
 
   submit: (token: string, params: { lastName: string; dob: string; formRequestId: string; answers: Record<string, unknown> }) =>
     request<{ remaining: number }>("POST", `/api/public/forms/${token}/submit`, {

@@ -12,6 +12,7 @@ import {
 } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import { WaitlistCandidatePickerModal, WaitlistSendToEmpty } from "./WaitlistCandidatePickerModal";
+import { DatePicker } from "../../components/shared/DatePicker";
 import { WaitlistSendConfirmModal } from "./WaitlistSendConfirmModal";
 import type { AppointmentType, AvailabilityBlock, AvailabilitySlot, Operatory, Patient, Provider } from "../../types";
 
@@ -424,7 +425,7 @@ export function NewWaitlistRequestView({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Date</label>
-              <input type="date" className={inputCls} value={manualDate} onChange={(e) => setManualDate(e.target.value)} />
+              <DatePicker value={manualDate} onChange={setManualDate} aria-label="Slot date" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

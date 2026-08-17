@@ -4,6 +4,8 @@ import { IconButton } from "../../components/shared/IconButton";
 import { useAuth } from "../../auth/AuthContext";
 import { staffApi } from "../../lib/staff-api";
 import { PublicFieldInput, type FieldValue as SharedFieldValue } from "../../public/sharedPublicUi";
+import { DatePicker } from "../../components/shared/DatePicker";
+import { dobInputBounds, isDobField } from "../../lib/fieldFormat";
 import type { FormField, FormTemplate, MedicalAlertCatalog } from "../../types";
 
 type FieldValue = SharedFieldValue;
@@ -138,8 +140,21 @@ function FieldPreview({ field, value, onChange }: { field: FormField; value: Fie
       );
     case "address":
       return <div>{label}<input value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} placeholder="Start typing an address…" className={inputCls} /></div>;
-    case "date":
-      return <div>{label}<input type="date" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} /></div>;
+    case "date": {
+      const bounds = isDobField(field) ? dobInputBounds() : null;
+      return (
+        <div>
+          {label}
+          <DatePicker
+            value={(value as string) ?? ""}
+            min={bounds?.min}
+            max={bounds?.max}
+            onChange={(iso) => onChange(iso)}
+            aria-label={field.label || "Date"}
+          />
+        </div>
+      );
+    }
     case "email":
       return <div>{label}<input type="email" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} />{hint}</div>;
     case "number":

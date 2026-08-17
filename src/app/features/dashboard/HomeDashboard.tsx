@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { CalendarRange } from "lucide-react";
+import { DatePicker } from "../../components/shared/DatePicker";
 import { StatCards } from "./StatCards";
 import { AppointmentsTable } from "./AppointmentsTable";
 import type { Appointment, Patient, AppointmentStatus } from "../../types";
@@ -91,22 +92,20 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
-            <input
-              type="date"
+            <DatePicker
               value={fromDate}
               max={toDate || undefined}
-              onChange={(e) => setFromDate(e.target.value)}
-              className={inputCls}
+              onChange={setFromDate}
+              aria-label="From date"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
-            <input
-              type="date"
+            <DatePicker
               value={toDate}
               min={fromDate || undefined}
-              onChange={(e) => setToDate(e.target.value)}
-              className={inputCls}
+              onChange={setToDate}
+              aria-label="To date"
             />
           </div>
           <button

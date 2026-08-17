@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { Paperclip, Plus, X } from "lucide-react";
-import type { MedicalAlertCatalog, MedicalAlertCategory, PublicBranding, PublicFormField } from "../types";
+import { Calendar, Paperclip, Plus, X } from "lucide-react";
+import type { MedicalAlertCatalog, MedicalAlertCategory, PublicBranding, PublicFormField, PublicUpcomingAppointment } from "../types";
+import { dobInputBounds, isDobField } from "../lib/fieldFormat";
+import { DatePicker } from "../components/shared/DatePicker";
 
 export type MedicalAlertsValue = Partial<
-  Record<MedicalAlertCategory, { responses: Record<string, "yes" | "no">; writeIns: string[] }>
+  Record<
+    MedicalAlertCategory,
+    { responses: Record<string, "yes" | "no">; writeIns: string[]; labels?: Record<string, string> }
+  >
 >;
 
 export type FieldValue = string | boolean | string[] | MedicalAlertsValue;
@@ -24,6 +29,35 @@ export function fmtRelative(iso: string): string {
   return `${days} days`;
 }
 
+export function formatVisitWhen(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function VisitCard({ appointment }: { appointment: PublicUpcomingAppointment | null | undefined }) {
+  if (!appointment) return null;
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-teal-100 bg-teal-50/70 px-3.5 py-3 text-sm">
+      <Calendar size={16} className="text-teal-600 mt-0.5 shrink-0" />
+      <div>
+        <p className="font-semibold text-gray-900">
+          {appointment.appointmentType} with {appointment.providerName}
+        </p>
+        <p className="text-xs text-gray-600 mt-0.5">{formatVisitWhen(appointment.startsAt)}</p>
+        {appointment.visitReason && (
+          <p className="text-xs text-teal-800 mt-1">Reason: {appointment.visitReason}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function fieldValueMatches(actual: FieldValue | undefined, expected: string): boolean {
   if (actual === undefined) return false;
   if (Array.isArray(actual)) return actual.includes(expected);
@@ -35,6 +69,17 @@ export function fieldValueMatches(actual: FieldValue | undefined, expected: stri
 export function isFieldVisible(field: PublicFormField, values: Answers): boolean {
   if (!field.conditionalFieldId) return true;
   return fieldValueMatches(values[field.conditionalFieldId], field.conditionalValue);
+}
+
+export function emptyMedicalAlertsValue(
+  medicalAlerts: MedicalAlertCatalog | null | undefined
+): MedicalAlertsValue {
+  const out: MedicalAlertsValue = {};
+  if (!medicalAlerts) return out;
+  for (const category of Object.keys(medicalAlerts) as MedicalAlertCategory[]) {
+    out[category] = { responses: {}, writeIns: [] };
+  }
+  return out;
 }
 
 export function isMedicalAlertsComplete(value: MedicalAlertsValue | undefined, medicalAlerts: MedicalAlertCatalog | null | undefined): boolean {
@@ -92,7 +137,7 @@ function MedicalAlertsDropdownInput({
     (c) => (medicalAlerts?.[c]?.length ?? 0) > 0
   );
 
-  function setCategory(category: MedicalAlertCategory, patch: { responses?: Record<string, "yes" | "no">; writeIns?: string[] }) {
+  function setCategory(category: MedicalAlertCategory, patch: { responses?: Record<string, "yes" | "no">; writeIns?: string[]; labels?: Record<string, string> }) {
     const current = value?.[category] ?? { responses: {}, writeIns: [] };
     onChange({ ...value, [category]: { ...current, ...patch } });
   }
@@ -106,24 +151,31 @@ function MedicalAlertsDropdownInput({
         {categories.map((category) => {
           const entries = medicalAlerts?.[category] ?? [];
           const current = value?.[category] ?? { responses: {}, writeIns: [] };
-          const selectedIds = Object.entries(current.responses).filter(([, v]) => v === "yes").map(([id]) => id);
-          const q = (search[category] ?? "").toLowerCase();
-          const matches = entries.filter((e) => !selectedIds.includes(e.id) && (q === "" || e.label.toLowerCase().includes(q)));
+          const writeIns = current.writeIns ?? [];
+          const selectedIds = Object.entries(current.responses ?? {})
+            .filter(([, v]) => v === "yes")
+            .map(([id]) => id);
+          const q = (search[category] ?? "").toLowerCase().trim();
+          const matches = entries.filter(
+            (e) => !selectedIds.includes(e.id) && (q === "" || e.label.toLowerCase().includes(q))
+          );
           return (
             <div key={category}>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{CATEGORY_LABELS[category]}</p>
-              {selectedIds.length > 0 && (
+              {(selectedIds.length > 0 || writeIns.length > 0) && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {selectedIds.map((id) => {
                     const entry = entries.find((e) => e.id === id);
+                    const name = entry?.label ?? current.labels?.[id] ?? current.labels?.[id.toLowerCase()] ?? id;
                     return (
                       <span key={id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
-                        {entry?.label ?? id}
+                        {name}
                         <button
                           type="button"
                           onClick={() => {
                             const { [id]: _removed, ...rest } = current.responses;
-                            setCategory(category, { responses: rest });
+                            const { [id]: _label, ...restLabels } = current.labels ?? {};
+                            setCategory(category, { responses: rest, labels: restLabels });
                           }}
                         >
                           <X size={11} />
@@ -131,25 +183,36 @@ function MedicalAlertsDropdownInput({
                       </span>
                     );
                   })}
+                  {writeIns.map((text, i) => (
+                    <span key={`w-${i}`} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                      {text}
+                      <button type="button" onClick={() => setCategory(category, { writeIns: writeIns.filter((_, idx) => idx !== i) })}>
+                        <X size={11} />
+                      </button>
+                    </span>
+                  ))}
                 </div>
               )}
               <input
                 value={search[category] ?? ""}
                 onChange={(e) => setSearch((prev) => ({ ...prev, [category]: e.target.value }))}
-                placeholder={`Search and select ${CATEGORY_LABELS[category].toLowerCase()}…`}
+                placeholder={`Search ${CATEGORY_LABELS[category].toLowerCase()}…`}
                 className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 outline-none focus:border-teal-400 mb-1.5"
               />
-              {q && matches.length > 0 && (
-                <div className="border border-gray-100 rounded-lg overflow-hidden mb-2 max-h-32 overflow-y-auto">
-                  {matches.slice(0, 8).map((entry) => (
+              {matches.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {matches.slice(0, q ? 12 : 8).map((entry) => (
                     <button
                       key={entry.id}
                       type="button"
                       onClick={() => {
-                        setCategory(category, { responses: { ...current.responses, [entry.id]: "yes" } });
+                        setCategory(category, {
+                          responses: { ...current.responses, [entry.id]: "yes" },
+                          labels: { ...(current.labels ?? {}), [entry.id]: entry.label },
+                        });
                         setSearch((prev) => ({ ...prev, [category]: "" }));
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                      className="px-2.5 py-1 rounded-full text-xs font-medium border border-teal-200 bg-white text-teal-800 hover:bg-teal-50"
                     >
                       {entry.label}
                     </button>
@@ -160,7 +223,7 @@ function MedicalAlertsDropdownInput({
                 <input
                   value={writeInDraft[category] ?? ""}
                   onChange={(e) => setWriteInDraft((prev) => ({ ...prev, [category]: e.target.value }))}
-                  placeholder={`Not listed? Write it in…`}
+                  placeholder="Not listed? Write it in…"
                   className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-700 outline-none focus:border-teal-400"
                 />
                 <button
@@ -168,7 +231,7 @@ function MedicalAlertsDropdownInput({
                   onClick={() => {
                     const text = (writeInDraft[category] ?? "").trim();
                     if (!text) return;
-                    setCategory(category, { writeIns: [...current.writeIns, text] });
+                    setCategory(category, { writeIns: [...writeIns, text] });
                     setWriteInDraft((prev) => ({ ...prev, [category]: "" }));
                   }}
                   className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-teal-600 hover:text-teal-700"
@@ -176,18 +239,6 @@ function MedicalAlertsDropdownInput({
                   <Plus size={12} /> Add
                 </button>
               </div>
-              {current.writeIns.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {current.writeIns.map((text, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                      {text}
-                      <button type="button" onClick={() => setCategory(category, { writeIns: current.writeIns.filter((_, idx) => idx !== i) })}>
-                        <X size={11} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           );
         })}
@@ -212,7 +263,7 @@ function MedicalAlertsRadioInput({
     (c) => (medicalAlerts?.[c]?.length ?? 0) > 0
   );
 
-  function setCategory(category: MedicalAlertCategory, patch: { responses?: Record<string, "yes" | "no">; writeIns?: string[] }) {
+  function setCategory(category: MedicalAlertCategory, patch: { responses?: Record<string, "yes" | "no">; writeIns?: string[]; labels?: Record<string, string> }) {
     const current = value?.[category] ?? { responses: {}, writeIns: [] };
     onChange({ ...value, [category]: { ...current, ...patch } });
   }
@@ -252,7 +303,12 @@ function MedicalAlertsRadioInput({
                           type="radio"
                           name={`${field.id}-${entry.id}`}
                           checked={current.responses[entry.id] === "yes"}
-                          onChange={() => setCategory(category, { responses: { ...current.responses, [entry.id]: "yes" } })}
+                          onChange={() =>
+                            setCategory(category, {
+                              responses: { ...current.responses, [entry.id]: "yes" },
+                              labels: { ...(current.labels ?? {}), [entry.id]: entry.label },
+                            })
+                          }
                         />
                         Yes
                       </label>
@@ -261,7 +317,12 @@ function MedicalAlertsRadioInput({
                           type="radio"
                           name={`${field.id}-${entry.id}`}
                           checked={current.responses[entry.id] === "no"}
-                          onChange={() => setCategory(category, { responses: { ...current.responses, [entry.id]: "no" } })}
+                          onChange={() =>
+                            setCategory(category, {
+                              responses: { ...current.responses, [entry.id]: "no" },
+                              labels: { ...(current.labels ?? {}), [entry.id]: entry.label },
+                            })
+                          }
                         />
                         No
                       </label>
@@ -437,11 +498,33 @@ export function PublicFieldInput({
         </div>
       );
     case "date_entry":
-      return <div>{label}<input type="date" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} /></div>;
+    case "date": {
+      const bounds = isDobField(field) ? dobInputBounds() : null;
+      return (
+        <div>
+          {label}
+          <DatePicker
+            value={(value as string) ?? ""}
+            min={bounds?.min}
+            max={bounds?.max}
+            onChange={(iso) => onChange(iso)}
+            aria-label={field.label || "Date"}
+          />
+        </div>
+      );
+    }
     case "address":
-      return <div>{label}<input value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} placeholder="Start typing an address…" className={inputCls} /></div>;
-    case "date":
-      return <div>{label}<input type="date" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} /></div>;
+      return (
+        <div>
+          {label}
+          <input
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Start typing an address…"
+            className={inputCls}
+          />
+        </div>
+      );
     case "email":
       return <div>{label}<input type="email" value={(value as string) ?? ""} onChange={e => onChange(e.target.value)} className={inputCls} /></div>;
     case "number":
@@ -621,7 +704,13 @@ export function PublicFormFillCard({
   );
 }
 
-export function PublicConfirmScreen({ branding }: { branding: PublicBranding | null }) {
+export function PublicConfirmScreen({
+  branding,
+  upcomingAppointment,
+}: {
+  branding: PublicBranding | null;
+  upcomingAppointment?: PublicUpcomingAppointment | null;
+}) {
   return (
     <BrandedShell branding={branding}>
       <div className="border border-gray-200 rounded-xl overflow-hidden -mx-2 sm:mx-0">
@@ -643,6 +732,11 @@ export function PublicConfirmScreen({ branding }: { branding: PublicBranding | n
           </div>
           <p className="text-lg font-bold text-gray-900">You&apos;re all set</p>
           <p className="text-sm text-gray-500">Please reach out if you have any questions.</p>
+          {upcomingAppointment && (
+            <div className="pt-2 text-left">
+              <VisitCard appointment={upcomingAppointment} />
+            </div>
+          )}
         </div>
       </div>
     </BrandedShell>

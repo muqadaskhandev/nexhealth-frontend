@@ -8,6 +8,7 @@ import {
   PublicConfirmScreen,
   PublicFieldInput,
   PublicFormFillCard,
+  VisitCard,
   fmtRelative,
   isFieldVisible,
   validateFormPage,
@@ -229,6 +230,11 @@ export function PublicFormsPage({ token }: { token: string }) {
       <BrandedShell branding={result}>
         <h1 className="text-lg font-bold text-gray-900 text-center mb-1">Fill out your forms</h1>
         <p className="text-sm text-gray-500 text-center mb-1">Save time on the day of your appointment by completing all forms.</p>
+        {result.upcomingAppointment && (
+          <div className="my-4">
+            <VisitCard appointment={result.upcomingAppointment} />
+          </div>
+        )}
         {soonest && (
           <p className="text-sm text-gray-500 text-center mb-5">These forms will expire in {fmtRelative(soonest.expiresAt)}</p>
         )}
@@ -300,7 +306,7 @@ export function PublicFormsPage({ token }: { token: string }) {
   }
 
   if (step === "done") {
-    return <PublicConfirmScreen branding={result} />;
+    return <PublicConfirmScreen branding={result} upcomingAppointment={result?.upcomingAppointment} />;
   }
 
   return null;

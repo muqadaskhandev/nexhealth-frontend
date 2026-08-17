@@ -16,7 +16,7 @@ export type Appointment = {
   status: AppointmentStatus;
   patient: { name: string; dob: string; initials: string; color: string };
   contact: { phone: string; email: string; redacted?: boolean };
-  details: { provider: string; type: string };
+  details: { provider: string; type: string; visitReason?: string; visitNotes?: string };
   insurance: "pending" | "verified"; forms: "complete" | "incomplete";
 };
 
@@ -44,6 +44,16 @@ export type NotificationPrefs = {
   types: Record<string, { email: boolean; sms: boolean }>;
 };
 
+export type PatientChart = {
+  medical_alerts?: unknown;
+  medical_alerts_summary?: string | null;
+  payment_preference?: string | null;
+  intake_signature?: string | null;
+  signed_on?: string | null;
+  marital_status?: string | null;
+  hipaa_consent?: boolean | null;
+};
+
 export type Patient = {
   id: string; firstName: string; lastName: string; dob: string; gender: string;
   email: string; phone: string; provider: string; language: string;
@@ -51,6 +61,7 @@ export type Patient = {
   preferredName?: string; address?: string;
   insuranceData?: InsuranceData;
   notificationPrefs?: NotificationPrefs;
+  chart?: PatientChart;
 };
 
 export type ActivityType = "appointment" | "message" | "form" | "payment" | "verification" | "note";
@@ -386,9 +397,20 @@ export type PublicForm = {
   prefillAnswers: Record<string, unknown>;
 };
 
+export type PublicUpcomingAppointment = {
+  id: string;
+  startsAt: string;
+  providerName: string;
+  appointmentType: string;
+  formsStatus: string;
+  visitReason?: string;
+  visitNotes?: string;
+};
+
 export type PublicVerifyResult = PublicBranding & {
   patientName: string;
   forms: PublicForm[];
+  upcomingAppointment: PublicUpcomingAppointment | null;
 };
 
 // ── Public packet links (unauthenticated, no known patient) ────────────────────

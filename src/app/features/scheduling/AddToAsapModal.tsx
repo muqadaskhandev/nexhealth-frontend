@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
+import { DatePicker } from "../../components/shared/DatePicker";
 import { staffApi, mapAppointmentType, mapPatient, mapProvider } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
 import type { AppointmentType, Patient, Provider } from "../../types";
@@ -208,7 +209,7 @@ export function AddToAsapModal({ onClose, onAdded }: { onClose: () => void; onAd
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Date *</label>
-                      <input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} />
+                      <DatePicker value={date} onChange={setDate} aria-label="Appointment date" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Time *</label>

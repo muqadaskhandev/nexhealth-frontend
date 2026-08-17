@@ -41,8 +41,11 @@ export function parseDob(value: string): Date | null {
     return null;
   }
   const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  if (date > today) return null;
+  today.setHours(0, 0, 0, 0);
+  if (date >= today) return null;
+  const oldest = new Date(today);
+  oldest.setFullYear(oldest.getFullYear() - 120);
+  if (date < oldest) return null;
   return date;
 }
 
@@ -56,11 +59,62 @@ export function dobError(
 ): string | null {
   const trimmed = value.trim();
   if (!trimmed) return opts.required ? "Date of birth is required." : null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return dobIsoError(trimmed);
+  }
   if (digitsOnly(trimmed).length < 8) {
     return "Enter a complete date as MM/DD/YYYY.";
   }
   if (!isValidDob(trimmed)) {
-    return "Enter a valid date of birth.";
+    return "That doesn't look like a real date of birth. Please pick a date in the past (for example, 03/15/1990).";
+  }
+  return null;
+}
+
+export function isDobField(field: { id?: string; label?: string } | null | undefined): boolean {
+  if (!field) return false;
+  const blob = `${field.id ?? ""} ${field.label ?? ""}`.toLowerCase();
+  return /\bdob\b|birth/.test(blob);
+}
+
+function localIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** HTML date `min`/`max` for DOB pickers (yesterday is the latest allowed). */
+export function dobInputBounds(): { min: string; max: string } {
+  const yesterday = new Date();
+  yesterday.setHours(0, 0, 0, 0);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const oldest = new Date(yesterday);
+  oldest.setFullYear(oldest.getFullYear() - 120);
+  return { min: localIsoDate(oldest), max: localIsoDate(yesterday) };
+}
+
+export function dobIsoError(iso: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) {
+    return "That doesn't look like a real date of birth. Please pick a date in the past (for example, 03/15/1990).";
+  }
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const parsed = new Date(year, month - 1, day);
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
+    return "Please enter a valid calendar date of birth.";
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (parsed >= today) {
+    return "Date of birth cannot be today or in the future. Please pick a past date.";
+  }
+  const oldest = new Date(today);
+  oldest.setFullYear(oldest.getFullYear() - 120);
+  if (parsed < oldest) {
+    return "Please enter a realistic date of birth.";
   }
   return null;
 }

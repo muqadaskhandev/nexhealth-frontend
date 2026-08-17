@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Sparkles, MessageSquare } from "lucide-react";
 import { staffApi, type ApiAgentSessionDetail } from "../../lib/staff-api";
+import { ChatFileLink, extractFileUrl, fileForTurn, fileLabelFromUrl } from "./chatFileLinks";
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -19,30 +20,51 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
+function sessionLabel(d: ApiAgentSessionDetail, index: number): string {
+  return d.form_name || `Form ${index + 1}`;
+}
+
 export function AgentSessionModal({
-  sessionId,
+  sessionIds,
   patientName,
   onClose,
 }: {
-  sessionId: string;
+  sessionIds: string[];
   patientName: string;
   onClose: () => void;
 }) {
-  const [detail, setDetail] = useState<ApiAgentSessionDetail | null>(null);
+  const [details, setDetails] = useState<ApiAgentSessionDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"transcript" | "answers">("transcript");
+  const [activeId, setActiveId] = useState<string>("all");
 
   useEffect(() => {
-    staffApi.forms.agentSessions
-      .get(sessionId)
-      .then(setDetail)
+    const ids = [...new Set(sessionIds.filter(Boolean))];
+    if (ids.length === 0) {
+      setError("No chat intake session found for this request.");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    Promise.all(ids.map((id) => staffApi.forms.agentSessions.get(id)))
+      .then((rows) => {
+        rows.sort((a, b) => (a.form_name || "").localeCompare(b.form_name || ""));
+        setDetails(rows);
+        setActiveId(rows.length > 1 ? "all" : rows[0]?.session_id || "all");
+      })
       .catch((err: unknown) => {
         const apiErr = err as { detail?: string };
         setError(apiErr?.detail || "Could not load chat intake.");
       })
       .finally(() => setLoading(false));
-  }, [sessionId]);
+  }, [sessionIds.join("|")]);
+
+  const visible = activeId === "all" ? details : details.filter((d) => d.session_id === activeId);
+  const messageCount = visible.reduce((n, d) => n + d.turns.length, 0);
+  const answerCount = visible.reduce((n, d) => n + d.answers.length, 0);
+  const answered = visible.reduce((n, d) => n + (d.progress?.answered ?? 0), 0);
+  const total = visible.reduce((n, d) => n + (d.progress?.total ?? 0), 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
@@ -58,7 +80,7 @@ export function AgentSessionModal({
             </div>
             <p className="text-sm text-gray-500 mt-0.5">
               {patientName}
-              {detail?.form_name ? ` · ${detail.form_name}` : ""}
+              {details.length === 1 && details[0].form_name ? ` · ${details[0].form_name}` : details.length > 1 ? ` · ${details.length} forms` : ""}
             </p>
           </div>
           <button
@@ -70,6 +92,32 @@ export function AgentSessionModal({
             <X size={18} />
           </button>
         </div>
+
+        {details.length > 1 && (
+          <div className="px-5 pt-3 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveId("all")}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                activeId === "all" ? "bg-teal-500 text-white border-teal-500" : "border-gray-200 text-gray-600 hover:border-teal-300"
+              }`}
+            >
+              All forms
+            </button>
+            {details.map((d, i) => (
+              <button
+                key={d.session_id}
+                type="button"
+                onClick={() => setActiveId(d.session_id)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                  activeId === d.session_id ? "bg-teal-500 text-white border-teal-500" : "border-gray-200 text-gray-600 hover:border-teal-300"
+                }`}
+              >
+                {sessionLabel(d, i)}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="px-5 pt-3 flex gap-1 border-b border-gray-100">
           {(["transcript", "answers"] as const).map((t) => (
@@ -90,71 +138,120 @@ export function AgentSessionModal({
           {loading && <p className="text-sm text-gray-400 text-center py-8">Loading…</p>}
           {error && <p className="text-sm text-red-600 text-center py-8">{error}</p>}
 
-          {!loading && !error && detail && tab === "transcript" && (
-            <div className="space-y-3">
-              {detail.turns.length === 0 ? (
+          {!loading && !error && tab === "transcript" && (
+            <div className="space-y-8">
+              {visible.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-8">No messages in this session.</p>
               ) : (
-                detail.turns.map((t, i) => (
-                  <div
-                    key={`${t.created_at}-${i}`}
-                    className={`flex ${t.role === "patient" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap ${
-                        t.role === "patient"
-                          ? "bg-teal-500 text-white rounded-br-md"
-                          : t.role === "system"
-                            ? "bg-gray-100 text-gray-500 text-xs italic"
-                            : "bg-gray-50 border border-gray-200 text-gray-800 rounded-bl-md"
-                      }`}
-                    >
-                      <p className="text-[10px] opacity-70 mb-0.5 capitalize">{t.role}</p>
-                      {t.content}
-                    </div>
-                  </div>
+                visible.map((detail, di) => (
+                  <section key={detail.session_id}>
+                    {visible.length > 1 && (
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                        {sessionLabel(detail, di)}
+                      </p>
+                    )}
+                    {detail.turns.length === 0 ? (
+                      <p className="text-sm text-gray-400">No messages in this form.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {detail.turns.map((t, i) => {
+                          const file = fileForTurn(t, detail.answers, detail.draft_answers);
+                          return (
+                          <div
+                            key={`${detail.session_id}-${t.created_at}-${i}`}
+                            className={`flex ${t.role === "patient" ? "justify-end" : "justify-start"}`}
+                          >
+                            <div
+                              className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap ${
+                                t.role === "patient"
+                                  ? "bg-teal-500 text-white rounded-br-md"
+                                  : t.role === "system"
+                                    ? "bg-gray-100 text-gray-500 text-xs italic"
+                                    : "bg-gray-50 border border-gray-200 text-gray-800 rounded-bl-md"
+                              }`}
+                            >
+                              <p className="text-[10px] opacity-70 mb-0.5 capitalize">
+                                {t.role}
+                                {t.created_at ? ` · ${fmtTime(t.created_at)}` : ""}
+                              </p>
+                              {t.content}
+                              {file && (
+                                <span className="block mt-1.5">
+                                  <ChatFileLink href={file.url} label={file.label} dark={t.role === "patient"} />
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
                 ))
               )}
             </div>
           )}
 
-          {!loading && !error && detail && tab === "answers" && (
-            <div className="space-y-4">
-              {detail.answers.length === 0 ? (
+          {!loading && !error && tab === "answers" && (
+            <div className="space-y-8">
+              {visible.every((d) => d.answers.length === 0) ? (
                 <p className="text-sm text-gray-400 text-center py-8">No structured answers recorded.</p>
               ) : (
-                detail.answers.map((a) => (
-                  <div key={a.field_id} className="border border-gray-100 rounded-xl p-4">
-                    <p className="text-sm font-semibold text-gray-900 mb-2">{a.field_label}</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Patient said</p>
-                        <p className="text-gray-700 whitespace-pre-wrap">{a.raw_patient_text || "—"}</p>
+                visible.map((detail, di) => (
+                  <section key={detail.session_id} className="space-y-4">
+                    {visible.length > 1 && (
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        {sessionLabel(detail, di)}
+                      </p>
+                    )}
+                    {detail.answers.map((a) => (
+                      <div key={`${detail.session_id}-${a.field_id}`} className="border border-gray-100 rounded-xl p-4">
+                        <p className="text-sm font-semibold text-gray-900 mb-2">{a.field_label}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Patient said</p>
+                            {extractFileUrl(a.parsed_value) || extractFileUrl(a.raw_patient_text) ? (
+                              <ChatFileLink
+                                href={(extractFileUrl(a.parsed_value) || extractFileUrl(a.raw_patient_text))!}
+                                label={(a.raw_patient_text || "").replace(/^uploaded\s+/i, "").trim() || fileLabelFromUrl((extractFileUrl(a.parsed_value) || extractFileUrl(a.raw_patient_text))!)}
+                              />
+                            ) : (
+                              <p className="text-gray-700 whitespace-pre-wrap">{a.raw_patient_text || "—"}</p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
+                              Parsed value {a.ai_generated && <span className="text-teal-600">(AI)</span>}
+                            </p>
+                            {extractFileUrl(a.parsed_value) ? (
+                              <ChatFileLink
+                                href={extractFileUrl(a.parsed_value)!}
+                                label={(a.raw_patient_text || "").replace(/^uploaded\s+/i, "").trim() || fileLabelFromUrl(extractFileUrl(a.parsed_value)!)}
+                              />
+                            ) : (
+                              <pre className="text-gray-700 whitespace-pre-wrap font-sans text-sm">{formatValue(a.parsed_value)}</pre>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">Status: {a.status}</p>
                       </div>
-                      <div>
-                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
-                          Parsed value {a.ai_generated && <span className="text-teal-600">(AI)</span>}
-                        </p>
-                        <pre className="text-gray-700 whitespace-pre-wrap font-sans text-sm">{formatValue(a.parsed_value)}</pre>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2">Status: {a.status}</p>
-                  </div>
+                    ))}
+                  </section>
                 ))
               )}
             </div>
           )}
         </div>
 
-        {detail && (
+        {!loading && details.length > 0 && (
           <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
             <span className="flex items-center gap-1">
               <MessageSquare size={12} />
-              {detail.turns.length} messages · {detail.answers.length} fields captured
+              {messageCount} messages · {answerCount} fields captured
             </span>
-            {detail.progress && (
+            {total > 0 && (
               <span>
-                Progress: {detail.progress.answered}/{detail.progress.total}
+                Progress: {answered}/{total}
               </span>
             )}
           </div>
