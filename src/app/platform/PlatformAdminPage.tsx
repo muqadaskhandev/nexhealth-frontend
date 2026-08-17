@@ -369,21 +369,19 @@ export function PlatformAdminPage() {
   if (settingsOpen) {
     return (
       <>
+      {deletePracticeTarget && (
       <ConfirmModal
-        open={!!deletePracticeTarget}
         title="Delete practice?"
-        description={
-          deletePracticeTarget
-            ? `Delete practice "${deletePracticeTarget.name}"? This cannot be undone.`
-            : ""
-        }
+        message={`Delete practice "${deletePracticeTarget.name}"? This cannot be undone.`}
         confirmLabel="Delete practice"
-        busy={deletingPractice}
+        danger
+        submitting={deletingPractice}
         onCancel={() => {
           if (!deletingPractice) setDeletePracticeTarget(null);
         }}
         onConfirm={confirmDeletePractice}
       />
+      )}
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
@@ -596,21 +594,19 @@ export function PlatformAdminPage() {
 
   return (
     <>
+    {deletePracticeTarget && (
     <ConfirmModal
-      open={!!deletePracticeTarget}
       title="Delete practice?"
-      description={
-        deletePracticeTarget
-          ? `Delete practice "${deletePracticeTarget.name}"? This cannot be undone.`
-          : ""
-      }
+      message={`Delete practice "${deletePracticeTarget.name}"? This cannot be undone.`}
       confirmLabel="Delete practice"
-      busy={deletingPractice}
+      danger
+      submitting={deletingPractice}
       onCancel={() => {
         if (!deletingPractice) setDeletePracticeTarget(null);
       }}
       onConfirm={confirmDeletePractice}
     />
+    )}
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 min-w-0">
@@ -1329,21 +1325,19 @@ function PlatformLocationsManager({
 
   return (
     <div className="space-y-5 max-w-3xl">
+      {deleteLocationTarget && (
       <ConfirmModal
-        open={!!deleteLocationTarget}
         title="Delete location?"
-        description={
-          deleteLocationTarget
-            ? `Delete location "${deleteLocationTarget.name}"? This cannot be undone.`
-            : ""
-        }
+        message={`Delete location "${deleteLocationTarget.name}"? This cannot be undone.`}
         confirmLabel="Delete location"
-        busy={!!deletingId}
+        danger
+        submitting={!!deletingId}
         onCancel={() => {
           if (!deletingId) setDeleteLocationTarget(null);
         }}
         onConfirm={confirmDeleteLocation}
       />
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold text-gray-900">Locations</h2>
