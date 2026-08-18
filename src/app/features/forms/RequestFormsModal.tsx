@@ -20,6 +20,31 @@ const fieldShell =
 const fieldFocus = "border-teal-400 ring-2 ring-teal-100";
 const fieldIdle = "border-gray-200 hover:border-gray-300";
 
+function normalizeSearchText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function normalizeDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function dobSearchTokens(dob: string): string[] {
+  // Stored as YYYY-MM-DD but users may search as MM/DD/YYYY, DD/MM/YYYY, or raw digits.
+  const tokens = new Set<string>();
+  if (!dob) return [];
+  tokens.add(dob);
+  tokens.add(dob.replace(/-/g, "/"));
+  const parts = dob.split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    tokens.add(`${m}/${d}/${y}`);
+    tokens.add(`${d}/${m}/${y}`);
+  }
+  const digits = normalizeDigits(dob);
+  if (digits) tokens.add(digits);
+  return [...tokens];
+}
+
 export function RequestFormsModal({
   onClose,
   onSent,
@@ -60,17 +85,42 @@ export function RequestFormsModal({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const patientMatches = patients.filter((p) => {
-    if (p.archived || patientSearch.length === 0) return false;
-    const q = patientSearch.toLowerCase();
-    const name = `${p.firstName} ${p.lastName}`.toLowerCase();
-    return (
-      name.includes(q) ||
-      p.dob.includes(q) ||
-      p.email.toLowerCase().includes(q) ||
-      p.phone.replace(/\D/g, "").includes(q.replace(/\D/g, ""))
-    );
-  });
+  const patientQuery = normalizeSearchText(patientSearch);
+  const patientQueryDigits = normalizeDigits(patientSearch);
+  const patientTokens = patientQuery.length > 0 ? patientQuery.split(" ").filter(Boolean) : [];
+
+  const patientMatches = patients
+    .filter((p) => {
+      if (p.archived || patientQuery.length === 0) return false;
+
+      const fullName = normalizeSearchText(`${p.firstName} ${p.lastName}`);
+      const nameRev = normalizeSearchText(`${p.lastName} ${p.firstName}`);
+      const email = normalizeSearchText(p.email || "");
+      const phoneDigits = normalizeDigits(p.phone || "");
+      const dobTokens = dobSearchTokens(p.dob || "");
+
+      const tokenMatch = patientTokens.every(
+        (t) =>
+          fullName.includes(t) ||
+          nameRev.includes(t) ||
+          email.includes(t) ||
+          dobTokens.some((d) => normalizeSearchText(d).includes(t))
+      );
+      if (!tokenMatch) return false;
+
+      if (patientQueryDigits.length >= 3) {
+        return phoneDigits.includes(patientQueryDigits) || dobTokens.some((d) => normalizeDigits(d).includes(patientQueryDigits));
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const an = normalizeSearchText(`${a.firstName} ${a.lastName}`);
+      const bn = normalizeSearchText(`${b.firstName} ${b.lastName}`);
+      const aStarts = an.startsWith(patientQuery) ? 1 : 0;
+      const bStarts = bn.startsWith(patientQuery) ? 1 : 0;
+      if (aStarts !== bStarts) return bStarts - aStarts;
+      return an.localeCompare(bn);
+    });
 
   const sortedTemplates = [...templates].sort((a, b) => a.name.localeCompare(b.name));
   const formMatches = sortedTemplates.filter(
