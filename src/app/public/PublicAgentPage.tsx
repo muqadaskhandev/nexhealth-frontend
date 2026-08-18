@@ -274,6 +274,7 @@ export function PublicAgentPage({ token }: { token: string }) {
   const [uploading, setUploading] = useState(false);
   const [visit, setVisit] = useState<PublicUpcomingAppointment | null>(null);
   const [robotAsking, setRobotAsking] = useState(false);
+  const bookingUrl = session?.bookingUrl || verifyResult?.bookingUrl || branding?.bookingUrl || null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -479,6 +480,9 @@ export function PublicAgentPage({ token }: { token: string }) {
       });
       clearCtx(token);
       if (result.upcomingAppointment) setVisit(result.upcomingAppointment);
+      if (result.bookingUrl) {
+        setBranding((prev) => (prev ? { ...prev, bookingUrl: result.bookingUrl } : prev));
+      }
       if (result.remaining <= 0) {
         setStep("done");
       } else if (verifyResult) {
@@ -557,7 +561,7 @@ export function PublicAgentPage({ token }: { token: string }) {
           <h1 className="text-xl font-bold text-gray-900 mb-1">Hi, {verifyResult.patientName}</h1>
           <p className="text-sm text-gray-500 mb-4">Choose a form to complete via chat.</p>
           <div className="mb-5">
-            <VisitCard appointment={visit} />
+            <VisitCard appointment={visit} bookingUrl={bookingUrl} />
           </div>
           {chatError && <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 text-sm text-red-700">{chatError}</div>}
           <ul className="space-y-3">
@@ -650,7 +654,7 @@ export function PublicAgentPage({ token }: { token: string }) {
             </div>
             {visit && (
               <div className="mt-2">
-                <VisitCard appointment={visit} />
+                <VisitCard appointment={visit} bookingUrl={bookingUrl} />
               </div>
             )}
           </div>
@@ -1018,7 +1022,7 @@ export function PublicAgentPage({ token }: { token: string }) {
           <p className="text-sm text-gray-600 mb-4">
             Your intake has been submitted. The clinic will review your information.
           </p>
-          <VisitCard appointment={visit} />
+          <VisitCard appointment={visit} bookingUrl={bookingUrl} />
         </div>
       </BrandedShell>
     );

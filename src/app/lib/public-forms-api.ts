@@ -43,6 +43,7 @@ type ApiBranding = {
   location_name: string;
   location_address: string;
   location_phone: string;
+  booking_url?: string | null;
 };
 
 type ApiField = {
@@ -132,6 +133,7 @@ function mapBranding(b: ApiBranding): PublicBranding {
     locationName: b.location_name,
     locationAddress: b.location_address,
     locationPhone: b.location_phone,
+    bookingUrl: b.booking_url || undefined,
   };
 }
 
@@ -215,10 +217,18 @@ export const publicFormsApi = {
     })),
 
   submit: (token: string, params: { lastName: string; dob: string; formRequestId: string; answers: Record<string, unknown> }) =>
-    request<{ remaining: number }>("POST", `/api/public/forms/${token}/submit`, {
+    request<{
+      remaining: number;
+      upcoming_appointment?: ApiAppointment | null;
+      forms_complete_for_visit?: boolean;
+    }>("POST", `/api/public/forms/${token}/submit`, {
       last_name: params.lastName,
       dob: params.dob,
       form_request_id: params.formRequestId,
       answers: params.answers,
-    }),
+    }).then((r) => ({
+      remaining: r.remaining,
+      upcomingAppointment: mapUpcomingAppointment(r.upcoming_appointment),
+      formsCompleteForVisit: Boolean(r.forms_complete_for_visit),
+    })),
 };

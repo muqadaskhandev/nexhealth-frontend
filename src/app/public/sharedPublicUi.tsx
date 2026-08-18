@@ -40,19 +40,53 @@ export function formatVisitWhen(iso: string): string {
   });
 }
 
-export function VisitCard({ appointment }: { appointment: PublicUpcomingAppointment | null | undefined }) {
-  if (!appointment) return null;
+export function VisitCard({
+  appointment,
+  bookingUrl,
+}: {
+  appointment: PublicUpcomingAppointment | null | undefined;
+  bookingUrl?: string | null;
+}) {
+  if (appointment) {
+    const formsDone = appointment.formsStatus === "complete";
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-teal-100 bg-teal-50/70 px-3.5 py-3 text-sm">
+        <Calendar size={16} className="text-teal-600 mt-0.5 shrink-0" />
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-900">
+            {appointment.appointmentType} with {appointment.providerName}
+          </p>
+          <p className="text-xs text-gray-600 mt-0.5">{formatVisitWhen(appointment.startsAt)}</p>
+          {appointment.visitReason && (
+            <p className="text-xs text-teal-800 mt-1">Reason: {appointment.visitReason}</p>
+          )}
+          {appointment.visitNotes && (
+            <p className="text-xs text-gray-600 mt-0.5">Notes: {appointment.visitNotes}</p>
+          )}
+          <p className={`text-xs mt-1 ${formsDone ? "text-teal-700" : "text-amber-700"}`}>
+            {formsDone ? "Forms complete for this visit" : "Intake still needed for this visit"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!bookingUrl) return null;
+
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-teal-100 bg-teal-50/70 px-3.5 py-3 text-sm">
-      <Calendar size={16} className="text-teal-600 mt-0.5 shrink-0" />
-      <div>
-        <p className="font-semibold text-gray-900">
-          {appointment.appointmentType} with {appointment.providerName}
+    <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm">
+      <Calendar size={16} className="text-gray-500 mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <p className="font-semibold text-gray-900">No upcoming visit on file</p>
+        <p className="text-xs text-gray-600 mt-0.5">
+          This chat only collects your intake. To schedule, use the clinic&apos;s booking page.
         </p>
-        <p className="text-xs text-gray-600 mt-0.5">{formatVisitWhen(appointment.startsAt)}</p>
-        {appointment.visitReason && (
-          <p className="text-xs text-teal-800 mt-1">Reason: {appointment.visitReason}</p>
-        )}
+        <a
+          href={bookingUrl}
+          className="inline-flex mt-2 text-xs font-semibold text-teal-700 hover:underline"
+        >
+          Schedule online
+        </a>
       </div>
     </div>
   );
@@ -732,11 +766,9 @@ export function PublicConfirmScreen({
           </div>
           <p className="text-lg font-bold text-gray-900">You&apos;re all set</p>
           <p className="text-sm text-gray-500">Please reach out if you have any questions.</p>
-          {upcomingAppointment && (
-            <div className="pt-2 text-left">
-              <VisitCard appointment={upcomingAppointment} />
-            </div>
-          )}
+          <div className="pt-2 text-left">
+            <VisitCard appointment={upcomingAppointment} bookingUrl={branding?.bookingUrl} />
+          </div>
         </div>
       </div>
     </BrandedShell>

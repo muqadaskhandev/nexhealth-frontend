@@ -364,6 +364,7 @@ export type PublicBranding = {
   locationName: string;
   locationAddress: string;
   locationPhone: string;
+  bookingUrl?: string | null;
 };
 
 export type PublicFormField = {

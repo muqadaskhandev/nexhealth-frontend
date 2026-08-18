@@ -147,9 +147,13 @@ export function PublicFormsPage({ token }: { token: string }) {
     setSubmitting(true);
     publicFormsApi
       .submit(token, { lastName: lastName.trim(), dob, formRequestId: activeForm.requestId, answers: activeAnswers })
-      .then(() => {
+      .then((submitted) => {
         const updatedForms = result.forms.map((f, i) => (i === activeFormIdx ? { ...f, completed: true } : f));
-        const updatedResult = { ...result, forms: updatedForms };
+        const updatedResult = {
+          ...result,
+          forms: updatedForms,
+          upcomingAppointment: submitted.upcomingAppointment ?? result.upcomingAppointment,
+        };
         setResult(updatedResult);
         const nextIdx = firstIncompleteIndex(updatedForms);
         if (nextIdx === null) {
@@ -230,11 +234,11 @@ export function PublicFormsPage({ token }: { token: string }) {
       <BrandedShell branding={result}>
         <h1 className="text-lg font-bold text-gray-900 text-center mb-1">Fill out your forms</h1>
         <p className="text-sm text-gray-500 text-center mb-1">Save time on the day of your appointment by completing all forms.</p>
-        {result.upcomingAppointment && (
+        {result.upcomingAppointment || result.bookingUrl ? (
           <div className="my-4">
-            <VisitCard appointment={result.upcomingAppointment} />
+            <VisitCard appointment={result.upcomingAppointment} bookingUrl={result.bookingUrl} />
           </div>
-        )}
+        ) : null}
         {soonest && (
           <p className="text-sm text-gray-500 text-center mb-5">These forms will expire in {fmtRelative(soonest.expiresAt)}</p>
         )}

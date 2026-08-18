@@ -43,6 +43,7 @@ export type AgentSession = {
   currentField: AgentField | null;
   medicalAlerts: MedicalAlertCatalog | null;
   upcomingAppointment: PublicUpcomingAppointment | null;
+  bookingUrl: string | null;
   reviewItems: AgentReviewItem[];
 };
 
@@ -86,6 +87,8 @@ type ApiAppointment = {
   provider_name: string;
   appointment_type: string;
   forms_status: string;
+  visit_reason?: string | null;
+  visit_notes?: string | null;
 };
 
 type ApiSessionOut = {
@@ -111,6 +114,7 @@ type ApiSessionOut = {
   medical_alerts?: ApiMedicalAlertCatalog | null;
   medicalAlerts?: ApiMedicalAlertCatalog | null;
   upcoming_appointment?: ApiAppointment | null;
+  booking_url?: string | null;
   review_items?: { field_id: string; label: string; type: string; value: unknown }[];
   reviewItems?: { field_id?: string; fieldId?: string; label: string; type: string; value: unknown }[];
 };
@@ -145,6 +149,7 @@ function mapSession(r: ApiSessionOut): AgentSession {
       : null,
     medicalAlerts: mapMedicalAlerts(r.medical_alerts ?? r.medicalAlerts),
     upcomingAppointment: mapUpcomingAppointment(r.upcoming_appointment),
+    bookingUrl: r.booking_url || null,
     reviewItems: (r.review_items ?? r.reviewItems ?? []).map((item) => ({
       fieldId: item.field_id ?? item.fieldId ?? "",
       label: item.label,
@@ -235,6 +240,7 @@ export const publicAgentApi = {
       remaining: number;
       message: string;
       upcoming_appointment?: ApiAppointment | null;
+      booking_url?: string | null;
       forms_complete_for_visit?: boolean;
     }>("POST", `/api/public/agent/${token}/complete`, {
       last_name: params.lastName,
@@ -244,6 +250,7 @@ export const publicAgentApi = {
       remaining: r.remaining,
       message: r.message,
       upcomingAppointment: mapUpcomingAppointment(r.upcoming_appointment),
+      bookingUrl: r.booking_url || null,
       formsCompleteForVisit: Boolean(r.forms_complete_for_visit),
     })),
 };
