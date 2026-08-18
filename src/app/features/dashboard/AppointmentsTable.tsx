@@ -1,29 +1,52 @@
 import { useState } from "react";
-import { Search, Filter, ChevronDown, Clock, CheckCircle2, AlertCircle, Info, MoreHorizontal } from "lucide-react";
+import { Search, Filter, ChevronDown, Clock, CheckCircle2, AlertCircle, MoreHorizontal } from "lucide-react";
 import { PatientAvatar } from "../../components/shared/PatientAvatar";
 import { StatusDropdown } from "../../components/shared/StatusDropdown";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
+import { staffApi, type ApiAppointmentDetails } from "../../lib/staff-api";
+import { toastError } from "../../lib/toast";
 import type { Appointment, Patient, AppointmentStatus } from "../../types";
 
-export function AppointmentsTable({ appointments, patients, onStatusChange, onOpenPanel, onOpenDetails, showDate = false }: {
-  appointments: Appointment[]; patients: Patient[];
+export function AppointmentsTable({
+  appointments,
+  patients,
+  onStatusChange,
+  onOpenPanel,
+  onOpenDetails,
+  onViewAnswers,
+  onViewChatIntake,
+  showDate = false,
+}: {
+  appointments: Appointment[];
+  patients: Patient[];
   onStatusChange: (id: string, status: AppointmentStatus) => void | Promise<void>;
   onOpenPanel: (p: Patient) => void;
   onOpenDetails?: (appt: Appointment) => void;
+  onViewAnswers?: (appt: Appointment, details: ApiAppointmentDetails) => void;
+  onViewChatIntake?: (appt: Appointment, details: ApiAppointmentDetails) => void;
   showDate?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "unconfirmed">("all");
   const [search, setSearch] = useState("");
 
-  const filtered = appointments.filter(a => {
-    const matchesTab = activeTab === "all" || (activeTab === "confirmed" && a.status === "confirmed") || (activeTab === "unconfirmed" && a.status === "unconfirmed");
+  const filtered = appointments.filter((a) => {
+    const matchesTab =
+      activeTab === "all" ||
+      (activeTab === "confirmed" && a.status === "confirmed") ||
+      (activeTab === "unconfirmed" && a.status === "unconfirmed");
     const matchesSearch = !search || a.patient.name.toLowerCase().includes(search.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
   const counts = {
     all: appointments.length,
-    confirmed: appointments.filter(a => a.status === "confirmed").length,
-    unconfirmed: appointments.filter(a => a.status === "unconfirmed").length,
+    confirmed: appointments.filter((a) => a.status === "confirmed").length,
+    unconfirmed: appointments.filter((a) => a.status === "unconfirmed").length,
   };
 
   function formatApptDate(iso: string): string {
@@ -35,19 +58,33 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm w-full h-full min-h-[60vh] flex flex-col">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-4 py-3.5 border-b border-gray-100">
         <div className="flex items-center gap-1 flex-wrap">
-          {(["all", "confirmed", "unconfirmed"] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === tab ? "bg-gray-900 text-white shadow-sm" : "text-gray-500 hover:bg-gray-100"}`}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)} <span className={`ml-0.5 ${activeTab === tab ? "opacity-80" : "opacity-60"}`}>({counts[tab]})</span>
+          {(["all", "confirmed", "unconfirmed"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                activeTab === tab ? "bg-gray-900 text-white shadow-sm" : "text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}{" "}
+              <span className={`ml-0.5 ${activeTab === tab ? "opacity-80" : "opacity-60"}`}>({counts[tab]})</span>
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-md text-sm text-gray-400 bg-white min-w-[180px]">
             <Search size={13} />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter patients" className="outline-none bg-transparent text-gray-700 placeholder:text-gray-400 w-full min-w-0" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter patients"
+              className="outline-none bg-transparent text-gray-700 placeholder:text-gray-400 w-full min-w-0"
+            />
           </div>
           <button className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors font-medium bg-white">
-            <Filter size={13} />Filter by<ChevronDown size={13} />
+            <Filter size={13} />
+            Filter by
+            <ChevronDown size={13} />
           </button>
         </div>
       </div>
@@ -66,42 +103,47 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
                 { label: "", className: "text-right px-3 py-2.5 w-16" },
               ].map((col, i) => (
                 <th key={i} className={`text-xs font-semibold text-muted-foreground whitespace-nowrap ${col.className}`}>
-                  {col.label && <span className="inline-flex items-center gap-1">{col.label}{col.label !== "" && <ChevronDown size={11} className="opacity-50" />}</span>}
+                  {col.label && (
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      {col.label !== "" && <ChevronDown size={11} className="opacity-50" />}
+                    </span>
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {filtered.map(appt => {
-              const fullPatient = patients.find(p => p.id === appt.patientId);
+            {filtered.map((appt) => {
+              const fullPatient = patients.find((p) => p.id === appt.patientId);
               return (
-                <tr
-                  key={appt.id}
-                  onClick={() => fullPatient && onOpenPanel(fullPatient)}
-                  className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors group cursor-pointer"
-                >
+                <tr key={appt.id} className="border-b border-border last:border-0 hover:bg-gray-50/50 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {showDate && (
-                      <div className="text-xs text-muted-foreground mb-0.5">{formatApptDate(appt.startsAt)}</div>
-                    )}
+                    {showDate && <div className="text-xs text-muted-foreground mb-0.5">{formatApptDate(appt.startsAt)}</div>}
                     <div className="font-medium text-foreground">{appt.time}</div>
                     <div className="text-xs text-muted-foreground">{appt.duration}</div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <StatusDropdown appointmentId={appt.id} status={appt.status} onStatusChange={onStatusChange} />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => fullPatient && onOpenPanel(fullPatient)}
+                      className="flex items-center gap-2.5 text-left rounded-lg -mx-1 px-1 py-0.5 hover:bg-gray-100"
+                    >
                       <PatientAvatar initials={appt.patient.initials} color={appt.patient.color} />
                       <div>
                         <div className="font-medium text-foreground">{appt.patient.name}</div>
                         <div className="text-xs text-muted-foreground">{appt.patient.dob}</div>
                       </div>
-                    </div>
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <div className={`text-foreground ${appt.contact.redacted ? "blur-[4px] select-none" : ""}`}>{appt.contact.phone}</div>
-                    <div className={`text-xs text-muted-foreground ${appt.contact.redacted ? "blur-[4px] select-none" : ""}`}>{appt.contact.email}</div>
+                    <div className={`text-xs text-muted-foreground ${appt.contact.redacted ? "blur-[4px] select-none" : ""}`}>
+                      {appt.contact.email}
+                    </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="font-medium text-foreground">{appt.details.provider}</div>
@@ -111,23 +153,26 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
                     )}
                   </td>
                   <td className="px-2 py-3 text-center">
-                    {appt.insurance === "pending" ? <Clock size={16} className="text-gray-400 mx-auto" /> : <CheckCircle2 size={16} className="text-emerald-500 mx-auto" />}
+                    {appt.insurance === "pending" ? (
+                      <Clock size={16} className="text-gray-400 mx-auto" />
+                    ) : (
+                      <CheckCircle2 size={16} className="text-emerald-500 mx-auto" />
+                    )}
                   </td>
                   <td className="px-2 py-3 text-center">
-                    {appt.forms === "complete" ? <CheckCircle2 size={16} className="text-emerald-500 mx-auto" /> : <AlertCircle size={16} className="text-amber-400 mx-auto" />}
+                    {appt.forms === "complete" ? (
+                      <CheckCircle2 size={16} className="text-emerald-500 mx-auto" />
+                    ) : (
+                      <AlertCircle size={16} className="text-amber-400 mx-auto" />
+                    )}
                   </td>
-                  <td className="px-3 py-3 text-right" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        title="Details"
-                        onClick={() => onOpenDetails?.(appt)}
-                        className="p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors"
-                      >
-                        <Info size={14} />
-                      </button>
-                      <button title="More" className="p-1 rounded hover:bg-gray-200 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal size={14} /></button>
-                    </div>
+                  <td className="px-3 py-3 text-right">
+                    <AppointmentRowMenu
+                      appointment={appt}
+                      onOpenDetails={onOpenDetails}
+                      onViewAnswers={onViewAnswers}
+                      onViewChatIntake={onViewChatIntake}
+                    />
                   </td>
                 </tr>
               );
@@ -136,5 +181,72 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
         </table>
       </div>
     </div>
+  );
+}
+
+function AppointmentRowMenu({
+  appointment,
+  onOpenDetails,
+  onViewAnswers,
+  onViewChatIntake,
+}: {
+  appointment: Appointment;
+  onOpenDetails?: (appt: Appointment) => void;
+  onViewAnswers?: (appt: Appointment, details: ApiAppointmentDetails) => void;
+  onViewChatIntake?: (appt: Appointment, details: ApiAppointmentDetails) => void;
+}) {
+  const [details, setDetails] = useState<ApiAppointmentDetails | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  function loadDetails() {
+    if (details || loading) return;
+    setLoading(true);
+    staffApi.appointments
+      .details(appointment.id)
+      .then(setDetails)
+      .catch((err: unknown) => {
+        const apiErr = err as { detail?: string };
+        toastError(apiErr?.detail || "Could not load appointment actions.");
+      })
+      .finally(() => setLoading(false));
+  }
+
+  const submittedIds = (details?.forms || []).filter((f) => f.submitted_by !== "pending").map((f) => f.request_id);
+  const hasAnswers = submittedIds.length > 0 || (details?.booking_answers.length ?? 0) > 0;
+  const hasChat =
+    (details?.booking_transcript?.length ?? 0) > 0 ||
+    (details?.forms || []).some((f) => Boolean(f.agent_session_id));
+
+  return (
+    <DropdownMenu
+      onOpenChange={(open) => {
+        if (open) loadDetails();
+      }}
+    >
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="More"
+          className="w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors text-gray-400 hover:bg-gray-100 data-[state=open]:bg-teal-500 data-[state=open]:text-white"
+        >
+          <MoreHorizontal size={15} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="bottom" className="w-52 min-w-52">
+        <DropdownMenuItem onSelect={() => onOpenDetails?.(appointment)}>View details</DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={loading || !details || !hasAnswers}
+          onSelect={() => details && onViewAnswers?.(appointment, details)}
+        >
+          View answers
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={loading || !details || !hasChat}
+          onSelect={() => details && onViewChatIntake?.(appointment, details)}
+        >
+          View chat intake
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

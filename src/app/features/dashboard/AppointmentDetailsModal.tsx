@@ -4,6 +4,7 @@ import { staffApi, type ApiAppointmentDetails, type ApiAppointmentFormItem } fro
 import { AgentSessionModal } from "../forms/AgentSessionModal";
 import { FormAnswersModal } from "../forms/FormAnswersModal";
 import { ChatFileLink, extractFileUrl, fileLabelFromUrl } from "../forms/chatFileLinks";
+import { BookingChatModal } from "./BookingChatModal";
 
 function fmtWhen(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -43,10 +44,10 @@ function formatValue(value: unknown): string {
 
 function bookedViaMeta(via: string): { label: string; className: string } {
   if (via === "angelina") {
-    return { label: "Booked with Angelina", className: "bg-teal-50 text-teal-800 border-teal-200" };
+    return { label: "Chat intake", className: "bg-teal-50 text-teal-800 border-teal-200" };
   }
   if (via === "patient") {
-    return { label: "Booked by patient", className: "bg-blue-50 text-blue-800 border-blue-200" };
+    return { label: "Classic form", className: "bg-blue-50 text-blue-800 border-blue-200" };
   }
   return { label: "Added by staff", className: "bg-gray-100 text-gray-700 border-gray-200" };
 }
@@ -78,6 +79,7 @@ export function AppointmentDetailsModal({
   const [error, setError] = useState<string | null>(null);
   const [answersRequestIds, setAnswersRequestIds] = useState<string[] | null>(null);
   const [chatSessionIds, setChatSessionIds] = useState<string[] | null>(null);
+  const [showBookingChat, setShowBookingChat] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +104,8 @@ export function AppointmentDetailsModal({
 
   const via = bookedViaMeta(data?.booked_via || "staff");
   const appt = data?.appointment;
+  const transcript = data?.booking_transcript || [];
+  const submittedRequestIds = (data?.forms || []).filter((f) => f.submitted_by !== "pending").map((f) => f.request_id);
   const chatIdsFromForms = [...new Set((data?.forms || []).map((f) => f.agent_session_id).filter((id): id is string => Boolean(id)))];
 
   return (
@@ -141,12 +145,36 @@ export function AppointmentDetailsModal({
                   </p>
                   {appt.visit_reason && <p className="text-xs text-teal-700 mt-1">Visit: {appt.visit_reason}</p>}
                   {appt.visit_notes && <p className="text-xs text-gray-600 mt-1">{appt.visit_notes}</p>}
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {submittedRequestIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setAnswersRequestIds(submittedRequestIds)}
+                        className="text-xs font-semibold text-teal-700 hover:text-teal-900"
+                      >
+                        View answers
+                      </button>
+                    )}
+                    {(chatIdsFromForms.length > 0 || transcript.length > 0) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (chatIdsFromForms.length > 0) setChatSessionIds(chatIdsFromForms);
+                          else setShowBookingChat(true);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:text-teal-900"
+                      >
+                        <Sparkles size={12} />
+                        View chat intake
+                      </button>
+                    )}
+                  </div>
                 </section>
 
                 <section>
                   <div className="flex items-center gap-2 mb-2">
                     <FileText size={15} className="text-teal-600" />
-                    <h3 className="text-sm font-semibold text-gray-900">Booking form</h3>
+                    <h3 className="text-sm font-semibold text-gray-900">Submitted details</h3>
                   </div>
                   {data.booking_answers.length === 0 ? (
                     <p className="text-sm text-gray-500">No extra booking questions were answered.</p>
@@ -177,7 +205,9 @@ export function AppointmentDetailsModal({
                     <h3 className="text-sm font-semibold text-gray-900">Intake forms</h3>
                   </div>
                   {data.forms.length === 0 ? (
-                    <p className="text-sm text-gray-500">No intake forms are linked to this visit.</p>
+                    <p className="text-sm text-gray-500">
+                      No intake forms were sent for this visit yet. Those are requested after the office confirms, or from Forms.
+                    </p>
                   ) : (
                     <div className="space-y-2">
                       {data.forms.map((form) => {
@@ -283,6 +313,13 @@ export function AppointmentDetailsModal({
           sessionIds={chatSessionIds}
           patientName={patientName}
           onClose={() => setChatSessionIds(null)}
+        />
+      )}
+      {showBookingChat && (
+        <BookingChatModal
+          patientName={patientName}
+          turns={transcript}
+          onClose={() => setShowBookingChat(false)}
         />
       )}
     </>

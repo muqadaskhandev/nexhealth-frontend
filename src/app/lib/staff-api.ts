@@ -118,10 +118,16 @@ export type ApiAppointmentReceipt = {
   details: string;
 };
 
+export type ApiAppointmentChatTurn = {
+  role: string;
+  content: string;
+};
+
 export type ApiAppointmentDetails = {
   appointment: ApiAppointment;
   booked_via: "angelina" | "patient" | "staff" | string;
   booking_answers: ApiAppointmentBookingAnswer[];
+  booking_transcript: ApiAppointmentChatTurn[];
   forms: ApiAppointmentFormItem[];
   receipts: ApiAppointmentReceipt[];
 };

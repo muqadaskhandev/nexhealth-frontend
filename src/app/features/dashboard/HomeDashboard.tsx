@@ -4,9 +4,12 @@ import { DatePicker } from "../../components/shared/DatePicker";
 import { StatCards } from "./StatCards";
 import { AppointmentsTable } from "./AppointmentsTable";
 import { AppointmentDetailsModal } from "./AppointmentDetailsModal";
+import { BookingChatModal } from "./BookingChatModal";
+import { AgentSessionModal } from "../forms/AgentSessionModal";
+import { FormAnswersModal } from "../forms/FormAnswersModal";
 import type { Appointment, Patient, AppointmentStatus } from "../../types";
 import { useAuth } from "../../auth/AuthContext";
-import { staffApi, mapAppointment } from "../../lib/staff-api";
+import { staffApi, mapAppointment, type ApiAppointmentChatTurn, type ApiAppointmentDetails } from "../../lib/staff-api";
 
 function todayIso(): string {
   const d = new Date();
@@ -25,6 +28,9 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [detailsAppt, setDetailsAppt] = useState<Appointment | null>(null);
+  const [answersView, setAnswersView] = useState<{ patientName: string; requestIds: string[] } | null>(null);
+  const [chatView, setChatView] = useState<{ patientName: string; sessionIds: string[] } | null>(null);
+  const [bookingChat, setBookingChat] = useState<{ patientName: string; turns: ApiAppointmentChatTurn[] } | null>(null);
 
   const hasDateFilter = Boolean(fromDate || toDate);
   const showDateColumn = !hasDateFilter || fromDate !== toDate;
@@ -149,6 +155,23 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
           onStatusChange={handleStatusChange}
           onOpenPanel={onOpenPanel}
           onOpenDetails={setDetailsAppt}
+          onViewAnswers={(appt, details) => {
+            const ids = details.forms.filter((f) => f.submitted_by !== "pending").map((f) => f.request_id);
+            if (ids.length > 0) setAnswersView({ patientName: appt.patient.name, requestIds: ids });
+            else setDetailsAppt(appt);
+          }}
+          onViewChatIntake={(appt, details: ApiAppointmentDetails) => {
+            const sessionIds = [
+              ...new Set(details.forms.map((f) => f.agent_session_id).filter((id): id is string => Boolean(id))),
+            ];
+            if (sessionIds.length > 0) {
+              setChatView({ patientName: appt.patient.name, sessionIds });
+              return;
+            }
+            if ((details.booking_transcript || []).length > 0) {
+              setBookingChat({ patientName: appt.patient.name, turns: details.booking_transcript });
+            }
+          }}
           showDate={showDateColumn}
         />
       )}
@@ -158,6 +181,31 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
           appointmentId={detailsAppt.id}
           patientName={detailsAppt.patient.name}
           onClose={() => setDetailsAppt(null)}
+        />
+      )}
+      {answersView && (
+        <FormAnswersModal
+          patientName={answersView.patientName}
+          requestIds={answersView.requestIds}
+          onClose={() => setAnswersView(null)}
+          onViewChat={(sessionIds) => {
+            setAnswersView(null);
+            setChatView({ patientName: answersView.patientName, sessionIds });
+          }}
+        />
+      )}
+      {chatView && (
+        <AgentSessionModal
+          sessionIds={chatView.sessionIds}
+          patientName={chatView.patientName}
+          onClose={() => setChatView(null)}
+        />
+      )}
+      {bookingChat && (
+        <BookingChatModal
+          patientName={bookingChat.patientName}
+          turns={bookingChat.turns}
+          onClose={() => setBookingChat(null)}
         />
       )}
     </div>

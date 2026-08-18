@@ -587,6 +587,7 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
           utm_campaign: utmCampaign,
           form_answers: formAnswers,
           booking_channel: "agent",
+          booking_transcript: messages.map((m) => ({ role: m.role, content: m.content })),
         },
         lid
       );
