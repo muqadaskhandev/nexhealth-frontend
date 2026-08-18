@@ -3,6 +3,7 @@ import { ClipboardList, MessageSquare, Shield, User } from "lucide-react";
 import { PublicBookingFormFieldInput, validateFormField } from "./PublicBookingFormFieldInput";
 import { DatePicker } from "../components/shared/DatePicker";
 import { dobInputBounds } from "../lib/fieldFormat";
+import { bookingEmailError, bookingPhoneError, bookingZipError, personNameError } from "../lib/bookingFieldGuards";
 import type { PublicBookingFormField, PublicBookingInsurance } from "../lib/public-booking-api";
 
 export type BookingFor = "self" | "child" | "other";
@@ -92,31 +93,48 @@ export function validateBookingDetails(
 ): { ok: boolean; errors: FieldErrors; message: string | null } {
   const errors: FieldErrors = {};
 
-  if (!values.firstName.trim()) errors.firstName = "First name is required.";
-  if (!values.lastName.trim()) errors.lastName = "Last name is required.";
+  const firstNameErr = personNameError(values.firstName, "first name");
+  if (firstNameErr) errors.firstName = firstNameErr;
+  const lastNameErr = personNameError(values.lastName, "last name");
+  if (lastNameErr) errors.lastName = lastNameErr;
 
   if (patientKind === "existing") {
     if (!values.dob) errors.dob = "Date of birth is required.";
     if (!values.email.trim() && !values.phone.trim()) {
       errors.email = "Enter email or phone.";
       errors.phone = "Enter email or phone.";
+    } else {
+      const em = bookingEmailError(values.email, false);
+      const ph = bookingPhoneError(values.phone, false);
+      if (values.email.trim() && em) errors.email = em;
+      if (values.phone.trim() && ph) errors.phone = ph;
     }
   }
 
   if (patientKind === "new") {
-    if (!values.email.trim()) errors.email = "Email is required.";
-    if (!values.phone.trim()) errors.phone = "Phone is required.";
+    const em = bookingEmailError(values.email, true);
+    if (em) errors.email = em;
+    const ph = bookingPhoneError(values.phone, true);
+    if (ph) errors.phone = ph;
     if (!values.dob) errors.dob = "Date of birth is required.";
-    if (!values.zipCode.trim()) errors.zipCode = "Zip code is required.";
+    const zip = bookingZipError(values.zipCode, true);
+    if (zip) errors.zipCode = zip;
     if (!values.gender) errors.gender = "Please select legal sex.";
   }
 
   if (bookingFor !== "self") {
-    if (!values.guarantorFirstName.trim()) errors.guarantorFirstName = "Guarantor first name is required.";
-    if (!values.guarantorLastName.trim()) errors.guarantorLastName = "Guarantor last name is required.";
+    const gf = personNameError(values.guarantorFirstName, "guarantor first name");
+    if (gf) errors.guarantorFirstName = gf;
+    const gl = personNameError(values.guarantorLastName, "guarantor last name");
+    if (gl) errors.guarantorLastName = gl;
     if (!values.guarantorEmail.trim() && !values.guarantorPhone.trim()) {
       errors.guarantorEmail = "Enter guarantor email or phone.";
       errors.guarantorPhone = "Enter guarantor email or phone.";
+    } else {
+      const em = bookingEmailError(values.guarantorEmail, false);
+      const ph = bookingPhoneError(values.guarantorPhone, false);
+      if (values.guarantorEmail.trim() && em) errors.guarantorEmail = em;
+      if (values.guarantorPhone.trim() && ph) errors.guarantorPhone = ph;
     }
   }
 

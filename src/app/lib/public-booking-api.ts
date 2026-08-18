@@ -279,7 +279,7 @@ export const publicBookingApi = {
     },
     lid?: string
   ) =>
-    request<{ message: string; appointment_id: string; confirmation: string }>(
+    request<{ message: string; appointment_id: string; confirmation: string; email_sent?: boolean; email?: string }>(
       "POST",
       `/api/public/booking/${slug}/book${qs({ lid })}`,
       body

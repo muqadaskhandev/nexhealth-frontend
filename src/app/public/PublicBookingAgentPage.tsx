@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { CheckCircle2, Send } from "lucide-react";
 import {
   publicBookingApi,
   type PublicApiError,
@@ -11,9 +11,15 @@ import {
   type PublicBookingTimeSlot,
   type PublicBookingType,
 } from "../lib/public-booking-api";
-import { validateFormField } from "./PublicBookingFormFieldInput";
+import { validateFormField, isBookingDateField } from "./PublicBookingFormFieldInput";
 import { DatePicker } from "../components/shared/DatePicker";
 import { dobInputBounds, dobIsoError } from "../lib/fieldFormat";
+import {
+  bookingEmailError,
+  bookingPhoneError,
+  bookingZipError,
+  personNameError,
+} from "../lib/bookingFieldGuards";
 import { BrandedShell } from "./sharedPublicUi";
 import { AgentSpokenText, ChatRobot, ChatRobotTyping } from "./ChatRobot";
 import type { PublicBranding } from "../types";
@@ -85,6 +91,12 @@ function classicBookingHref(slug: string): string {
   u.pathname = `/appt/${slug}`;
   u.searchParams.delete("mode");
   return `${u.pathname}${u.search}`;
+}
+
+function formatIsoDisplay(iso: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return iso;
+  return `${m[2]}/${m[3]}/${m[1]}`;
 }
 
 function parseContact(text: string): { email: string; phone: string } {
@@ -201,6 +213,8 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
   const [detailQueue, setDetailQueue] = useState<DetailKey[]>([]);
   const [detailIndex, setDetailIndex] = useState(0);
   const [confirmation, setConfirmation] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const threadRef = useRef<HTMLDivElement>(null);
@@ -402,12 +416,14 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
   function applyDetail(key: DetailKey, raw: string): string | null {
     const value = raw.trim();
     if (key === "firstName") {
-      if (!value) return "Please enter a first name.";
+      const err = personNameError(value, "first name");
+      if (err) return err;
       setFirstName(value);
       return null;
     }
     if (key === "lastName") {
-      if (!value) return "Please enter a last name.";
+      const err = personNameError(value, "last name");
+      if (err) return err;
       setLastName(value);
       return null;
     }
@@ -420,22 +436,33 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
     if (key === "contact") {
       const parsed = parseContact(value);
       if (!parsed.email && !parsed.phone) return "Enter the email or phone we have on file.";
+      if (parsed.email) {
+        const err = bookingEmailError(parsed.email, false);
+        if (err) return err;
+      }
+      if (parsed.phone) {
+        const err = bookingPhoneError(parsed.phone, false);
+        if (err) return err;
+      }
       setEmail(parsed.email);
       setPhone(parsed.phone);
       return null;
     }
     if (key === "email") {
-      if (!looksLikeEmail(value)) return "Please enter a valid email address.";
+      const err = bookingEmailError(value, true);
+      if (err) return err;
       setEmail(value);
       return null;
     }
     if (key === "phone") {
-      if (value.replace(/\D/g, "").length < 7) return "Please enter a valid phone number.";
+      const err = bookingPhoneError(value, true);
+      if (err) return err;
       setPhone(value);
       return null;
     }
     if (key === "zip") {
-      if (!value) return "Please enter a zip code.";
+      const err = bookingZipError(value, true);
+      if (err) return err;
       setZipCode(value);
       return null;
     }
@@ -445,18 +472,28 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
       return null;
     }
     if (key === "gFirst") {
-      if (!value) return "Please enter the guarantor's first name.";
+      const err = personNameError(value, "guarantor first name");
+      if (err) return err;
       setGuarantorFirstName(value);
       return null;
     }
     if (key === "gLast") {
-      if (!value) return "Please enter the guarantor's last name.";
+      const err = personNameError(value, "guarantor last name");
+      if (err) return err;
       setGuarantorLastName(value);
       return null;
     }
     if (key === "gContact") {
       const parsed = parseContact(value);
       if (!parsed.email && !parsed.phone) return "Enter the guarantor's email or phone.";
+      if (parsed.email) {
+        const err = bookingEmailError(parsed.email, false);
+        if (err) return err;
+      }
+      if (parsed.phone) {
+        const err = bookingPhoneError(parsed.phone, false);
+        if (err) return err;
+      }
       setGuarantorEmail(parsed.email);
       setGuarantorPhone(parsed.phone);
       return null;
@@ -553,14 +590,9 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
         lid
       );
       setConfirmation(result.confirmation);
-      ask(`You're all set. Confirmation ${result.confirmation}.`, "done");
-      const redirect = info?.booking_redirect_url?.trim();
-      if (redirect) {
-        const href = redirect.startsWith("http") ? redirect : `https://${redirect}`;
-        window.setTimeout(() => {
-          window.location.href = href;
-        }, 4000);
-      }
+      setConfirmationEmail(result.email || email.trim());
+      setShowConfirmModal(true);
+      ask("You're all set. Your appointment is booked. The office will confirm it next.", "done");
     } catch (err: unknown) {
       if (isPatientNotFound(err)) {
         ask(
@@ -568,7 +600,17 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
           "notFound"
         );
       } else {
-        setError(apiErrorMessage(err, "Could not complete your booking — please try again."));
+        const msg = apiErrorMessage(err, "Could not complete your booking — please try again.");
+        if (/no longer available/i.test(msg) && typeId) {
+          setSelectedSlot(null);
+          setSelectedDay("");
+          setError(null);
+          setSubmitting(false);
+          push("agent", "That time was just taken. Let's pick another day from the openings here in chat.");
+          void loadOpeningsThenAsk(typeId);
+          return;
+        }
+        setError(msg);
         setPhase("confirm");
         setBusy(false);
       }
@@ -609,6 +651,7 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
     currentDetail === "insurance" ||
     currentDetail === "consent" ||
     currentDetail === "dob" ||
+    Boolean(currentFormField && isBookingDateField(currentFormField)) ||
     currentFormField?.field_type === "single_select" ||
     currentFormField?.field_type === "multi_select" ||
     currentFormField?.field_type === "payment";
@@ -679,8 +722,8 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
 
         {phase === "done" && (
           <div className="p-4 border-t border-gray-100 bg-white text-center space-y-1">
-            <p className="text-sm font-semibold text-gray-900">Confirmation {confirmation}</p>
-            <p className="text-xs text-gray-500">We'll see you then.</p>
+            <p className="text-sm font-semibold text-gray-900">This chat is closed.</p>
+            <p className="text-xs text-gray-500">Your appointment is booked. The office will confirm it.</p>
           </div>
         )}
 
@@ -810,6 +853,24 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
               </div>
             )}
 
+            {phase === "details" && currentFormField && isBookingDateField(currentFormField) && (
+              <div className="space-y-2">
+                <DatePicker
+                  value={input}
+                  onChange={setInput}
+                  aria-label={currentFormField.label}
+                />
+                <button
+                  type="button"
+                  disabled={busy || (currentFormField.required && !input)}
+                  className="w-full py-2.5 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-600 disabled:opacity-60"
+                  onClick={() => submitDetail(input, formatIsoDisplay(input) || "Skip")}
+                >
+                  Continue
+                </button>
+              </div>
+            )}
+
             {phase === "details" && currentFormField?.field_type === "single_select" && (
               <div className="flex flex-wrap gap-2">
                 {currentFormField.options.map((opt) => (
@@ -868,7 +929,7 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
                   {location && <p>{location.name}</p>}
                   <p className="font-medium">{selectedType.name}</p>
                   <p>
-                    {formatDay(selectedDay)} · {selectedSlot.label}
+                    {formatDay(selectedSlot.starts_at.slice(0, 10))} · {selectedSlot.label}
                     {selectedSlot.provider_name ? ` · ${selectedSlot.provider_name}` : ""}
                   </p>
                   <p>
@@ -881,7 +942,7 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
                   className="w-full py-3 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-600 disabled:opacity-60"
                   onClick={() => void confirmBook()}
                 >
-                  {submitting ? "Booking…" : "Confirm appointment"}
+                  {submitting ? "Booking…" : "Submit booking"}
                 </button>
               </div>
             )}
@@ -942,6 +1003,45 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
           </div>
         )}
       </div>
+      {showConfirmModal && selectedSlot && selectedType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 text-center space-y-4">
+            <CheckCircle2 size={48} className="mx-auto text-teal-500" />
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Appointment booked</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {confirmationEmail
+                  ? `We'll email ${confirmationEmail} when the office confirms this visit.`
+                  : "The office will confirm this appointment. You can close this chat."}
+              </p>
+            </div>
+            <div className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3 text-left text-sm text-teal-900 space-y-0.5">
+              {location && <p className="font-medium">{location.name}</p>}
+              <p className="font-semibold">{selectedType.name}</p>
+              <p>
+                {formatDay(selectedSlot.starts_at.slice(0, 10))} · {selectedSlot.label}
+                {selectedSlot.provider_name ? ` · ${selectedSlot.provider_name}` : ""}
+              </p>
+              <p>
+                {firstName} {lastName}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="w-full py-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl"
+              onClick={() => {
+                setShowConfirmModal(false);
+                const redirect = info?.booking_redirect_url?.trim();
+                if (redirect) {
+                  window.location.href = redirect.startsWith("http") ? redirect : `https://${redirect}`;
+                }
+              }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </BrandedShell>
   );
 }

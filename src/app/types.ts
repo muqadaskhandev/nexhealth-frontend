@@ -271,7 +271,7 @@ export type AvailabilityBlock = {
 
 // ── Scheduling: custom booking form fields & insurance ────────────────────────
 
-export type BookingFieldType = "text" | "number" | "note" | "single_select" | "multi_select" | "payment";
+export type BookingFieldType = "text" | "number" | "date" | "note" | "single_select" | "multi_select" | "payment";
 
 export type BookingFormField = {
   id: string;

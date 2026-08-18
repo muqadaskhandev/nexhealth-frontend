@@ -1,4 +1,25 @@
 import type { PublicBookingFormField } from "../lib/public-booking-api";
+import { DatePicker } from "../components/shared/DatePicker";
+import { freeTextError } from "../lib/bookingFieldGuards";
+
+export function isBookingDateField(field: Pick<PublicBookingFormField, "field_type" | "label">): boolean {
+  if (field.field_type === "date") return true;
+  if (field.field_type !== "number" && field.field_type !== "text") return false;
+  return /\b(date|when|calendar|happened|dob|birth)\b/i.test(field.label);
+}
+
+function isoCalendarDateError(iso: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return "Please pick a date from the calendar.";
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const parsed = new Date(year, month - 1, day);
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
+    return "Please pick a valid calendar date.";
+  }
+  return null;
+}
 
 type PaymentAnswer = {
   cardholder_name?: string;
@@ -37,7 +58,7 @@ export function PublicBookingFormFieldInput({
     </label>
   );
 
-  if (field.field_type === "number") {
+  if (field.field_type === "number" && !isBookingDateField(field)) {
     return (
       <div>
         {label}
@@ -48,6 +69,20 @@ export function PublicBookingFormFieldInput({
           onChange={(e) => onChange(e.target.value)}
           className={inputCls}
           placeholder="0"
+        />
+      </div>
+    );
+  }
+
+  if (isBookingDateField(field)) {
+    return (
+      <div>
+        {label}
+        <DatePicker
+          value={(value as string) ?? ""}
+          onChange={(iso) => onChange(iso)}
+          aria-label={field.label}
+          inputClassName={invalid ? "border-red-400 ring-2 ring-red-100" : ""}
         />
       </div>
     );
@@ -166,6 +201,12 @@ function isValidNumber(value: unknown): boolean {
 export function validateFormField(field: PublicBookingFormField, value: unknown): string | null {
   if (field.field_type === "note") return null;
 
+  if (isBookingDateField(field)) {
+    const text = String(value ?? "").trim();
+    if (!text) return field.required ? `${field.label} is required.` : null;
+    return isoCalendarDateError(text);
+  }
+
   if (field.field_type === "number") {
     const text = String(value ?? "").trim();
     if (!text) {
@@ -175,11 +216,16 @@ export function validateFormField(field: PublicBookingFormField, value: unknown)
     return null;
   }
 
-  if (!field.required) return null;
-
   if (field.field_type === "multi_select") {
+    if (!field.required) return null;
     return Array.isArray(value) && value.length > 0 ? null : `${field.label} is required.`;
   }
+  if (field.field_type === "single_select") {
+    const text = String(value ?? "").trim();
+    if (!text) return field.required ? `${field.label} is required.` : null;
+    return null;
+  }
+
   if (field.field_type === "payment") {
     const payment = (value as PaymentAnswer) ?? {};
     if (!payment.authorized) return `${field.label} is required.`;
@@ -188,5 +234,5 @@ export function validateFormField(field: PublicBookingFormField, value: unknown)
     }
     return null;
   }
-  return String(value ?? "").trim() ? null : `${field.label} is required.`;
+  return freeTextError(String(value ?? ""), field.label, field.required);
 }

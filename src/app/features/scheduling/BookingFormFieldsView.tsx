@@ -10,6 +10,7 @@ import type { BookingFormField } from "../../types";
 const TYPE_LABELS: Record<string, string> = {
   text: "Text",
   number: "Number",
+  date: "Date",
   note: "Note",
   single_select: "Single select",
   multi_select: "Multi select",

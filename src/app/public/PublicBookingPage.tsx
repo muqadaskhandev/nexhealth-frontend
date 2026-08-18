@@ -710,7 +710,11 @@ export function PublicBookingPage({ slug }: { slug: string }) {
             <CheckCircle2 size={40} className="mx-auto text-teal-500" />
             <h2 className="text-lg font-bold text-gray-900">You're all set!</h2>
             <p className="text-sm text-gray-600">{confirmation}</p>
-            <p className="text-xs text-gray-400">A confirmation will be sent to {email}.</p>
+            <p className="text-xs text-gray-400">
+              {email
+                ? `We'll email ${email} when the office confirms this appointment.`
+                : "The office will confirm this appointment."}
+            </p>
             {info.booking_redirect_url?.trim() && (
               <div className="pt-2 space-y-2">
                 <p className="text-xs text-gray-500">You&apos;ll be redirected to our website shortly…</p>
