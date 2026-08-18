@@ -586,6 +586,7 @@ export function PublicBookingAgentPage({ slug }: { slug: string }) {
           utm_medium: utmMedium,
           utm_campaign: utmCampaign,
           form_answers: formAnswers,
+          booking_channel: "agent",
         },
         lid
       );

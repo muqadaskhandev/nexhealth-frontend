@@ -3,6 +3,7 @@ import { CalendarRange } from "lucide-react";
 import { DatePicker } from "../../components/shared/DatePicker";
 import { StatCards } from "./StatCards";
 import { AppointmentsTable } from "./AppointmentsTable";
+import { AppointmentDetailsModal } from "./AppointmentDetailsModal";
 import type { Appointment, Patient, AppointmentStatus } from "../../types";
 import { useAuth } from "../../auth/AuthContext";
 import { staffApi, mapAppointment } from "../../lib/staff-api";
@@ -23,6 +24,7 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
   const [rangeAppointments, setRangeAppointments] = useState<Appointment[]>(appointments);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [detailsAppt, setDetailsAppt] = useState<Appointment | null>(null);
 
   const hasDateFilter = Boolean(fromDate || toDate);
   const showDateColumn = !hasDateFilter || fromDate !== toDate;
@@ -146,10 +148,18 @@ export function HomeDashboard({ appointments, patients, onStatusChange, onOpenPa
           patients={patients}
           onStatusChange={handleStatusChange}
           onOpenPanel={onOpenPanel}
+          onOpenDetails={setDetailsAppt}
           showDate={showDateColumn}
         />
       )}
       </div>
+      {detailsAppt && (
+        <AppointmentDetailsModal
+          appointmentId={detailsAppt.id}
+          patientName={detailsAppt.patient.name}
+          onClose={() => setDetailsAppt(null)}
+        />
+      )}
     </div>
   );
 }

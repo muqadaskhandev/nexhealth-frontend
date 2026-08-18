@@ -4,10 +4,11 @@ import { PatientAvatar } from "../../components/shared/PatientAvatar";
 import { StatusDropdown } from "../../components/shared/StatusDropdown";
 import type { Appointment, Patient, AppointmentStatus } from "../../types";
 
-export function AppointmentsTable({ appointments, patients, onStatusChange, onOpenPanel, showDate = false }: {
+export function AppointmentsTable({ appointments, patients, onStatusChange, onOpenPanel, onOpenDetails, showDate = false }: {
   appointments: Appointment[]; patients: Patient[];
   onStatusChange: (id: string, status: AppointmentStatus) => void | Promise<void>;
   onOpenPanel: (p: Patient) => void;
+  onOpenDetails?: (appt: Appointment) => void;
   showDate?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"all" | "confirmed" | "unconfirmed">("all");
@@ -116,9 +117,16 @@ export function AppointmentsTable({ appointments, patients, onStatusChange, onOp
                     {appt.forms === "complete" ? <CheckCircle2 size={16} className="text-emerald-500 mx-auto" /> : <AlertCircle size={16} className="text-amber-400 mx-auto" />}
                   </td>
                   <td className="px-3 py-3 text-right" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button title="Details" className="p-1 rounded hover:bg-gray-200 text-gray-400 transition-colors"><Info size={14} /></button>
-                      <button title="More" className="p-1 rounded hover:bg-gray-200 text-gray-400 transition-colors"><MoreHorizontal size={14} /></button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        title="Details"
+                        onClick={() => onOpenDetails?.(appt)}
+                        className="p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors"
+                      >
+                        <Info size={14} />
+                      </button>
+                      <button title="More" className="p-1 rounded hover:bg-gray-200 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal size={14} /></button>
                     </div>
                   </td>
                 </tr>

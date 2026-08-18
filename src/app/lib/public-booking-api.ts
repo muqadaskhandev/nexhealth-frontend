@@ -276,6 +276,7 @@ export const publicBookingApi = {
       utm_medium?: string;
       utm_campaign?: string;
       form_answers?: Record<string, unknown>;
+      booking_channel?: "form" | "agent";
     },
     lid?: string
   ) =>

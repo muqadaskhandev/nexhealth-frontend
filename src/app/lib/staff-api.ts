@@ -89,6 +89,43 @@ export type ApiAppointment = {
   visit_notes?: string | null;
 };
 
+export type ApiAppointmentBookingAnswer = {
+  id: string;
+  label: string;
+  field_type: string;
+  value: unknown;
+};
+
+export type ApiAppointmentFormItem = {
+  request_id: string;
+  form_name: string;
+  status: string;
+  submitted_at: string | null;
+  submitted_by: "angelina" | "patient" | "pending" | string;
+  intake_source: string | null;
+  ai_generated: boolean;
+  agent_session_id: string | null;
+  answers: Record<string, unknown>;
+};
+
+export type ApiAppointmentReceipt = {
+  kind: string;
+  amount: string | null;
+  description: string;
+  status: string;
+  created_at: string | null;
+  paid_at: string | null;
+  details: string;
+};
+
+export type ApiAppointmentDetails = {
+  appointment: ApiAppointment;
+  booked_via: "angelina" | "patient" | "staff" | string;
+  booking_answers: ApiAppointmentBookingAnswer[];
+  forms: ApiAppointmentFormItem[];
+  receipts: ApiAppointmentReceipt[];
+};
+
 const AVATAR_COLORS = ["#6366f1", "#0ea5e9", "#f59e0b", "#ec4899", "#10b981", "#8b5cf6"];
 
 function avatarColor(id: string): string {
@@ -745,6 +782,7 @@ export const staffApi = {
     },
     update: (id: string, body: Record<string, unknown>) =>
       api.patch<ApiAppointment>(`/api/appointments/${id}`, body),
+    details: (id: string) => api.get<ApiAppointmentDetails>(`/api/appointments/${id}/details`),
   },
   waitlist: {
     list: () => api.get<ApiWaitlistEntry[]>("/api/waitlist"),

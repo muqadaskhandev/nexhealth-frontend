@@ -65,9 +65,16 @@ async function request<T>(
 ): Promise<T> {
   let res = await raw(method, path, body);
 
-  // One transparent refresh + retry on auth failure (but never for the auth
-  // endpoints themselves, to avoid loops).
-  if (res.status === 401 && retry && !path.startsWith("/api/auth/")) {
+  // One transparent refresh + retry on auth failure. Skip only endpoints that
+  // would loop (login/refresh/logout) — totp/setup must still refresh.
+  const skipRefresh =
+    path.startsWith("/api/auth/login") ||
+    path.startsWith("/api/auth/refresh") ||
+    path.startsWith("/api/auth/logout") ||
+    path.startsWith("/api/auth/forgot-password") ||
+    path.startsWith("/api/auth/reset-password") ||
+    path.startsWith("/api/auth/totp/verify");
+  if (res.status === 401 && retry && !skipRefresh) {
     const refreshed = await raw("POST", "/api/auth/refresh");
     if (refreshed.ok) res = await raw(method, path, body);
   }
@@ -87,7 +94,14 @@ async function requestFormData<T>(
 ): Promise<T> {
   let res = await raw(method, path, undefined, { formData: buildForm() });
 
-  if (res.status === 401 && retry && !path.startsWith("/api/auth/")) {
+  const skipRefresh =
+    path.startsWith("/api/auth/login") ||
+    path.startsWith("/api/auth/refresh") ||
+    path.startsWith("/api/auth/logout") ||
+    path.startsWith("/api/auth/forgot-password") ||
+    path.startsWith("/api/auth/reset-password") ||
+    path.startsWith("/api/auth/totp/verify");
+  if (res.status === 401 && retry && !skipRefresh) {
     const refreshed = await raw("POST", "/api/auth/refresh");
     // Rebuild FormData — a body can only be consumed once.
     if (refreshed.ok) res = await raw(method, path, undefined, { formData: buildForm() });

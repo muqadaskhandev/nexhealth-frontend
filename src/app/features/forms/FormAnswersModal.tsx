@@ -86,7 +86,7 @@ export function FormAnswersModal({
   const agentSessionIds = [...new Set(rows.map((r) => r.agent_session_id).filter((id): id is string => Boolean(id)))];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div
         className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -120,7 +120,9 @@ export function FormAnswersModal({
               <h3 className="text-sm font-semibold text-gray-900">{row.form_name}</h3>
               <p className="text-xs text-gray-500 mb-2">
                 Submitted {fmtTime(row.submitted_at)}
-                {row.intake_source === "agent" ? " · Chat intake" : ""}
+                {row.intake_source === "agent" || row.ai_generated
+                  ? " · Submitted by Angelina"
+                  : " · Submitted by patient"}
               </p>
               <dl className="rounded-xl border border-gray-100 divide-y divide-gray-100">
                 {Object.entries(row.answers || {}).length === 0 ? (
