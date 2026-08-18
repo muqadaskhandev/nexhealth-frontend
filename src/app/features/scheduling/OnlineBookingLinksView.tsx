@@ -8,6 +8,7 @@ import {
   buildBookingThankYouUrl,
   buildConversionBookingLink,
   buildConversionEmbedCode,
+  type BookingLinkMode,
 } from "../../lib/public-booking-api";
 import { staffApi, mapAppointmentType, mapProvider } from "../../lib/staff-api";
 import { toastError, toastSuccess } from "../../lib/toast";
@@ -58,6 +59,7 @@ export function OnlineBookingLinksView({
   const [locationIds, setLocationIds] = useState<string[]>([]);
   const [providerIds, setProviderIds] = useState<string[]>([]);
   const [typeIds, setTypeIds] = useState<string[]>([]);
+  const [bookingMode, setBookingMode] = useState<BookingLinkMode>("both");
 
   useEffect(() => {
     if (typesProp) setTypes(typesProp);
@@ -82,11 +84,21 @@ export function OnlineBookingLinksView({
   const utmContent = tab === "custom" ? "custom_link" : "default_link";
 
   const basicLink = practice?.name
-    ? buildBookingLink(practice.name, practice.id, linkParams)
+    ? buildBookingLink(practice.name, practice.id, linkParams, bookingMode)
     : `${window.location.origin}/appt/practice`;
 
+  const classicLink = practice?.name
+    ? buildBookingLink(practice.name, practice.id, linkParams, "form")
+    : basicLink;
+  const chatLink = practice?.name
+    ? buildBookingLink(practice.name, practice.id, linkParams, "agent")
+    : basicLink;
+  const chooseLink = practice?.name
+    ? buildBookingLink(practice.name, practice.id, linkParams, "both")
+    : basicLink;
+
   const conversionLink = practice?.name
-    ? buildConversionBookingLink(practice.name, practice.id, linkParams, { content: utmContent })
+    ? buildConversionBookingLink(practice.name, practice.id, linkParams, { content: utmContent }, bookingMode)
     : basicLink;
 
   const activeHex = showCustomPicker && isValidHex(customHex) ? customHex : color.hex;
@@ -168,7 +180,7 @@ export function OnlineBookingLinksView({
       </div>
       <p className="text-sm text-gray-500">
         Share your booking page publicly with a simple link or a conversion-analytics-enabled &quot;Book Online&quot; button.
-        Online booking links are publicly accessible — anyone with the link can book.
+        Patients can use the classic widget, chat with Angelina, or pick when they arrive. Anyone with the link can book.
       </p>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">
@@ -248,6 +260,44 @@ export function OnlineBookingLinksView({
             </>
           )}
 
+          <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-4">
+            <p className="text-sm font-semibold text-gray-900 mb-1">What should this link open?</p>
+            <p className="text-xs text-gray-500 mb-3">
+              Same as sending forms: classic page, Angelina chat, or let the patient choose.
+            </p>
+            <div className="space-y-2">
+              {(
+                [
+                  ["both", "Let patients choose", "Landing page with chat and classic options"],
+                  ["agent", "Chat with Angelina", "Conversational scheduling — recommended"],
+                  ["form", "Classic booking page", "The original step-by-step widget"],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <label
+                  key={value}
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    bookingMode === value
+                      ? "border-teal-500 bg-white shadow-sm"
+                      : "border-gray-200 bg-white/70 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="bookingMode"
+                    value={value}
+                    checked={bookingMode === value}
+                    onChange={() => setBookingMode(value)}
+                    className="mt-1 accent-teal-500"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-900">{label}</span>
+                    <span className="block text-xs text-gray-500">{hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div>
             <p className="text-sm font-semibold text-gray-900 mb-1">
               {tab === "default"
@@ -273,6 +323,28 @@ export function OnlineBookingLinksView({
                   Preview <ExternalLink size={14} />
                 </button>
               </div>
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">All booking URLs</p>
+              {(
+                [
+                  ["Classic", classicLink],
+                  ["Chat (Angelina)", chatLink],
+                  ["Let patients choose", chooseLink],
+                ] as const
+              ).map(([label, url]) => (
+                <div key={label} className="flex flex-col sm:flex-row gap-2">
+                  <p className="sm:w-36 shrink-0 text-xs font-medium text-gray-600 self-center">{label}</p>
+                  <input readOnly value={url} className={`${inputCls} flex-1 min-w-0 text-xs`} />
+                  <button
+                    type="button"
+                    onClick={() => copy(url, `${label} link`)}
+                    className="px-3 py-2 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-50 whitespace-nowrap"
+                  >
+                    Copy
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -411,7 +483,13 @@ export function OnlineBookingLinksView({
       </div>
 
       {showInstructions && (
-        <ShareInstructionsModal link={basicLink} embedCode={embedCode} onClose={() => setShowInstructions(false)} />
+        <ShareInstructionsModal
+          link={basicLink}
+          chatLink={chatLink}
+          classicLink={classicLink}
+          embedCode={embedCode}
+          onClose={() => setShowInstructions(false)}
+        />
       )}
     </div>
   );

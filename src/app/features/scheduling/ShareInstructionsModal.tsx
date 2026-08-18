@@ -2,17 +2,42 @@ import { X } from "lucide-react";
 import { IconButton } from "../../components/shared/IconButton";
 import { toastSuccess } from "../../lib/toast";
 
-export function ShareInstructionsModal({ link, embedCode, onClose }: {
+export function ShareInstructionsModal({
+  link,
+  embedCode,
+  chatLink,
+  classicLink,
+  onClose,
+}: {
   link: string;
   embedCode: string;
+  chatLink?: string;
+  classicLink?: string;
   onClose: () => void;
 }) {
+  const extraLinks =
+    chatLink || classicLink
+      ? `
+
+1b. CONVERSATIONAL BOOKING (Angelina)
+   Same appointment openings as the classic page, asked one question at a time:
+   ${chatLink || link}
+
+1c. LET PATIENTS CHOOSE
+   Landing page with both chat and classic options:
+   ${link}
+
+   Classic booking page only:
+   ${classicLink || link}
+`
+      : "";
+
   const instructions = `Online booking setup instructions for your web developer
 
 1. BASIC LINK (text messages, social bios, simple placements)
    Paste this URL wherever patients should book:
    ${link}
-
+${extraLinks}
 2. CONVERSION ANALYTICS BUTTON (your website)
    Paste this HTML where you want a "Book Now" button. It includes UTM parameters so you can track bookings from your site in analytics tools.
    ${embedCode}
@@ -22,6 +47,7 @@ export function ShareInstructionsModal({ link, embedCode, onClose }: {
    • For Facebook: add the basic link to your page's Website field.
    • For Instagram: add the basic link in Edit Profile → Website, or use a link-in-bio tool.
    • Test the link after publishing to confirm patients can complete a booking.
+   • Chat and classic booking use the same providers, types, and open slots.
 
 4. NEED HELP?
    Contact your NexHealth support team if you want patients redirected back to your website after booking.`;

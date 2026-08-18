@@ -72,6 +72,32 @@ export function ReserveWithGoogleView({
           utm_campaign: "online_booking",
         })
       : "";
+  const googleChatLink =
+    practice?.name && practice?.id
+      ? buildBookingLink(
+          practice.name,
+          practice.id,
+          {
+            utm_source: "google",
+            utm_medium: "reserve_with_google",
+            utm_campaign: "online_booking",
+          },
+          "agent"
+        )
+      : "";
+  const googleChooseLink =
+    practice?.name && practice?.id
+      ? buildBookingLink(
+          practice.name,
+          practice.id,
+          {
+            utm_source: "google",
+            utm_medium: "reserve_with_google",
+            utm_campaign: "online_booking",
+          },
+          "both"
+        )
+      : "";
 
   const badge = statusLabel(status, enabled);
   const rootCls = embedded ? "space-y-5" : "w-full min-w-0 px-4 sm:px-6 py-5 space-y-5";
@@ -99,10 +125,10 @@ export function ReserveWithGoogleView({
     }
   }
 
-  function copyLink() {
-    if (!googleBookingLink) return;
-    navigator.clipboard.writeText(googleBookingLink);
-    toastSuccess("Google booking link copied");
+  function copyLink(url: string, label: string) {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    toastSuccess(`${label} copied`);
   }
 
   return (
@@ -203,14 +229,30 @@ export function ReserveWithGoogleView({
             for managing local business links.
           </p>
           {googleBookingLink && (
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input readOnly value={googleBookingLink} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-xs bg-gray-50" />
-              <button
-                onClick={copyLink}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg whitespace-nowrap"
-              >
-                <Copy size={14} /> Copy link
-              </button>
+            <div className="space-y-3">
+              {(
+                [
+                  ["Classic booking (Google BOOK ONLINE)", googleBookingLink],
+                  ["Chat with Angelina", googleChatLink],
+                  ["Let patients choose", googleChooseLink],
+                ] as const
+              ).map(([label, url]) => (
+                <div key={label}>
+                  <p className="text-xs font-medium text-gray-600 mb-1">{label}</p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input readOnly value={url} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-xs bg-gray-50" />
+                    <button
+                      onClick={() => copyLink(url, label)}
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg whitespace-nowrap"
+                    >
+                      <Copy size={14} /> Copy
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-gray-500">
+                Google&apos;s automatic Book Online button uses the classic page. You can paste the chat or choose URL on your Google Business listing if you want patients to schedule with Angelina.
+              </p>
             </div>
           )}
         </div>

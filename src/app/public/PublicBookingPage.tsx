@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Calendar, CheckCircle2, MapPin } from "lucide-react";
+import { ArrowLeft, Calendar, CheckCircle2, MapPin, MessageSquare } from "lucide-react";
 import {
   publicBookingApi,
   type PublicApiError,
@@ -16,7 +16,7 @@ import { PublicBookingDetailsForm } from "./PublicBookingDetailsForm";
 import { validateFormField } from "./PublicBookingFormFieldInput";
 import { Skeleton } from "../components/ui/skeleton";
 
-type Step = "loading" | "invalid" | "location" | "kind" | "bookingFor" | "type" | "time" | "details" | "done";
+type Step = "loading" | "invalid" | "choose" | "location" | "kind" | "bookingFor" | "type" | "time" | "details" | "done";
 type PatientKind = "new" | "existing";
 type BookingFor = "self" | "child" | "other";
 
@@ -57,6 +57,14 @@ export function PublicBookingPage({ slug }: { slug: string }) {
   const utmSource = params.get("utm_source") ?? undefined;
   const utmMedium = params.get("utm_medium") ?? undefined;
   const utmCampaign = params.get("utm_campaign") ?? undefined;
+  const bookingMode = (params.get("mode") ?? "").toLowerCase();
+
+  function chatBookingHref() {
+    const u = new URL(window.location.href);
+    u.pathname = `/appt/${slug}/chat`;
+    u.searchParams.delete("mode");
+    return `${u.pathname}${u.search}`;
+  }
 
   const [step, setStep] = useState<Step>("loading");
   const [info, setInfo] = useState<PublicBookingInfo | null>(null);
@@ -101,10 +109,18 @@ export function PublicBookingPage({ slug }: { slug: string }) {
   const askForInsurance = location?.ask_for_insurance ?? false;
 
   useEffect(() => {
+    if (bookingMode === "agent" || bookingMode === "chat") {
+      window.location.replace(chatBookingHref());
+      return;
+    }
     publicBookingApi
       .info(slug, lid, locationIds)
       .then((data) => {
         setInfo(data);
+        if (bookingMode === "both") {
+          setStep("choose");
+          return;
+        }
         if (data.locations.length === 1) {
           const id = data.locations[0].id;
           setLocationId(id);
@@ -115,11 +131,10 @@ export function PublicBookingPage({ slug }: { slug: string }) {
         }
       })
       .catch((err: unknown) => {
-        const apiErr = err as PublicApiError;
-        setInvalidReason(apiErr?.detail || "Online booking is not available.");
+        setInvalidReason(apiErrorMessage(err, "Online booking is not available."));
         setStep("invalid");
       });
-  }, [slug, lid, locationIds]);
+  }, [slug, lid, locationIds, bookingMode]);
 
   useEffect(() => {
     if (!locationId || step === "loading" || step === "invalid" || step === "location" || step === "kind" || step === "bookingFor") return;
@@ -185,6 +200,17 @@ export function PublicBookingPage({ slug }: { slug: string }) {
     }
   }, [slug, locationId, patientKind, lid, info]);
 
+  function startClassicFlow(data: PublicBookingInfo) {
+    if (data.locations.length === 1) {
+      const id = data.locations[0].id;
+      setLocationId(id);
+      if (data.locations[0].separate_by_patient_type) setStep("kind");
+      else setStep("bookingFor");
+    } else {
+      setStep("location");
+    }
+  }
+
   function pickLocation(id: string) {
     setLocationId(id);
     setTypeId("");
@@ -232,9 +258,12 @@ export function PublicBookingPage({ slug }: { slug: string }) {
     else if (step === "bookingFor") {
       if (separateByType) setStep("kind");
       else if (info && info.locations.length > 1) setStep("location");
+      else if (bookingMode === "both") setStep("choose");
     }
-    else if (step === "kind") setStep(info && info.locations.length > 1 ? "location" : "kind");
-    else if (step === "location") return;
+    else if (step === "kind") setStep(info && info.locations.length > 1 ? "location" : bookingMode === "both" ? "choose" : "kind");
+    else if (step === "location") {
+      if (bookingMode === "both") setStep("choose");
+    }
   }
 
   function bookAsNewPatient() {
@@ -397,20 +426,63 @@ export function PublicBookingPage({ slug }: { slug: string }) {
             <h1 className="text-lg font-bold text-gray-900 truncate">{info.practice_name}</h1>
             {location && <p className="text-xs text-gray-500 truncate">{location.name}</p>}
           </div>
+          {step !== "done" && step !== "choose" && (
+            <a
+              href={chatBookingHref()}
+              className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-800 shrink-0"
+            >
+              <MessageSquare size={14} /> Chat with Angelina
+            </a>
+          )}
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         {step !== "done" &&
-          step !== "location" &&
-          !(step === "kind" && info.locations.length === 1) &&
-          !(step === "bookingFor" && info.locations.length === 1 && !separateByType) && (
+          step !== "choose" &&
+          !(step === "location" && bookingMode !== "both") &&
+          !(step === "kind" && info.locations.length === 1 && bookingMode !== "both") &&
+          !(step === "bookingFor" && info.locations.length === 1 && !separateByType && bookingMode !== "both") && (
           <button
             onClick={goBack}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700"
           >
             <ArrowLeft size={15} /> Back
           </button>
+        )}
+
+        {step === "choose" && (
+          <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-900">How would you like to schedule?</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Chat with Angelina, or use the classic booking page — same openings, same appointment.
+              </p>
+            </div>
+            <div className="p-4 space-y-3">
+              <a
+                href={chatBookingHref()}
+                className="flex items-start gap-3 p-4 rounded-xl border border-teal-500 bg-teal-50/60 hover:bg-teal-50 transition-colors"
+              >
+                <MessageSquare size={20} className="text-teal-700 mt-0.5 shrink-0" />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-900">Chat with Angelina</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">Recommended — she asks one question at a time</span>
+                </span>
+              </a>
+              <button
+                type="button"
+                onClick={() => startClassicFlow(info)}
+                className="w-full text-left flex items-start gap-3 p-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"
+              >
+                <Calendar size={20} className="text-gray-500 mt-0.5 shrink-0" />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-900">Classic booking page</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">Pick a time and fill out the form yourself</span>
+                </span>
+              </button>
+            </div>
+          </section>
         )}
 
         {step === "location" && (

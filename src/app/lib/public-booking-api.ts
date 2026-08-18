@@ -99,19 +99,52 @@ export function practiceSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "") || "practice";
 }
 
-export function buildBookingLink(
-  practiceName: string,
+/** How patients reach online booking: classic widget, Angelina chat, or a choice screen. */
+export type BookingLinkMode = "form" | "agent" | "both";
+
+function bookingSearchParams(
   practiceId: string,
   params?: Record<string, string | undefined>
-): string {
-  const slug = practiceSlug(practiceName);
+): URLSearchParams {
   const qs = new URLSearchParams({ lid: practiceId.slice(0, 8) });
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       if (v) qs.set(k, v);
     }
   }
-  return `${window.location.origin}/appt/${slug}?${qs.toString()}`;
+  return qs;
+}
+
+export function buildBookingLink(
+  practiceName: string,
+  practiceId: string,
+  params?: Record<string, string | undefined>,
+  mode: BookingLinkMode = "form"
+): string {
+  const slug = practiceSlug(practiceName);
+  const qs = bookingSearchParams(practiceId, params);
+  if (mode === "both") qs.set("mode", "both");
+  else qs.delete("mode");
+  const path = mode === "agent" ? `/appt/${slug}/chat` : `/appt/${slug}`;
+  return `${window.location.origin}${path}?${qs.toString()}`;
+}
+
+/** Conversational booking — same query params as the classic widget. */
+export function buildChatBookingLink(
+  practiceName: string,
+  practiceId: string,
+  params?: Record<string, string | undefined>
+): string {
+  return buildBookingLink(practiceName, practiceId, params, "agent");
+}
+
+/** Landing page where the patient picks classic widget or Angelina. */
+export function buildChooseBookingLink(
+  practiceName: string,
+  practiceId: string,
+  params?: Record<string, string | undefined>
+): string {
+  return buildBookingLink(practiceName, practiceId, params, "both");
 }
 
 /** Conversion-analytics link with standard UTM parameters for marketing tracking. */
@@ -119,9 +152,10 @@ export function buildConversionBookingLink(
   practiceName: string,
   practiceId: string,
   params?: Record<string, string | undefined>,
-  utm?: { source?: string; medium?: string; campaign?: string; content?: string }
+  utm?: { source?: string; medium?: string; campaign?: string; content?: string },
+  mode: BookingLinkMode = "form"
 ): string {
-  const base = buildBookingLink(practiceName, practiceId, params);
+  const base = buildBookingLink(practiceName, practiceId, params, mode);
   const url = new URL(base);
   url.searchParams.set("utm_source", utm?.source ?? "website");
   url.searchParams.set("utm_medium", utm?.medium ?? "button");

@@ -20,6 +20,7 @@ import { VerificationSection } from "./features/verification/VerificationSection
 import { WaitlistSection } from "./features/scheduling/WaitlistSection";
 import { OnlineBookingSection } from "./features/scheduling/OnlineBookingSection";
 import { PublicBookingPage } from "./public/PublicBookingPage";
+import { PublicBookingAgentPage } from "./public/PublicBookingAgentPage";
 import { PublicBookingThankYouPage } from "./public/PublicBookingThankYouPage";
 import { PublicWaitlistPage } from "./public/PublicWaitlistPage";
 import { PublicFormsPage } from "./public/PublicFormsPage";
@@ -73,6 +74,7 @@ export default function App() {
   const publicFormsMatch = window.location.pathname.match(/\/forms\/([^/]+)\/?$/);
   const publicPacketMatch = window.location.pathname.match(/\/p\/([^/]+)\/?$/);
 
+  const publicApptChatMatch = window.location.pathname.match(/\/appt\/([^/]+)\/chat\/?$/);
   const publicApptMatch = window.location.pathname.match(/\/appt\/([^/]+)\/?$/);
   const publicWaitlistMatch = window.location.pathname.match(/\/waitlist\/([^/]+)\/?$/);
   const isBookingThankYou =
@@ -83,6 +85,7 @@ export default function App() {
   if (publicFormsMatch) return <PublicFormsPage token={publicFormsMatch[1]} />;
   if (publicWaitlistMatch) return <PublicWaitlistPage token={publicWaitlistMatch[1]} />;
   if (isBookingThankYou) return <PublicBookingThankYouPage />;
+  if (publicApptChatMatch) return <PublicBookingAgentPage slug={publicApptChatMatch[1]} />;
   if (publicApptMatch) return <PublicBookingPage slug={publicApptMatch[1]} />;
   if (publicPacketMatch) return <PublicPacketPage code={publicPacketMatch[1]} />;
   if (isTotp2fa) return <Totp2faPage />;
